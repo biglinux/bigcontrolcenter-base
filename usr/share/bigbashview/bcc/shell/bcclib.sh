@@ -114,7 +114,8 @@ function sh_get_code_lang {
 	LangFilterLowercase="${LangFilter,,}"
 	LangClean="${LangFilterLowercase%%_*}"
 	LangCountry="${LangFilterLowercase#*_}"
-	echo "$LangFilterLowercase"
+	LangFilterLowercaseModified="${LangFilterLowercase//_/-}"
+	echo "$LangFilterLowercaseModified"
 }
 export -f sh_get_code_lang
 
