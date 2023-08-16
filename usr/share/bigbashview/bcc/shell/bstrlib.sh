@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/08/13
+#  Altered: 2023/08/16
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -468,6 +468,8 @@ function sh_install_terminal {
 	[[ -z "$ACTION"    ]] && ACTION="$1"
 	[[ -z "$WINDOW_ID" ]] && WINDOW_ID="$2"
 
+#xdebug "ACTION       : $ACTION\n WINDOW_ID    : $WINDOW_ID\nPACKAGE_ID   : $PACKAGE_ID\nPACKAGE_NAME : $PACKAGE_NAME\n"
+
 	if [[ -n "$ACTION" ]]; then
 		SNAP_CLEAN_SCRIPT="./snap_clean.sh"
 		MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$"	WINDOW_ID="$WINDOW_ID" ./install_terminal_resize.sh &
@@ -489,15 +491,15 @@ function sh_install_terminal {
 			sh_update_cache_flatpak
 			;;
 		"install_snap")
-			if [ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]; then
-				pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY $SNAP_CLEAN_SCRIPT install $PACKAGE_NAME
+			if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
+				pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap install "$PACKAGE_NAME"
 			else
 				snap install $PACKAGE_NAME
 			fi
 			;;
 		"remove_snap")
-			if [ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]; then
-				pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY $SNAP_CLEAN_SCRIPT remove $PACKAGE_NAME
+			if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
+				pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap remove "$PACKAGE_NAME"
 			else
 				snap remove $PACKAGE_NAME
 			fi
@@ -518,6 +520,25 @@ function sh_install_terminal {
 	fi
 }
 export -f sh_install_terminal
+
+function sh_run_action {
+   local action="$1"
+   local xwindow_id="$(sh_window_id)"
+
+   ACTION="$action" \
+      WINDOW_ID=$xwindow_id \
+      urxvt +sb \
+      -internalBorder 1 \
+      -borderColor rgb:00/22/40 \
+      -depth 32 \
+      -fg rgb:00/ff/ff \
+      -bg rgb:00/22/40 \
+      -fn "xft:Ubuntu Mono:pixelsize=18" \
+      -embed $xwindow_id \
+      -sr \
+      -bc -e "${LIBRARY}/bstrlib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
+}
+export -f sh_run_action
 
 function sh_main {
 	local execute_app="$1"
