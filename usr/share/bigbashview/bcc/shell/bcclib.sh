@@ -303,20 +303,20 @@ function xdebug {
 	local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
 	local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
 	local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
-#	kdialog --title "[xdebug (kdialog)]$0" --yesno "\n${*}\n" --icon dialog-information
-#	result=$?
-#	((result)) && exit 1
-#	return $result
-
-	yad --title="[xdebug (yad)]$script_name1"	\
-		--text="${*}\n"						\
-		--width=400								\
-		--window-icon="$xicon"				\
-		--button="Sim:1"						\
-		--button="Não:2"
+	kdialog --title "[xdebug (kdialog)]$0" --yesno "\n${*}\n" --icon dialog-information
 	result=$?
-	[[ $result -eq 2 ]] && exit 1
+	((result)) && exit 1
 	return $result
+
+#	yad --title="[xdebug (yad)]$script_name1"	\
+#		--text="${*}\n"						\
+#		--width=400								\
+#		--window-icon="$xicon"				\
+#		--button="Sim:1"						\
+#		--button="Não:2"
+#	result=$?
+#	[[ $result -eq 2 ]] && exit 1
+#	return $result
 }
 export -f xdebug
 
@@ -508,5 +508,41 @@ function sh_get_de {
 	echo $de
 }
 export -f sh_get_de
+
+function sh_get_XIVAStudio {
+	release_description=$(lsb_release -sd)
+	release_description=${release_description//\"/}
+	if [[ "$release_description" = "XIVAStudio" ]]; then
+		return 0
+	fi
+	return 1
+}
+export -f sh_get_XIVAStudio
+
+# ter 15 ago 2023 23:45:22 -04
+# Função que aceita múltiplas linhas de entrada e imprime sem aspas e escapes um bloco de texto, similar ao cat, porém usando o printf
+function sh_print_multiline {
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		printf '%s\n' "$line"
+	done
+}
+export -f sh_print_multiline
+
+# qua 16 ago 2023 01:25:39 -04
+# Função para interpretar o conteúdo e substituir variáveis
+function sh_catp {
+   eval "content=\$(cat <<-'EOF'
+      $(cat)
+EOF
+   )"
+#  sh_print_multiline <<< "$content" | sed 's/^[[:blank:]]*//'
+	printf '\n%s\n' "<!-- INIT_BLOCK => ${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[0]} -->$line"
+   while IFS= read -r line; do
+#		line="${line#"${line%%[![:space:]]*}"}"
+      printf '\t%s\n' "$line"
+   done <<< "$content"
+	printf '\n%s\n' "<!-- END_BLOCK  => ${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[0]} -->$line"
+}
+export -f sh_catp
 
 #sh_debug
