@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/08/16
+#  Altered: 2023/08/18
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,6 +35,7 @@ export TEXTDOMAINDIR="/usr/share/locale"
 export TEXTDOMAIN=big-store
 export HOME_FOLDER="$HOME/.bigstore"
 export TMP_FOLDER="/tmp/bigstore-$USER"
+unset GREP_OPTIONS
 
 function sh_update_cache_snap {
 	# Seleciona e cria a pasta para salvar os arquivos para cache da busca
@@ -87,7 +88,7 @@ function sh_update_cache_flatpak {
 	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
 	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u > "$CACHE_FILE"
 
-	for i in $(LANG=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
+	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
 	done
 
@@ -540,10 +541,44 @@ function sh_run_action {
 }
 export -f sh_run_action
 
+function sh_reinstall_allpkg {
+	pacman -Sy --noconfirm - < <(pacman -Qnq)
+}
+export -f sh_reinstall_allpkg
+
+function sh_pkg_pacman_build_date {
+#	grep "^Build Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+	local build_date
+	local formatted_date
+
+	if build_date=$(grep -oP 'Build Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt")  && [[ -n "$build_date" ]] ; then
+		formatted_date=$(date -d "$build_date" "+%a %b %d %H:%M:%S %Y" | LC_TIME=$LANG sed 's/^\([a-zA-Z]\)/\u\1/')
+		echo "$formatted_date"
+	fi
+}
+export -f sh_pkg_pacman_build_date
+
+function sh_pkg_pacman_install_date {
+#	grep "^Install Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+	local install_date
+	local formatted_date
+
+	if install_date=$(grep -oP 'Install Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt") && [[ -n "$install_date" ]] ; then
+		formatted_date=$(date -d "$install_date" "+%a %b %d %H:%M:%S %Y" | LC_TIME=$LANG sed 's/^\([a-zA-Z]\)/\u\1/')
+		echo "$formatted_date"
+	fi
+}
+export -f sh_pkg_pacman_install_date
+
+function sh_pkg_pacman_install_reason {
+    grep "^Install Reason " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+}
+export -f sh_pkg_pacman_install_reason
+
 function sh_main {
 	local execute_app="$1"
 	eval "$execute_app"
-	return
+#	return
 }
 
 #sh_debug
