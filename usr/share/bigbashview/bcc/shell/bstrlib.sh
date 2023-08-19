@@ -31,11 +31,15 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-export TEXTDOMAINDIR="/usr/share/locale"
-export TEXTDOMAIN=big-store
 export HOME_FOLDER="$HOME/.bigstore"
 export TMP_FOLDER="/tmp/bigstore-$USER"
 unset GREP_OPTIONS
+#Translation
+export TEXTDOMAINDIR="/usr/share/locale"
+export TEXTDOMAIN=big-store
+declare -g Programas_AUR=$"Programas AUR"
+declare -g Programas_Flatpak=$"Programas Flatpak"
+declare -g Programas_Nativos=$"Programas Nativos"
 
 function sh_update_cache_snap {
 	# Seleciona e cria a pasta para salvar os arquivos para cache da busca
@@ -57,7 +61,7 @@ function sh_update_cache_snap {
 	curl --silent "https://api.snapcraft.io/api/v1/snaps/search?confinement=strict&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:" >${folder_to_save_files}
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $numbe_of_pages
-	number_of_pages="$(jq -r '._links.last' ${folder_to_save_files} | sed 's|.*page=||g;s|"||g' | grep [0-9])"
+	number_of_pages="$(jq -r '._links.last' ${folder_to_save_files} | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
 
 	# Inicia o download em paralelo de todas as paginas
 	page=2
@@ -86,14 +90,14 @@ function sh_update_cache_flatpak {
 	[[ -e "$CACHE_FILE" ]] && rm -f "$CACHE_FILE"
 
 	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
-	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u > "$CACHE_FILE"
+	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u >"$CACHE_FILE"
 
 	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
 	done
 
 	#Realize a busca e filtragem de pacotes Flatpak
-	grep -Fwf "$LIST_FILE" "$CACHE_FILE" > "$FILTERED_CACHE_FILE"
+	grep -Fwf "$LIST_FILE" "$CACHE_FILE" >"$FILTERED_CACHE_FILE"
 }
 export -f sh_update_cache_flatpak
 
@@ -128,27 +132,26 @@ function sh_run_pamac_installer {
 	LangFilterLowercase="${LangFilter,,}"
 	LangClean="${LangFilterLowercase%%_*}"
 	LangCountry="${LangFilterLowercase#*_}"
-	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
+	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 "[_-]$LangCountry" )"
 
 	pamac-installer $@ $AutoAddLangPkg &
-
 	PID="$!"
 
-	if [ "$PID" = "" ]; then
+	if [[ -z "$PID" ]]; then
 		exit
 	fi
 
 	CONTADOR=0
 	while [ $CONTADOR -lt 100 ]; do
 		if [ "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" != "" ]; then
-			xsetprop -id=$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ") --atom WM_TRANSIENT_FOR --value $(wmctrl -p -l -x | grep Big-Store$ | cut -f1 -d" ") -f 32x
-			wmctrl -i -r $(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ") -b add,skip_pager,skip_taskbar
-			wmctrl -i -r $(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ") -b toggle,modal
+			xsetprop -id="$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" --atom WM_TRANSIENT_FOR --value "$(wmctrl -p -l -x | grep Big-Store$ | cut -f1 -d" ")" -f 32x
+			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b add,skip_pager,skip_taskbar
+			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b toggle,modal
 			break
 		fi
 
 		sleep 0.1
-		let CONTADOR=CONTADOR+1
+		((++CONTADOR))
 	done
 	wait
 }
@@ -160,7 +163,7 @@ function sh_run_pamac_remove {
 		PKGS="$PKGS $(echo "$i" | sed 's|-[0-9].*||g')"
 	done
 
-	pamac-installer --remove $@ $(LC_ALL=C timeout 10s pamac remove -odc $PKGS | grep "^  " | cut -f3 -d" ") &
+	pamac-installer --remove $@ "$(LC_ALL=C timeout 10s pamac remove -odc $PKGS | grep "^  " | cut -f3 -d" ")" &
 
 	PID="$!"
 
@@ -171,14 +174,14 @@ function sh_run_pamac_remove {
 	CONTADOR=0
 	while [ $CONTADOR -lt 100 ]; do
 		if [ "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" != "" ]; then
-			xsetprop -id=$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ") --atom WM_TRANSIENT_FOR --value $(wmctrl -p -l -x | grep Big-Store$ | cut -f1 -d" ") -f 32x
-			wmctrl -i -r $(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ") -b add,skip_pager,skip_taskbar
-			wmctrl -i -r $(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ") -b toggle,modal
+			xsetprop -id="$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" --atom WM_TRANSIENT_FOR --value "$(wmctrl -p -l -x | grep Big-Store$ | cut -f1 -d" ")" -f 32x
+			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b add,skip_pager,skip_taskbar
+			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b toggle,modal
 			break
 		fi
 
 		sleep 0.1
-		let CONTADOR=CONTADOR+1
+		((++CONTADOR))
 	done
 	wait
 }
@@ -291,7 +294,7 @@ function sh_category_aur {
 }
 export -f sh_category_aur
 
-function sh_category_flatpak {
+function sh_search_flatpak {
 	# Read installed packages
 	## portuguese
 	# Le os pacotes instalados em flatpak
@@ -309,7 +312,7 @@ function sh_category_flatpak {
 	IFS=$'\n'
 
 	# Inicia uma função para possibilitar o uso em modo assíncrono
-	parallel_filter() {
+	flatpak_parallel_filter() {
 		readarray -t -d"|" myarray <<<"$1"
 		PKG_NAME="${myarray[0]}"
 		PKG_DESC="${myarray[1]}"
@@ -398,8 +401,8 @@ function sh_category_flatpak {
 
 	1)
 		for i in $(grep -i -m 60 -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile); do
-			let COUNT=COUNT+1
-			parallel_filter "$i" &
+			((++COUNT))
+			flatpak_parallel_filter "$i" &
 			if [ "$COUNT" = "60" ]; then
 				break
 			fi
@@ -408,8 +411,8 @@ function sh_category_flatpak {
 
 	2)
 		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -m 60 -e "$(echo "$search" | cut -f2 -d" ")"); do
-			let COUNT=COUNT+1
-			parallel_filter "$i" &
+			((++COUNT))
+			flatpak_parallel_filter "$i" &
 			if [ "$COUNT" = "60" ]; then
 				break
 			fi
@@ -418,8 +421,8 @@ function sh_category_flatpak {
 
 	*)
 		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -e "$(echo "$search" | cut -f2 -d" ")" | grep -i -m 60 -e "$(echo "$search" | cut -f3 -d" ")"); do
-			let COUNT=COUNT+1
-			parallel_filter "$i" &
+			((++COUNT))
+			flatpak_parallel_filter "$i" &
 			if [ "$COUNT" = "60" ]; then
 				break
 			fi
@@ -431,11 +434,7 @@ function sh_category_flatpak {
 	wait
 
 	if [ "$COUNT" -gt "0" ]; then
-		echo '<script>
-	runAvatarFlatpak();
-	$(document).ready(function () {
-	$("#box_flatpak").show();});
-	</script>' >>${TMP_FOLDER}/flatpakbuild.html
+		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>" >>${TMP_FOLDER}/flatpakbuild.html
 	fi
 
 	echo "$COUNT" >"${TMP_FOLDER}/flatpak_number.html"
@@ -445,7 +444,207 @@ function sh_category_flatpak {
 
 	IFS=$OIFS
 }
-export -f sh_category_flatpak
+export -f sh_search_flatpak
+
+function sh_search_snap {
+	declare -g VERSION=$"Versão: "
+	declare -g PACKAGE=$"Pacote: "
+	declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
+	declare -gA Asnap_Data
+
+	function sh_create_array_snap_apps {
+		while IFS='|' read -r PKG_NAME PKG_ID PKG_ICON PKG_DESC PKG_VERSION PKG_CMD; do
+			Asnap_Data["$PKG_NAME"]="$PKG_ID|$PKG_ICON|$PKG_DESC|$PKG_VERSION|$PKG_CMD"
+		done <$snap_cache_file
+	}
+
+	function sh_find_matching_packages {
+		local partial_info="$1"    # Informação parcial que você quer procurar
+		local matching_packages=() # Array para armazenar os pacotes correspondentes
+
+		# Iterar pelas chaves do array snap_data
+		for package_name in "${!Asnap_Data[@]}"; do
+			package_info="${Asnap_Data[$package_name]}"
+
+			# Verificar se a informação parcial está presente na chave ou nas informações
+			if [[ "$package_name" == *"$partial_info"* ]] || [[ "$package_info" == *"$partial_info"* ]]; then
+				matching_packages+=("$package_name")
+			fi
+		done
+		echo "${matching_packages[@]}"
+	}
+
+		# Lê os pacotes instalados em snap
+		#	SNAP_INSTALLED_LIST="|$(snap list | cut -f1 -d" " | tail -n +2 | tr '\n' '|')"
+		SNAP_INSTALLED_LIST="|$(awk 'NR>1 {printf "%s|", $1} END {printf "\b\n"}' <(snap list))"
+
+		#sh_create_array_snap_apps
+
+		# Remova o comentário para fazer testes no terminal
+		#search=office
+
+		# Muda o delimitador para somente quebra de linha
+		#	OIFS=$IFS
+		#	IFS=$'\n'
+
+		# Inicia uma função para possibilitar o uso em modo assíncrono
+		snap_parallel_filter() {
+			readarray -t -d"|" myarray <<<"$1"
+			PKG_NAME="${myarray[0]}"
+			PKG_ID="${myarray[1]}"
+			PKG_ICON="${myarray[2]}"
+			PKG_DESC="${myarray[3]}"
+			PKG_VERSION="${myarray[4]}"
+			PKG_CMD="${myarray[5]}"
+
+	#		xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
+
+			#Melhora a ordem de exibição dos pacotes, funciona em conjunto com o css que irá reordenar
+			#de acordo com o id da div, que aqui é representado pela variavel $PKG_ORDER
+			#		PKG_NAME_CLEAN="$(echo "$search" | cut -f1 -d" ")"
+			PKG_NAME_CLEAN="${search%% *}"
+
+			# Verifica se o pacote está instalado
+			#		if [[ "$(echo "$SNAP_INSTALLED_LIST" | grep -i -m1 "|$PKG_CMD|")" != "" ]]; then
+			if [[ "${SNAP_INSTALLED_LIST,,}" == *"|$PKG_CMD|"* ]]; then
+				PKG_INSTALLED=$"Remover"
+				DIV_SNAP_INSTALLED="appstream_installed"
+				PKG_ORDER="SnapP1"
+			else
+				PKG_INSTALLED=$"Instalar"
+				DIV_SNAP_INSTALLED="appstream_not_installed"
+
+				PKG_ORDER="SnapP3"
+				#			[[ "$(echo "$PKG_NAME $PKG_CMD" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]] && PKG_ORDER="SnapP2"
+				[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
+
+				PKG_ORDER="SnapP3"
+				#			[[ "$(echo "$PKG_NAME $PKG_CMD" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]] && PKG_ORDER="SnapP2"
+				[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
+			fi
+			if [[ -z "$PKG_ICON" ]]; then
+				cat >>${TMP_FOLDER}/snapbuild.html <<-EOF
+					<!--$PKG_NAME-->
+					<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
+					<div class="col s12 m6 l3" id="$PKG_ORDER">
+					<div class="showapp">
+					<div id="snap_icon">
+					<div class="icon_middle">
+					<div class="avatar_snap">
+					${PKG_NAME:0:3}
+					</div>
+					</div>
+					<div id="snap_name">
+					$PKG_NAME
+					<div id="version">
+					$PKG_VERSION
+					</div>
+					</div>
+					</div>
+					<div id="box_snap_desc">
+					<div id="snap_desc">
+					$PKG_DESC
+					</div>
+					</div>
+					<div id="$DIV_SNAP_INSTALLED">
+					$PKG_INSTALLED
+					</div>
+					</a>
+					</div>
+					</div>
+				EOF
+			else
+				cat >>${TMP_FOLDER}/snapbuild.html <<-EOF
+					<!--$PKG_NAME-->
+					<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
+					<div class="col s12 m6 l3" id="$PKG_ORDER">
+					<div class="showapp">
+					<div id="snap_icon">
+					<div class="icon_middl">
+					<img class="icon" loading="lazy" src="$PKG_ICON">
+					</div>
+					<div id="snap_name">
+					$PKG_NAME
+					<div id="version">
+					$PKG_VERSION
+					</div>
+					</div>
+					</div>
+					<div id="box_snap_desc">
+					<div id="snap_desc">
+					$PKG_DESC
+					</div>
+					</div>
+					<div id="$DIV_SNAP_INSTALLED">
+					$PKG_INSTALLED
+					</div>
+					</a>
+					</div>
+					</div>
+				EOF
+			fi
+		}
+
+		# Inicia o loop, filtrando o conteudo do arquivo ${HOME_FOLDER}/snap.cache
+		[[ -e ${TMP_FOLDER}/snapbuild.html ]] && rm -f ${TMP_FOLDER}/snapbuild.html
+
+		if [[ -z "$resultFilter_checkbox" ]]; then
+			cacheFile="${HOME_FOLDER}/snap.cache"
+		else
+			cacheFile="${HOME_FOLDER}/snap_filtered.cache"
+		fi
+
+		COUNT=0
+		pattern1="${search%% *}"
+		pattern2="${search#*}"
+		pattern2="${pattern2%% *}"
+		pattern3="${search##*}"
+
+		case $(wc -w <<<"$search") in
+		1)
+			while IFS= read -r line; do
+				((++COUNT))
+				snap_parallel_filter "$line" &
+				if [ "$COUNT" = "60" ]; then
+					break
+				fi
+			done < <(grep -i -m 60 -e "$pattern1" "$cacheFile")
+			;;
+		2)
+			while IFS= read -r line; do
+				((++COUNT))
+				snap_parallel_filter "$line" &
+				if [ "$COUNT" = "60" ]; then
+					break
+				fi
+			done < <(grep -i -e "$pattern1" "$cacheFile"|grep -i -m 60 -e "$pattern2" "$cacheFile" )
+			;;
+		*)
+			while IFS= read -r line; do
+				((++COUNT))
+				snap_parallel_filter "$line" &
+				if [ "$COUNT" = "60" ]; then
+					break
+				fi
+			done < <(grep -i -e "$pattern1" "$cacheFile"| grep -i -e "$pattern2" "$cacheFile"|grep -i -m 60 -e "$pattern3" "$cacheFile" )
+			;;
+		esac
+
+		# Aguarda todos os resultados antes de exibir para o usuário
+		wait
+
+		# Se houver resultados utiliza o javascript para exibir na tela
+		if [[ "$COUNT" -gt 0 ]]; then
+			cat >>${TMP_FOLDER}/snapbuild.html <<-EOF
+				<script>runAvatarSnap();\$(document).ready(function () {\$("#box_snap").show();});</script>
+			EOF
+		fi
+
+		echo "$COUNT" >"${TMP_FOLDER}/snap_number.html"
+		mv -f ${TMP_FOLDER}/snapbuild.html ${TMP_FOLDER}/snap.html
+	#	IFS=$OIFS
+}
+export -f sh_search_snap
 
 function sh_count_snap_list {
 	local snap_count=$(snap list | wc -l)
@@ -455,25 +654,25 @@ function sh_count_snap_list {
 export -f sh_count_snap_list
 
 function sh_count_snap_cache_lines {
-	wc -l < "$HOME_FOLDER/snap.cache"
+	wc -l <"$HOME_FOLDER/snap.cache"
 }
 export -f sh_count_snap_cache_lines
 
 function sh_SO_installation_date {
-#	ls -lct /etc | tail -1 | awk '{print $6, $7, $8}')
+	#	ls -lct /etc | tail -1 | awk '{print $6, $7, $8}')
 	expac --timefmt='%Y-%m-%d %T' '%l\t%n' | sort | head -n 1
 }
 export -f sh_SO_installation_date
 
 function sh_install_terminal {
-	[[ -z "$ACTION"    ]] && ACTION="$1"
+	[[ -z "$ACTION" ]] && ACTION="$1"
 	[[ -z "$WINDOW_ID" ]] && WINDOW_ID="$2"
 
-#xdebug "ACTION       : $ACTION\n WINDOW_ID    : $WINDOW_ID\nPACKAGE_ID   : $PACKAGE_ID\nPACKAGE_NAME : $PACKAGE_NAME\n"
+	#xdebug "ACTION       : $ACTION\n WINDOW_ID    : $WINDOW_ID\nPACKAGE_ID   : $PACKAGE_ID\nPACKAGE_NAME : $PACKAGE_NAME\n"
 
 	if [[ -n "$ACTION" ]]; then
 		SNAP_CLEAN_SCRIPT="./snap_clean.sh"
-		MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$"	WINDOW_ID="$WINDOW_ID" ./install_terminal_resize.sh &
+		MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$" WINDOW_ID="$WINDOW_ID" ./install_terminal_resize.sh &
 
 		case "$ACTION" in
 		"reinstall_pamac") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac reinstall $PACKAGE_NAME --no-confirm ;;
@@ -505,12 +704,12 @@ function sh_install_terminal {
 				snap remove $PACKAGE_NAME
 			fi
 			;;
-		"update_pacman")       pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syy --noconfirm ;;
-		"update_mirror")       pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_run_pacman_mirror ;;
-		"update_keys")         pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
-		"force_upgrade")       pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
-		"reinstall_allpkg")    pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
-		"system_upgrade")      pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
+		"update_pacman") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syy --noconfirm ;;
+		"update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_run_pacman_mirror ;;
+		"update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
+		"force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
+		"reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
+		"system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
 		"system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
 		esac
 	fi
@@ -523,21 +722,21 @@ function sh_install_terminal {
 export -f sh_install_terminal
 
 function sh_run_action {
-   local action="$1"
-   local xwindow_id="$(sh_window_id)"
+	local action="$1"
+	local xwindow_id="$(sh_window_id)"
 
-   ACTION="$action" \
-      WINDOW_ID=$xwindow_id \
-      urxvt +sb \
-      -internalBorder 1 \
-      -borderColor rgb:00/22/40 \
-      -depth 32 \
-      -fg rgb:00/ff/ff \
-      -bg rgb:00/22/40 \
-      -fn "xft:Ubuntu Mono:pixelsize=18" \
-      -embed $xwindow_id \
-      -sr \
-      -bc -e "${LIBRARY}/bstrlib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
+	ACTION="$action"
+	WINDOW_ID=$xwindow_id
+	urxvt +sb \
+		-internalBorder 1 \
+		-borderColor rgb:00/22/40 \
+		-depth 32 \
+		-fg rgb:00/ff/ff \
+		-bg rgb:00/22/40 \
+		-fn "xft:Ubuntu Mono:pixelsize=18" \
+		-embed $xwindow_id \
+		-sr \
+		-bc -e "${LIBRARY}/bstrlib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
 }
 export -f sh_run_action
 
@@ -547,11 +746,11 @@ function sh_reinstall_allpkg {
 export -f sh_reinstall_allpkg
 
 function sh_pkg_pacman_build_date {
-#	grep "^Build Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+	#	grep "^Build Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
 	local build_date
 	local formatted_date
 
-	if build_date=$(grep -oP 'Build Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt")  && [[ -n "$build_date" ]] ; then
+	if build_date=$(grep -oP 'Build Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt") && [[ -n "$build_date" ]]; then
 		formatted_date=$(date -d "$build_date" "+%a %b %d %H:%M:%S %Y" | LC_TIME=$LANG sed 's/^\([a-zA-Z]\)/\u\1/')
 		echo "$formatted_date"
 	fi
@@ -559,11 +758,11 @@ function sh_pkg_pacman_build_date {
 export -f sh_pkg_pacman_build_date
 
 function sh_pkg_pacman_install_date {
-#	grep "^Install Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+	#	grep "^Install Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
 	local install_date
 	local formatted_date
 
-	if install_date=$(grep -oP 'Install Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt") && [[ -n "$install_date" ]] ; then
+	if install_date=$(grep -oP 'Install Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt") && [[ -n "$install_date" ]]; then
 		formatted_date=$(date -d "$install_date" "+%a %b %d %H:%M:%S %Y" | LC_TIME=$LANG sed 's/^\([a-zA-Z]\)/\u\1/')
 		echo "$formatted_date"
 	fi
@@ -571,14 +770,14 @@ function sh_pkg_pacman_install_date {
 export -f sh_pkg_pacman_install_date
 
 function sh_pkg_pacman_install_reason {
-    grep "^Install Reason " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+	grep "^Install Reason " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
 }
 export -f sh_pkg_pacman_install_reason
 
 function sh_main {
 	local execute_app="$1"
 	eval "$execute_app"
-#	return
+	#	return
 }
 
 #sh_debug
