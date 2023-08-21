@@ -698,10 +698,15 @@ function sh_pkg_pacman_install_reason {
 }
 export -f sh_pkg_pacman_install_reason
 
+
 function sh_main {
-	local execute_app="$1"
-	eval "$execute_app"
-	#	return
+   local execute_app="$1"
+
+   if test $# -ge 1; then
+      shift
+      eval "$execute_app"
+   fi
+   #  return
 }
 
 #sh_debug
