@@ -651,9 +651,13 @@ function sh_install_terminal_resize {
 export -f sh_install_terminal_resize
 
 function sh_main {
-	local execute_app="$1"
-	eval "$execute_app"
-	#  return
+   local execute_app="$1"
+
+   if test $# -ge 1; then
+      shift
+      eval "$execute_app"
+   fi
+   #  return
 }
 
 #sh_debug
