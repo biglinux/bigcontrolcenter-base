@@ -35,7 +35,7 @@
 
 APP="${0##*/}"
 _VERSION_="1.0.0-20230818"
-BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
+#BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
 red=$(tput setaf 124)
@@ -545,4 +545,116 @@ EOF
 }
 export -f sh_catp
 
+function sh_run_action {
+   local action="$1"
+   local xwindow_id="$(sh_window_id)"
+
+   ACTION="$action"
+   WINDOW_ID="$xwindow_id"
+   urxvt +sb \
+      -internalBorder 1 \
+      -borderColor rgb:00/22/40 \
+      -depth 32 \
+      -fg rgb:00/ff/ff \
+      -bg rgb:00/22/40 \
+      -fn "xft:Ubuntu Mono:pixelsize=14" \
+      -embed "$xwindow_id" \
+      -sr \
+      -bc -e sh -c "sh_install_terminal "$ACTION" "$WINDOW_ID""
+#	   -bc -e "${LIBRARY}/bcclib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
+}
+export -f sh_run_action
+
+function sh_install_terminal {
+	[[ -z "$ACTION" ]] && ACTION="$1"
+	[[ -z "$WINDOW_ID" ]] && WINDOW_ID="$2"
+
+#	xdebug "ACTION       : $ACTION\n WINDOW_ID    : $WINDOW_ID\nPACKAGE_ID   : $PACKAGE_ID\nPACKAGE_NAME : $PACKAGE_NAME\n"
+
+   if [[ -n "$ACTION" ]]; then
+      SNAP_CLEAN_SCRIPT="./snap_clean.sh"
+     	MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$" WINDOW_ID="$WINDOW_ID" sh_install_terminal_resize &
+
+      case "$ACTION" in
+      "reinstall_pamac") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac reinstall $PACKAGE_NAME --no-confirm ;;
+      "install_flatpak")
+         flatpak install --or-update $REPOSITORY $PACKAGE_ID -y
+         if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
+            flatpak uninstall --unused -y
+         fi
+         sh_update_cache_flatpak
+         ;;
+      "remove_flatpak")
+         flatpak remove $PACKAGE_ID -y
+         if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
+            flatpak uninstall --unused -y
+         fi
+         sh_update_cache_flatpak
+         ;;
+      "install_snap")
+         if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
+            pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap install "$PACKAGE_NAME"
+         else
+            snap install $PACKAGE_NAME
+         fi
+         ;;
+      "remove_snap")
+         if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
+            pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap remove "$PACKAGE_NAME"
+         else
+            snap remove $PACKAGE_NAME
+         fi
+         ;;
+      "update_pacman") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syy --noconfirm;;
+      "update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_run_pacman_mirror ;;
+      "update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
+      "force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
+      "reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
+      "system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
+      "system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
+      esac
+   fi
+
+   if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
+      kill -9 $PID_BIG_DEB_INSTALLER
+      exit 0
+   fi
+}
+export -f sh_install_terminal
+
+function sh_install_terminal_resize {
+	while :; do
+#		WINDOW_HEIGHT_DETECT="$(xwininfo -id $WINDOW_ID | grep Height: | sed 's|.* ||g')"
+#		WINDOW_WIDTH="$(xwininfo -id $WINDOW_ID | grep Width: | sed 's|.* ||g')"
+#		WIDTH_TERMINAL="$(echo "$WINDOW_WIDTH * 0.7 / 10" | bc | cut -f1 -d".")"
+#		MARGIN_LEFT="$(echo "$WINDOW_WIDTH * 0.15" | bc | cut -f1 -d".")"
+#		MARGIN_TOP="$(echo "$WINDOW_HEIGHT_DETECT * 0.5" $MARGIN_TOP_MOVE | bc | cut -f1 -d".")"
+#		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
+
+		WINDOW_HEIGHT_DETECT=$(xwininfo -id $WINDOW_ID | awk '/Height:/ {print $2}')
+		WINDOW_WIDTH=$(xwininfo -id $WINDOW_ID | awk '/Width:/ {print $2}')
+		WIDTH_TERMINAL=$((WINDOW_WIDTH * 7 / 100))
+		MARGIN_LEFT=$((WINDOW_WIDTH * 15 / 100))
+		MARGIN_TOP=$((WINDOW_HEIGHT_DETECT * 5 / 10 + MARGIN_TOP_MOVE))
+		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
+
+		sleep 1
+
+		# if close bigbashview window, kill terminal too
+		if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
+			kill -9 $PID_TERM_BIG_STORE
+#	      kill -9 $PID_BIG_DEB_INSTALLER
+			exit 0
+		fi
+	done
+}
+export -f sh_install_terminal_resize
+
+function sh_main {
+	local execute_app="$1"
+	eval "$execute_app"
+	#  return
+}
+
 #sh_debug
+sh_main "$@"
