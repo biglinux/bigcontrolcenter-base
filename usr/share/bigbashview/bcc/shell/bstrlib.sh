@@ -193,7 +193,7 @@ function sh_run_pamac_mirror {
 }
 export -f sh_run_pamac_mirror
 
-function sh_category_aur {
+function sh_search_aur {
 	[[ -e ${TMP_FOLDER}/aurbuild.html ]] && rm -f ${TMP_FOLDER}/aurbuild.html
 	#PKG="$@"
 
@@ -292,7 +292,7 @@ function sh_category_aur {
 
 	mv ${TMP_FOLDER}/aurbuild.html ${TMP_FOLDER}/aur.html
 }
-export -f sh_category_aur
+export -f sh_search_aur
 
 function sh_search_flatpak {
 	# Le os pacotes instalados em flatpak
@@ -730,6 +730,14 @@ function sh_pkg_pacman_install_reason {
 	grep "^Install Reason " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
 }
 export -f sh_pkg_pacman_install_reason
+
+function search_appstream_pamac {
+	[[ -e ${TMP_FOLDER}/appstreambuild.html ]] && rm -f ${TMP_FOLDER}/appstreambuild.html
+	echo "" >${TMP_FOLDER}/upgradeable.txt
+	pacman -Qu | cut -f1 -d" " >>${TMP_FOLDER}/upgradeable.txt
+	./search_appstream_pamac_simple.py "${@}" >>${TMP_FOLDER}/appstreambuild.html
+	mv ${TMP_FOLDER}/appstreambuild.html ${TMP_FOLDER}/appstream.html
+}
 
 function sh_main {
    local execute_app="$1"
