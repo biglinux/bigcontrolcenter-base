@@ -295,10 +295,10 @@ function sh_category_aur {
 export -f sh_category_aur
 
 function sh_search_flatpak {
-	# Read installed packages
-	## portuguese
 	# Le os pacotes instalados em flatpak
 	FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
+
+#xdebug "$FLATPAK_INSTALLED_LIST"
 
 	VERSION=$"Versão: "
 	PACKAGE=$"Pacote: "
@@ -306,6 +306,8 @@ function sh_search_flatpak {
 
 	# Le o parametro passado via terminal e cria a variavel $search
 	search="$*"
+
+#xdebug "$search"
 
 	# Muda o delimitador para somente quebra de linha
 	OIFS=$IFS
@@ -339,16 +341,14 @@ function sh_search_flatpak {
 		PKG_ICON="$(find /var/lib/flatpak/appstream/ -type f -iname "$PKG_ID.png" -print -quit)"
 
 		# If not found try another way
-		if [ "$PKG_ICON" = "" ]; then
-
+		if [[ -z "$PKG_ICON" ]]; then
 			# If cached icon not found, try online
 			PKG_ICON="$(awk /\<id\>$PKG_ID\<\\/id\>/,/\<\\/component\>/ $PKG_XML_APPSTREAM | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
 
 			# If online icon not found, try another way
-			if [ "$PKG_ICON" = "" ]; then
+			if [[ -z "$PKG_ICON" ]]; then
 				PKG_ICON="$(awk /\<id\>$PKG_ID.desktop\<\\/id\>/,/\<\\/component\>/ $PKG_XML_APPSTREAM | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
 			fi
-
 		fi
 
 		# Improve order of packages
@@ -381,24 +381,62 @@ function sh_search_flatpak {
 
 		# If all fail, use generic icon
 		if [ "$PKG_ICON" = "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 'type=')" != "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 '<description>')" != "" ]; then
-			cat >>${TMP_FOLDER}/flatpakbuild.html <<-EOF
-				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID"><div class="col s12 m6 l3" id="$PKG_ORDER"><div class="showapp"><div id=flatpak_icon><div class=icon_middle><div class=icon_middle><div class=avatar_flatpak>${PKG_NAME:0:3}</div></div></div><div id=flatpak_name>$PKG_NAME<div id=version>$PKG_VERSION_ORIG</div></div></div><div id=box_flatpak_desc><div id=flatpak_desc>$PKG_DESC</div></div><div id=$DIV_FLATPAK_INSTALLED>$PKG_INSTALLED</div></a></div></div>
+			cat >>${TMP_FOLDER}/flatpak_build.html <<-EOF
+				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
+				<div class="col s12 m6 l3" id="$PKG_ORDER">
+				<div class="showapp">
+				<div id="flatpak_icon">
+				<div class="icon_middle">
+				<div class="icon_middle">
+				<div class="avatar_flatpak">
+				${PKG_NAME:0:3}
+				</div></div></div>
+				<div id="flatpak_name">
+				$PKG_NAME
+				<div id="version">
+				$PKG_VERSION_ORIG
+				</div></div></div>
+				<div id="box_flatpak_desc">
+				<div id="flatpak_desc">
+				$PKG_DESC
+				</div></div>
+				<div id="$DIV_FLATPAK_INSTALLED">
+				$PKG_INSTALLED
+				</div></a></div></div>
 			EOF
 		else
-			cat >>${TMP_FOLDER}/flatpakbuild.html <<-EOF
-				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID"><div class="col s12 m6 l3" id="$PKG_ORDER"><div class="showapp"><div id=flatpak_icon><div class=icon_middle><img class="icon" loading="lazy" src="$PKG_ICON"></div><div id=flatpak_name>$PKG_NAME<div id=version>$PKG_VERSION_ORIG</div></div></div><div id=box_flatpak_desc><div id=flatpak_desc>$PKG_DESC</div></div><div id=$DIV_FLATPAK_INSTALLED>$PKG_INSTALLED</div></a></div></div>
+			cat >>${TMP_FOLDER}/flatpak_build.html <<-EOF
+				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
+				<div class="col s12 m6 l3" id="$PKG_ORDER">
+				<div class="showapp">
+				<div id="flatpak_icon">
+				<div class="icon_middle">
+				<img class="icon" loading="lazy" src="$PKG_ICON">
+				</div>
+				<div id="flatpak_name">
+				$PKG_NAME
+				<div id="version">
+				$PKG_VERSION_ORIG
+				</div></div></div>
+				<div id="box_flatpak_desc">
+				<div id="flatpak_desc">
+				$PKG_DESC
+				</div></div>
+				<div id="$DIV_FLATPAK_INSTALLED">
+				$PKG_INSTALLED
+				</div></a></div></div>
 			EOF
 		fi
 	}
 
-	if [ "$resultFilter_checkbox" = "" ]; then
+	if [[ -z "$resultFilter_checkbox" ]]; then
 		cacheFile="${HOME_FOLDER}/flatpak.cache"
 	else
 		cacheFile="${HOME_FOLDER}/flatpak_filtered.cache"
 	fi
+
 	COUNT=0
 	case "$(echo "$search" | wc -w)" in
-
 	1)
 		for i in $(grep -i -m 60 -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile); do
 			((++COUNT))
@@ -408,7 +446,6 @@ function sh_search_flatpak {
 			fi
 		done
 		;;
-
 	2)
 		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -m 60 -e "$(echo "$search" | cut -f2 -d" ")"); do
 			((++COUNT))
@@ -418,7 +455,6 @@ function sh_search_flatpak {
 			fi
 		done
 		;;
-
 	*)
 		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -e "$(echo "$search" | cut -f2 -d" ")" | grep -i -m 60 -e "$(echo "$search" | cut -f3 -d" ")"); do
 			((++COUNT))
@@ -428,20 +464,17 @@ function sh_search_flatpak {
 			fi
 		done
 		;;
-
 	esac
-
 	wait
 
-	if [ "$COUNT" -gt "0" ]; then
-		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>" >>${TMP_FOLDER}/flatpakbuild.html
+	if [[ "$COUNT" -gt "0" ]]; then
+		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>" >>${TMP_FOLDER}/flatpak_build.html
 	fi
 
 	echo "$COUNT" >"${TMP_FOLDER}/flatpak_number.html"
 
-	# mv -f ${TMP_FOLDER}/flatpakbuild.html ${TMP_FOLDER}/flatpak.html
-	# cat "${TMP_FOLDER}/flatpakbuild.html" >> ${TMP_FOLDER}/flatpak.html
-
+	# mv -f ${TMP_FOLDER}/flatpak_build.html ${TMP_FOLDER}/flatpak.html
+	# cat "${TMP_FOLDER}/flatpak_build.html" >> ${TMP_FOLDER}/flatpak.html
 	IFS=$OIFS
 }
 export -f sh_search_flatpak
@@ -698,7 +731,6 @@ function sh_pkg_pacman_install_reason {
 }
 export -f sh_pkg_pacman_install_reason
 
-
 function sh_main {
    local execute_app="$1"
 
@@ -710,4 +742,4 @@ function sh_main {
 }
 
 #sh_debug
-sh_main "$@"
+#sh_main "$@"
