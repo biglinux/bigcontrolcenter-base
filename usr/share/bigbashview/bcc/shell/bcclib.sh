@@ -661,4 +661,4 @@ function sh_main {
 }
 
 #sh_debug
-sh_main "$@"
+#sh_main "$@"
