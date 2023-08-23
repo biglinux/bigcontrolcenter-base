@@ -549,19 +549,19 @@ function sh_run_action {
    local action="$1"
    local xwindow_id="$(sh_window_id)"
 
-   ACTION="$action"
-   WINDOW_ID="$xwindow_id"
-   pkexec urxvt +sb \
-      -internalBorder 1 \
-      -borderColor rgb:00/22/40 \
-      -depth 32 \
-      -fg rgb:00/ff/ff \
-      -bg rgb:00/22/40 \
-      -fn "xft:Ubuntu Mono:pixelsize=14" \
-      -embed "$xwindow_id" \
-      -sr \
-      -bc -e sh -c "sh_install_terminal "$ACTION" "$WINDOW_ID""
-#	   -bc -e "${LIBRARY}/bcclib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
+    ACTION="$action"
+    WINDOW_ID="$xwindow_id"
+    urxvt +sb \
+            -internalBorder 1 \
+            -borderColor rgb:00/22/40 \
+            -depth 32 \
+            -fg rgb:00/ff/ff \
+            -bg rgb:00/22/40 \
+            -fn "xft:Ubuntu Mono:pixelsize=14" \
+            -embed "$xwindow_id" \
+            -sr \
+            -bc -e bash -c "sh_install_terminal "$ACTION" "$WINDOW_ID""
+#           -bc -e "${LIBRARY}/bcclib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
 }
 export -f sh_run_action
 
@@ -578,14 +578,14 @@ function sh_install_terminal {
       case "$ACTION" in
       "reinstall_pamac") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac reinstall $PACKAGE_NAME --no-confirm ;;
       "install_flatpak")
-         flatpak install --or-update $REPOSITORY $PACKAGE_ID -y
+         pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak install --or-update $REPOSITORY $PACKAGE_ID -y
          if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
             flatpak uninstall --unused -y
          fi
          sh_update_cache_flatpak
          ;;
       "remove_flatpak")
-         flatpak remove $PACKAGE_ID -y
+         pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak remove $PACKAGE_ID -y
          if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
             flatpak uninstall --unused -y
          fi
