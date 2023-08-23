@@ -551,7 +551,7 @@ function sh_run_action {
 
    ACTION="$action"
    WINDOW_ID="$xwindow_id"
-   urxvt +sb \
+   pkexec urxvt +sb \
       -internalBorder 1 \
       -borderColor rgb:00/22/40 \
       -depth 32 \
