@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2023/08/18
+#  Altered: 2023/08/24
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -34,7 +34,7 @@
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230818"
+_VERSION_="1.0.0-20230824"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -308,15 +308,15 @@ function xdebug {
 	((result)) && exit 1
 	return $result
 
-#	yad --title="[xdebug (yad)]$script_name1"	\
-#		--text="${*}\n"						\
-#		--width=400								\
-#		--window-icon="$xicon"				\
-#		--button="Sim:1"						\
-#		--button="Não:2"
-#	result=$?
-#	[[ $result -eq 2 ]] && exit 1
-#	return $result
+	#	yad --title="[xdebug (yad)]$script_name1"	\
+	#		--text="${*}\n"						\
+	#		--width=400								\
+	#		--window-icon="$xicon"				\
+	#		--button="Sim:1"						\
+	#		--button="Não:2"
+	#	result=$?
+	#	[[ $result -eq 2 ]] && exit 1
+	#	return $result
 }
 export -f xdebug
 
@@ -327,7 +327,8 @@ function log_error {
 export -f log_error
 
 function cmdlogger {
-	local lastcmd="$@"
+	#	local lastcmd="$@"
+	local lastcmd="$*"
 	local status
 	local error_output
 	local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
@@ -374,7 +375,8 @@ function sh_get_wm {
 			# lsof may not exist, or may need root on some systems. Similarly fuser.
 			# On those systems we search for a list of known window managers, this can mistakenly
 			# match processes for another user or session and will miss unlisted window managers.
-			wm=$(ps "${ps_flags[@]}" | grep -m 1 -o -F \
+			#			wm=$(ps "${ps_flags[@]}" | grep -m 1 -o -F \
+			wm=$(pgrep -f "${ps_flags[@]}" \
 				-e arcan \
 				-e asc \
 				-e clayland \
@@ -408,7 +410,8 @@ function sh_get_wm {
 
 	elif [[ $DISPLAY && $os != "Mac OS X" && $os != "macOS" && $os != FreeMiNT ]]; then
 		# non-EWMH WMs.
-		wm=$(ps "${ps_flags[@]}" | grep -m 1 -o \
+		#		wm=$(ps "${ps_flags[@]}" | grep -m 1 -o \
+		wm=$(pgrep -f "${ps_flags[@]}" \
 			-e "[s]owm" \
 			-e "[c]atwm" \
 			-e "[f]vwm" \
@@ -509,10 +512,12 @@ function sh_get_de {
 }
 export -f sh_get_de
 
+# qua 23 ago 2023 19:20:09 -04
 function sh_get_XIVAStudio {
 	release_description=$(lsb_release -sd)
-	release_description=${release_description//\"/}
-	if [[ "$release_description" = "XIVAStudio" ]]; then
+	release_description=${release_description//\"/} # remove as aspas
+	release_description=${release_description^^}    # Converte para maiúsculas
+	if [[ "$release_description" == *"XIVA"* ]]; then
 		return 0
 	fi
 	return 1
@@ -531,105 +536,120 @@ export -f sh_print_multiline
 # qua 16 ago 2023 01:25:39 -04
 # Função para interpretar o conteúdo e substituir variáveis
 function sh_catp {
-   eval "content=\$(cat <<-'EOF'
+	eval "content=\$(cat <<-'EOF'
       $(cat)
 EOF
    )"
-#  sh_print_multiline <<< "$content" | sed 's/^[[:blank:]]*//'
+	#  sh_print_multiline <<< "$content" | sed 's/^[[:blank:]]*//'
 	printf '\n%s\n' "<!-- INIT_BLOCK => ${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[0]} -->$line"
-   while IFS= read -r line; do
-#		line="${line#"${line%%[![:space:]]*}"}"
-      printf '\t%s\n' "$line"
-   done <<< "$content"
+	while IFS= read -r line; do
+		#		line="${line#"${line%%[![:space:]]*}"}"
+		printf '\t%s\n' "$line"
+	done <<<"$content"
 	printf '\n%s\n' "<!-- END_BLOCK  => ${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[0]} -->$line"
 }
 export -f sh_catp
 
 function sh_run_action {
-   local action="$1"
-   local xwindow_id="$(sh_window_id)"
+	local action="$1"
+	local window_id="$2"
+	local package_name="$3"
+	local package_id="$4"
+	local repository="$5"
+	local driver="$6"
 
-    ACTION="$action"
-    WINDOW_ID="$xwindow_id"
-    urxvt +sb \
-            -internalBorder 1 \
-            -borderColor rgb:00/22/40 \
-            -depth 32 \
-            -fg rgb:00/ff/ff \
-            -bg rgb:00/22/40 \
-            -fn "xft:Ubuntu Mono:pixelsize=14" \
-            -embed "$xwindow_id" \
-            -sr \
-            -bc -e bash -c "sh_install_terminal "$ACTION" "$WINDOW_ID""
-#           -bc -e "${LIBRARY}/bcclib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
+	[[ -z "$window_id" ]] && window_id="$(sh_window_id)"
+	ACTION="$action"
+	WINDOW_ID="$window_id"
+	PACKAGE_NAME="$package_name"
+	PACKAGE_ID="$package_id"
+	REPOSITORY="$repository"
+	DRIVER="$driver"
+	urxvt +sb \
+		-internalBorder 1 \
+		-borderColor rgb:00/22/40 \
+		-depth 32 \
+		-fg rgb:00/ff/ff \
+		-bg rgb:00/22/40 \
+		-fn "xft:Ubuntu Mono:pixelsize=14" \
+		-embed "$WINDOW_ID" \
+		-sr \
+		-bc -e bash -c "sh_install_terminal $ACTION $WINDOW_ID $PACKAGE_NAME $PACKAGE_ID $REPOSITORY $DRIVER"
+	#           -bc -e bash -c "sh_install_terminal "$ACTION" "$WINDOW_ID""
+	#           -bc -e "${LIBRARY}/bcclib.sh" sh_install_terminal "$ACTION" "$WINDOW_ID"
 }
 export -f sh_run_action
 
 function sh_install_terminal {
 	[[ -z "$ACTION" ]] && ACTION="$1"
 	[[ -z "$WINDOW_ID" ]] && WINDOW_ID="$2"
+	[[ -z "$PACKAGE_NAME" ]] && PACKAGE_NAME="$3"
+	[[ -z "$PACKAGE_ID" ]] && PACKAGE_ID="$4"
+	[[ -z "$REPOSITORY" ]] && REPOSITORY="$5"
+	[[ -z "$DRIVER" ]] && DRIVER="$6"
 
 #	xdebug "ACTION       : $ACTION\n WINDOW_ID    : $WINDOW_ID\nPACKAGE_ID   : $PACKAGE_ID\nPACKAGE_NAME : $PACKAGE_NAME\n"
 
-   if [[ -n "$ACTION" ]]; then
-      SNAP_CLEAN_SCRIPT="./snap_clean.sh"
-     	MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$" WINDOW_ID="$WINDOW_ID" sh_install_terminal_resize &
+	if [[ -n "$ACTION" ]]; then
+		MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$" WINDOW_ID="$WINDOW_ID" sh_install_terminal_resize &
 
-      case "$ACTION" in
-      "reinstall_pamac") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac reinstall $PACKAGE_NAME --no-confirm ;;
-      "install_flatpak")
-         pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak install --or-update $REPOSITORY $PACKAGE_ID -y
-         if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
-            flatpak uninstall --unused -y
-         fi
-         sh_update_cache_flatpak
-         ;;
-      "remove_flatpak")
-         pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak remove $PACKAGE_ID -y
-         if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
-            flatpak uninstall --unused -y
-         fi
-         sh_update_cache_flatpak
-         ;;
-      "install_snap")
-         if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
-            pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap install "$PACKAGE_NAME"
-         else
-            snap install $PACKAGE_NAME
-         fi
-         ;;
-      "remove_snap")
-         if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
-            pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap remove "$PACKAGE_NAME"
-         else
-            snap remove $PACKAGE_NAME
-         fi
-         ;;
-      "update_pacman") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syy --noconfirm;;
-      "update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_run_pacman_mirror ;;
-      "update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
-      "force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
-      "reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
-      "system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
-      "system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
-      esac
-   fi
+		case "$ACTION" in
+		"reinstall_pamac") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac reinstall $PACKAGE_NAME --no-confirm ;;
+		"install_flatpak")
+			pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak install --or-update $REPOSITORY $PACKAGE_ID -y
+			if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
+				flatpak uninstall --unused -y
+			fi
+			sh_update_cache_flatpak
+			;;
+		"remove_flatpak")
+			pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak remove $PACKAGE_ID -y
+			if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
+				flatpak uninstall --unused -y
+			fi
+			sh_update_cache_flatpak
+			;;
+		"install_snap")
+			if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
+            	pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap install "$PACKAGE_NAME"
+            	sh_snap_clean 
+         	else
+	           	snap install "$PACKAGE_NAME"
+            	sh_snap_clean 
+			fi
+         	;;
+      	"remove_snap")
+         	if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
+            	pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap remove "$PACKAGE_NAME"
+         	else
+            	snap remove $PACKAGE_NAME
+         	fi
+         	;;
+		"update_pacman") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syy --noconfirm ;;
+		"update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_run_pacman_mirror ;;
+		"update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
+		"force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
+		"reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
+		"system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
+		"system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
+		esac
+	fi
 
-   if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
-      kill -9 $PID_BIG_DEB_INSTALLER
-      exit 0
-   fi
+	if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
+		kill -9 $PID_BIG_DEB_INSTALLER
+		exit 0
+	fi
 }
 export -f sh_install_terminal
 
 function sh_install_terminal_resize {
 	while :; do
-#		WINDOW_HEIGHT_DETECT="$(xwininfo -id $WINDOW_ID | grep Height: | sed 's|.* ||g')"
-#		WINDOW_WIDTH="$(xwininfo -id $WINDOW_ID | grep Width: | sed 's|.* ||g')"
-#		WIDTH_TERMINAL="$(echo "$WINDOW_WIDTH * 0.7 / 10" | bc | cut -f1 -d".")"
-#		MARGIN_LEFT="$(echo "$WINDOW_WIDTH * 0.15" | bc | cut -f1 -d".")"
-#		MARGIN_TOP="$(echo "$WINDOW_HEIGHT_DETECT * 0.5" $MARGIN_TOP_MOVE | bc | cut -f1 -d".")"
-#		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
+		#		WINDOW_HEIGHT_DETECT="$(xwininfo -id $WINDOW_ID | grep Height: | sed 's|.* ||g')"
+		#		WINDOW_WIDTH="$(xwininfo -id $WINDOW_ID | grep Width: | sed 's|.* ||g')"
+		#		WIDTH_TERMINAL="$(echo "$WINDOW_WIDTH * 0.7 / 10" | bc | cut -f1 -d".")"
+		#		MARGIN_LEFT="$(echo "$WINDOW_WIDTH * 0.15" | bc | cut -f1 -d".")"
+		#		MARGIN_TOP="$(echo "$WINDOW_HEIGHT_DETECT * 0.5" $MARGIN_TOP_MOVE | bc | cut -f1 -d".")"
+		#		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
 
 		WINDOW_HEIGHT_DETECT=$(xwininfo -id $WINDOW_ID | awk '/Height:/ {print $2}')
 		WINDOW_WIDTH=$(xwininfo -id $WINDOW_ID | awk '/Width:/ {print $2}')
@@ -643,7 +663,7 @@ function sh_install_terminal_resize {
 		# if close bigbashview window, kill terminal too
 		if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
 			kill -9 $PID_TERM_BIG_STORE
-#	      kill -9 $PID_BIG_DEB_INSTALLER
+			#	      kill -9 $PID_BIG_DEB_INSTALLER
 			exit 0
 		fi
 	done
@@ -651,13 +671,13 @@ function sh_install_terminal_resize {
 export -f sh_install_terminal_resize
 
 function sh_main {
-   local execute_app="$1"
+	local execute_app="$1"
 
-   if test $# -ge 1; then
-      shift
-      eval "$execute_app"
-   fi
-   #  return
+	if test $# -ge 1; then
+		shift
+		eval "$execute_app"
+	fi
+	#  return
 }
 
 #sh_debug
