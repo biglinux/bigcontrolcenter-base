@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/08/18
+#  Altered: 2023/08/24
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -295,6 +295,11 @@ function search_appstream_pamac {
 	mv ${TMP_FOLDER}/appstreambuild.html ${TMP_FOLDER}/appstream.html
 }
 
+#qua 23 ago 2023 22:44:29 -04
+function sh_pkg_pacman_version {
+	grep "^Version " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2-10 -d: | awk 'NF'
+}
+export -f sh_pkg_pacman_version
 
 function sh_count_snap_list {
 	local snap_count=$(snap list | wc -l)
@@ -503,26 +508,18 @@ export -f sh_search_snap
 
 
 function sh_search_aur {
-	[[ -e ${TMP_FOLDER}/aurbuild.html ]] && rm -f ${TMP_FOLDER}/aurbuild.html
+	[[ -e ${TMP_FOLDER}/aur_build.html ]] && rm -f ${TMP_FOLDER}/aur_build.html
 	#PKG="$@"
+	LANGUAGE=C yay -a -Si $@ | gawk -v tmpfolder=${TMP_FOLDER} -v instalar=$"Instalar" -v remover=$"Remover" -- '
 
-	LANGUAGE=C yay -a -Si $@ |
-		gawk -v tmpfolder=${TMP_FOLDER} -v instalar=$"Instalar" -v remover=$"Remover" -- '
 	### Begin of gawk script
-
-	BEGIN {
-	    OFS = "\n"
-	}
+	BEGIN { OFS = "\n" }
 
 	# Following block runs when blank line found, i.e., on the transition between packages
-	!$0 {
-	    title = version = description = not_installed = idaur = button = skipping = ""
-	}
+	!$0 { title = version = description = not_installed = idaur = button = skipping = "" }
 
 	# Skips lines between packages
-	skipping {
-	    next
-	}
+	skipping { next }
 
 	/^Name/ {
 	    title = gensub(/^Name +: /,"",1)
@@ -536,13 +533,8 @@ function sh_search_aur {
 	    }
 	}
 
-	/^Version/ {
-	    version = gensub(/^Version +: /,"",1)
-	}
-
-	/^Description/ {
-	    description = gensub(/^Description +: /,"",1)
-	}
+	/^Version/     { version = gensub(/^Version +: /,"",1) }
+	/^Description/ { description = gensub(/^Description +: /,"",1) }
 
 	# When all variables are set
 	title && version && description && idaur && button {
@@ -564,7 +556,7 @@ function sh_search_aur {
 	        RS = RS_BAK
 	    }
 
-	# Writes html of current package on aurbuild.html
+	# Writes html of current package on aur_build.html
 	# Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
 	    print(\
 	"<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
@@ -574,7 +566,7 @@ function sh_search_aur {
 	"<div id=aur_name><div id=limit_title_name>" title "</div>",
 	"<div id=version>" version "</div></div></div>",
 	"<div id=box_aur_desc><div id=aur_desc>" description "</div></div>",
-	button) > tmpfolder "/aurbuild.html"
+	button) > tmpfolder "/aur_build.html"
 
 	    count++
 	    skipping++
@@ -587,11 +579,13 @@ function sh_search_aur {
 	        print(\
 	"<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
 	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-	"<script>runAvatarAur();</script>") > tmpfolder "/aurbuild.html"
+	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+	        print(count) > tmpfolder "/aur_number.html"
 	    } else {
 	        print(\
 	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-	"<script>runAvatarAur();</script>") > tmpfolder "/aurbuild.html"
+	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+	        print(count) > tmpfolder "/aur_number.html"
 	    }
 	}
 
@@ -599,7 +593,9 @@ function sh_search_aur {
 	'
 	# End of gawk script
 
-	mv ${TMP_FOLDER}/aurbuild.html ${TMP_FOLDER}/aur.html
+#    COUNT=1
+#	echo "$COUNT" >"${TMP_FOLDER}/aur_number.html"
+	mv ${TMP_FOLDER}/aur_build.html ${TMP_FOLDER}/aur.html
 }
 export -f sh_search_aur
 
@@ -725,6 +721,23 @@ function sh_run_pacman_mirror {
 }
 export -f sh_run_pacman_mirror
 
+function sh_snap_clean {
+    if [ "$(snap get system refresh.retain)" != "2" ]; then
+        snap set system refresh.retain=2
+    fi
+
+    OIFS=$IFS
+    IFS=$'\n'
+
+    for i in $(snap list --all | awk '/disabled/{print "snap remove", $1, "--revision", $3}'); do
+        IFS=$OIFS
+        $i
+        IFS=$'\n'
+    done
+    IFS=$OIFS
+}
+export -f sh_snap_clean
+
 function sh_snap_enable {
 	systemctl start snapd
 	systemctl enable snapd
@@ -769,6 +782,7 @@ function sh_run_pamac_mirror {
 }
 export -f sh_run_pamac_mirror
 
+# qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_version {
 #   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f4 -d"|"
     grep -i "$1|" $HOME_FOLDER/flatpak.cache | cut -f4 -d"|"
@@ -776,17 +790,55 @@ function sh_pkg_flatpak_version {
 }
 export -f sh_pkg_flatpak_version
 
+# qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_update {
 #   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f7 -d"|"
     grep -i "$1|" $HOME_FOLDER/flatpak.cache | cut -f6 -d"|"
 }
 export -f sh_pkg_flatpak_update
 
+# qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
 #   echo "$1" > ~/.bigstore/flatpak-verification-fault
     echo "$1" > $HOME_FOLDER/flatpak-verification-fault
 }
 export -f sh_pkg_flatpak_verify
+
+#qua 23 ago 2023 19:40:41 -04
+function sh_load_main {
+	local pacote="$2"
+	local paths
+    declare -g msgNenhumParam=$"Nenhum pacote passado como parâmetro"
+    declare -g msgDownload=$"Baixando pacotes novos da base de dados do servidor"
+
+	echo "$msgDownload"
+	pacman -Fy >/dev/null 2>&-
+
+	if [[ -n "$pacote" ]]; then
+		case $1 in
+		pkg_not_installed)
+        	pacman -Flq "$pacote" | sed 's|^|/|'
+		    ;;
+		pkg_installed)
+			pacman -Qk "$pacote"
+			pacman -Qlq "$pacote"
+			;;
+		pkg_installed_flatpak)
+			echo "Folder base: $(flatpak info --show-location "$pacote")"
+			find "$(flatpak info --show-location "$pacote")" | sed "s|$(flatpak info --show-location "$pacote")||g"
+			;;
+		esac
+	else
+		echo "$msgNenhumParam"
+	fi
+}
+export -f sh_load_main
+
+# qua 23 ago 2023 20:37:16 -04
+function sh_this_package_update {
+    pacman -Qu $1 2>/dev/null | awk '{print $NF}'
+}
+export -f sh_this_package_update
 
 function sh_main {
     local execute_app="$1"
