@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#shellcheck disable=SC2155,SC2034,SC2317
+#shellcheck disable=SC2155,SC2034,SC2317,SC2143
 #shellcheck source=/dev/null
 
 #  bstrlib.sh
@@ -42,6 +42,14 @@ declare -g Programas_Flatpak=$"Programas Flatpak"
 declare -g Programas_Nativos=$"Programas Nativos"
 
 function sh_search_flatpak() {
+	# Le o parametro passado via terminal e cria a variavel $search
+	search="$*"
+
+#	OIFS=$IFS
+#	IFS=$'\n'
+
+	#   xdebug "sh_search_flatpak[$LINENO]: $search"
+
 	# Le os pacotes instalados em flatpak
 	FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
 
@@ -51,14 +59,9 @@ function sh_search_flatpak() {
 	PACKAGE=$"Pacote: "
 	NOT_VERSION=$"Não informada"
 
-	# Le o parametro passado via terminal e cria a variavel $search
-	search="$*"
-
 	#xdebug "$search"
 
 	# Muda o delimitador para somente quebra de linha
-	OIFS=$IFS
-	IFS=$'\n'
 
 	# Inicia uma função para possibilitar o uso em modo assíncrono
 	function flatpak_parallel_filter() {
@@ -97,10 +100,10 @@ function sh_search_flatpak() {
 		PKG_NAME_CLEAN="${search% *}"
 
 		# Verify if package are installed
-#		if [ "$(echo "$FLATPAK_INSTALLED_LIST" | LC_ALL=C grep -i -m1 "|$PKG_ID|")" != "" ]; then
+		# if [ "$(echo "$FLATPAK_INSTALLED_LIST" | LC_ALL=C grep -i -m1 "|$PKG_ID|")" != "" ]; then
 		if [[ "$FLATPAK_INSTALLED_LIST" == *"|$PKG_ID|"* ]]; then
-#			if [ "$(echo "$PKG_UPDATE" | tr -d '\n')" != "" ]; then
-			if [ -n "$(tr -d '\n' <<< "$PKG_UPDATE")" ]; then
+			# if [ "$(echo "$PKG_UPDATE" | tr -d '\n')" != "" ]; then
+			if [ -n "$(tr -d '\n' <<<"$PKG_UPDATE")" ]; then
 				PKG_INSTALLED=$"Atualizar"
 				DIV_FLATPAK_INSTALLED="flatpak_upgradable"
 				PKG_ORDER="FlatpakP1"
@@ -113,11 +116,11 @@ function sh_search_flatpak() {
 			PKG_INSTALLED=$"Instalar"
 			DIV_FLATPAK_INSTALLED="flatpak_not_installed"
 
-#			if [ "$(echo "$PKG_NAME $PKG_ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
-			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<< "$PKG_NAME $PKG_ID"; then
+			# if [ "$(echo "$PKG_NAME $PKG_ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
+			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"$PKG_NAME $PKG_ID"; then
 				PKG_ORDER="FlatpakP2"
-#			elif [ "$(echo "$ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
-			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<< "$ID"; then
+			# elif [ "$(echo "$ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
+			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"$ID"; then
 				PKG_ORDER="FlatpakP3"
 			else
 				PKG_ORDER="FlatpakP4"
@@ -125,9 +128,9 @@ function sh_search_flatpak() {
 		fi
 
 		# If all fail, use generic icon
-#		if [ "$PKG_ICON" = "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 'type=')" != "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 '<description>')" != "" ]; then
-		if [[ -z "$PKG_ICON" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<< "$PKG_ICON")" ]]; then
-			cat >>${TMP_FOLDER}/flatpak_build.html <<-EOF
+		# if [ "$PKG_ICON" = "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 'type=')" != "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 '<description>')" != "" ]; then
+		if [[ -z "$PKG_ICON" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"$PKG_ICON")" ]]; then
+			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
 				<div class="col s12 m6 l3" id="$PKG_ORDER">
 				<div class="showapp">
@@ -151,7 +154,7 @@ function sh_search_flatpak() {
 				</div></a></div></div>
 			EOF
 		else
-			cat >>${TMP_FOLDER}/flatpak_build.html <<-EOF
+			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
 				<div class="col s12 m6 l3" id="$PKG_ORDER">
 				<div class="showapp">
@@ -173,95 +176,115 @@ function sh_search_flatpak() {
 				</div></a></div></div>
 			EOF
 		fi
+#		IFS=$OIFS
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
-		cacheFile="${HOME_FOLDER}/flatpak.cache"
+		cacheFile="$HOME_FOLDER/flatpak.cache"
 	else
-		cacheFile="${HOME_FOLDER}/flatpak_filtered.cache"
+		cacheFile="$HOME_FOLDER/flatpak_filtered.cache"
 	fi
 
-#	COUNT=0
-#	case "$(echo "$search" | wc -w)" in
+	#	COUNT=0
+	#	case "$(echo "$search" | wc -w)" in
+	#	1)
+	#		for i in $(grep -i -m 60 -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile); do
+	#			((++COUNT))
+	#			flatpak_parallel_filter "$i" &
+	#			if [ "$COUNT" = "60" ]; then
+	#				break
+	#			fi
+	#		done
+	#		;;
+	#	2)
+	#		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -m 60 -e "$(echo "$search" | cut -f2 -d" ")"); do
+	#			((++COUNT))
+	#			flatpak_parallel_filter "$i" &
+	#			if [ "$COUNT" = "60" ]; then
+	#				break
+	#			fi
+	#		done
+	#		;;
+	#	*)
+	#		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -e "$(echo "$search" | cut -f2 -d" ")" | grep -i -m 60 -e "$(echo "$search" | cut -f3 -d" ")"); do
+	#			((++COUNT))
+	#			flatpak_parallel_filter "$i" &
+	#			if [ "$COUNT" = "60" ]; then
+	#				break
+	#			fi
+	#		done
+	#		;;
+	#	esac
+	#	wait
+
+	local COUNT=0
+	local LIMITE=10000
+#	local pattern1="${search%% *}"
+#	local pattern2="${search#*}"
+#	local pattern2="${pattern2%% *}"
+#	local pattern3="${search##*}"
+#
+#	case $(wc -w <<<"$search") in
 #	1)
-#		for i in $(grep -i -m 60 -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile); do
+#		while IFS= read -r line; do
 #			((++COUNT))
-#			flatpak_parallel_filter "$i" &
-#			if [ "$COUNT" = "60" ]; then
+#			flatpak_parallel_filter "$line" &
+#			if [ "$COUNT" = "$LIMITE" ]; then
 #				break
 #			fi
-#		done
+#		done < <(grep -i -m $LIMITE -e "$pattern1" "$cacheFile")
 #		;;
 #	2)
-#		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -m 60 -e "$(echo "$search" | cut -f2 -d" ")"); do
+#		while IFS= read -r line; do
 #			((++COUNT))
-#			flatpak_parallel_filter "$i" &
-#			if [ "$COUNT" = "60" ]; then
+#			flatpak_parallel_filter "$line" &
+#			if [ "$COUNT" = "$LIMITE" ]; then
 #				break
 #			fi
-#		done
+#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m $LIMITE -e "$pattern2" "$cacheFile")
 #		;;
 #	*)
-#		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -e "$(echo "$search" | cut -f2 -d" ")" | grep -i -m 60 -e "$(echo "$search" | cut -f3 -d" ")"); do
+#		while IFS= read -r line; do
 #			((++COUNT))
-#			flatpak_parallel_filter "$i" &
-#			if [ "$COUNT" = "60" ]; then
+#			flatpak_parallel_filter "$line" &
+#			if [ "$COUNT" = "$LIMITE" ]; then
 #				break
 #			fi
-#		done
+#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m $LIMITE -e "$pattern3" "$cacheFile")
 #		;;
 #	esac
-#	wait
 
-	COUNT=0
-	pattern1="${search%% *}"
-	pattern2="${search#*}"
-	pattern2="${pattern2%% *}"
-	pattern3="${search##*}"
-
-	case $(wc -w <<<"$search") in
-	1)
-		while IFS= read -r line; do
-			((++COUNT))
-			flatpak_parallel_filter "$line" &
-			if [ "$COUNT" = "60" ]; then
-				break
-			fi
-		done < <(grep -i -m 60 -e "$pattern1" "$cacheFile")
-		;;
-	2)
-		while IFS= read -r line; do
-			((++COUNT))
-			flatpak_parallel_filter "$line" &
-			if [ "$COUNT" = "60" ]; then
-				break
-			fi
-		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m 60 -e "$pattern2" "$cacheFile")
-		;;
-	*)
-		while IFS= read -r line; do
-			((++COUNT))
-			flatpak_parallel_filter "$line" &
-			if [ "$COUNT" = "60" ]; then
-				break
-			fi
-		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m 60 -e "$pattern3" "$cacheFile")
-		;;
-	esac
+#xdebug "$search"
+	for i in ${search[@]}; do
+#xdebug "$i"
+		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
+#xdebug "$result"
+			while IFS= read -r line; do
+				((++COUNT))
+				flatpak_parallel_filter "$line" &
+				if [ "$COUNT" = "$LIMITE" ]; then
+					break
+				fi
+			done <<< "$result"
+		fi
+	done
 
 	# Aguarda todos os resultados antes de exibir para o usuário
 	wait
 
-
-	if [[ "$COUNT" -gt "0" ]]; then
-		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>" >>${TMP_FOLDER}/flatpak_build.html
+	# if [[ "$COUNT" -gt "0" ]]; then
+	if ((COUNT)); then
+		#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
+		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
+		EOF
 	fi
 
-	echo "$COUNT" >"${TMP_FOLDER}/flatpak_number.html"
+	echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
 
-	# mv -f ${TMP_FOLDER}/flatpak_build.html ${TMP_FOLDER}/flatpak.html
+	cp -f ${TMP_FOLDER}/flatpak_build.html ${TMP_FOLDER}/flatpak.html
 	# cat "${TMP_FOLDER}/flatpak_build.html" >> ${TMP_FOLDER}/flatpak.html
-	IFS=$OIFS
+	# IFS=$OIFS
 }
 export -f sh_search_flatpak
 
@@ -275,7 +298,7 @@ function sh_pkg_pacman_install_date {
 	local install_date
 	local formatted_date
 
-	if install_date=$(grep -oP 'Install Date\s*:\s*\K.*' "${TMP_FOLDER}/pacman_pkg_cache.txt") && [[ -n "$install_date" ]]; then
+	if install_date=$(grep -oP 'Install Date\s*:\s*\K.*' "$TMP_FOLDER/pacman_pkg_cache.txt") && [[ -n "$install_date" ]]; then
 		formatted_date=$(date -d "$install_date" "+%a %b %d %H:%M:%S %Y" | LC_TIME=$LANG sed 's/^\([a-zA-Z]\)/\u\1/')
 		echo "$formatted_date"
 	fi
@@ -283,17 +306,17 @@ function sh_pkg_pacman_install_date {
 export -f sh_pkg_pacman_install_date
 
 function sh_pkg_pacman_install_reason {
-	grep "^Install Reason " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
+	grep "^Install Reason " "$TMP_FOLDER/pacman_pkg_cache.txt" | cut -f2 -d:
 }
 export -f sh_pkg_pacman_install_reason
 
 function search_appstream_pamac {
-	[[ -e ${TMP_FOLDER}/appstreambuild.html ]] && rm -f ${TMP_FOLDER}/appstreambuild.html
-	echo "" >${TMP_FOLDER}/upgradeable.txt
-	pacman -Qu | cut -f1 -d" " >>${TMP_FOLDER}/upgradeable.txt
-#	./search_appstream_pamac_simple.py "${@}" >>${TMP_FOLDER}/appstreambuild.html
-	./search_appstream_pamac "${@}" >>${TMP_FOLDER}/appstreambuild.html
-	mv ${TMP_FOLDER}/appstreambuild.html ${TMP_FOLDER}/appstream.html
+	[[ -e "$TMP_FOLDER/appstreambuild.html" ]] && rm -f "$TMP_FOLDER/appstreambuild.html"
+	echo "" >"$TMP_FOLDER/upgradeable.txt"
+	pacman -Qu | cut -f1 -d" " >>"$TMP_FOLDER/upgradeable.txt"
+	#	./search_appstream_pamac_simple.py "${@}" >>"$TMP_FOLDER/appstreambuild.html"
+	./search_appstream_pamac "${@}" >>"$TMP_FOLDER/appstreambuild.html"
+	mv "$TMP_FOLDER/appstreambuild.html" "$TMP_FOLDER/appstream.html"
 }
 
 #qua 23 ago 2023 22:44:29 -04
@@ -384,7 +407,7 @@ function sh_search_snap {
 			[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
 		fi
 		if [[ -z "$PKG_ICON" ]]; then
-			cat >>${TMP_FOLDER}/snapbuild.html <<-EOF
+			cat >>"$TMP_FOLDER/snapbuild.html" <<-EOF
 				<!--$PKG_NAME-->
 				<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
 				<div class="col s12 m6 l3" id="$PKG_ORDER">
@@ -415,7 +438,7 @@ function sh_search_snap {
 				</div>
 			EOF
 		else
-			cat >>${TMP_FOLDER}/snapbuild.html <<-EOF
+			cat >>"$TMP_FOLDER/snapbuild.html" <<-EOF
 				<!--$PKG_NAME-->
 				<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
 				<div class="col s12 m6 l3" id="$PKG_ORDER">
@@ -447,7 +470,7 @@ function sh_search_snap {
 	}
 
 	# Inicia o loop, filtrando o conteudo do arquivo ${HOME_FOLDER}/snap.cache
-	[[ -e ${TMP_FOLDER}/snapbuild.html ]] && rm -f ${TMP_FOLDER}/snapbuild.html
+	[[ -e "$TMP_FOLDER/snapbuild.html" ]] && rm -f "$TMP_FOLDER/snapbuild.html"
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
 		cacheFile="${HOME_FOLDER}/snap.cache"
@@ -496,22 +519,21 @@ function sh_search_snap {
 
 	# Se houver resultados utiliza o javascript para exibir na tela
 	if [[ "$COUNT" -gt 0 ]]; then
-		cat >>${TMP_FOLDER}/snapbuild.html <<-EOF
+		cat >>"$TMP_FOLDER/snapbuild.html" <<-EOF
 			<script>runAvatarSnap();\$(document).ready(function () {\$("#box_snap").show();});</script>
 		EOF
 	fi
 
-	echo "$COUNT" >"${TMP_FOLDER}/snap_number.html"
-	mv -f ${TMP_FOLDER}/snapbuild.html ${TMP_FOLDER}/snap.html
+	echo "$COUNT" >"$TMP_FOLDER/snap_number.html"
+	mv -f "$TMP_FOLDER/snapbuild.html" "$TMP_FOLDER/snap.html"
 	#	IFS=$OIFS
 }
 export -f sh_search_snap
 
-
 function sh_search_aur {
-	[[ -e ${TMP_FOLDER}/aur_build.html ]] && rm -f ${TMP_FOLDER}/aur_build.html
+	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	#PKG="$@"
-	LANGUAGE=C yay -a -Si $@ | gawk -v tmpfolder=${TMP_FOLDER} -v instalar=$"Instalar" -v remover=$"Remover" -- '
+	LANGUAGE=C yay -a -Si "$@" | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
 
 	### Begin of gawk script
 	BEGIN { OFS = "\n" }
@@ -594,32 +616,31 @@ function sh_search_aur {
 	'
 	# End of gawk script
 
-#    COUNT=1
-#	echo "$COUNT" >"${TMP_FOLDER}/aur_number.html"
-	mv ${TMP_FOLDER}/aur_build.html ${TMP_FOLDER}/aur.html
+	#    COUNT=1
+	#	echo "$COUNT" >"${TMP_FOLDER}/aur_number.html"
+	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
 }
 export -f sh_search_aur
 
-
 function sh_run_pamac_remove {
-#	PKGS=""
-#	for i in $(echo n | LC_ALL=C pacman -Rc $@ 2>/dev/null | grep ^Packages | cut -f3- -d" "); do
-#		PKGS="$PKGS $(echo "$i" | sed 's|-[0-9].*||g')"
-#	done
-#  	PKGS="$PKGS $(echo "$i" | sed 's|-[0-9].*||g')"
-#	pamac-installer --remove $@ "$(LC_ALL=C timeout 10s pamac remove -odc $PKGS | grep "^  " | cut -f3 -d" ")" &
+	#	PKGS=""
+	#	for i in $(echo n | LC_ALL=C pacman -Rc $@ 2>/dev/null | grep ^Packages | cut -f3- -d" "); do
+	#		PKGS="$PKGS $(echo "$i" | sed 's|-[0-9].*||g')"
+	#	done
+	#  	PKGS="$PKGS $(echo "$i" | sed 's|-[0-9].*||g')"
+	#	pamac-installer --remove $@ "$(LC_ALL=C timeout 10s pamac remove -odc $PKGS | grep "^  " | cut -f3 -d" ")" &
 
 	PKGS=""
 	while read -r line; do
-	    if [[ $line =~ ^Packages ]]; then
-	        PKGS+=" ${line#Packages }"
-	    fi
+		if [[ $line =~ ^Packages ]]; then
+			PKGS+=" ${line#Packages }"
+		fi
 	done < <(LC_ALL=C pacman -Rc "$@" 2>/dev/null)
 	# Remover números e caracteres após o traço diretamente em Bash
-	PKGS="${PKGS//-[0-9]*}"
+	PKGS="${PKGS//-[0-9]*/}"
 
 	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$PKGS" | awk '/^  / { print $2 }')
-	pamac-installer --remove "$@" $packages_to_remove &
+	pamac-installer --remove "$@" "$packages_to_remove" &
 	PID="$!"
 	if [[ -z "$PID" ]]; then
 		exit
@@ -641,7 +662,6 @@ function sh_run_pamac_remove {
 }
 export -f sh_run_pamac_remove
 
-
 function sh_update_cache_snap {
 	# Seleciona e cria a pasta para salvar os arquivos para cache da busca
 	folder_to_save_files="$HOME_FOLDER/snap_list_files/snap_list"
@@ -659,16 +679,16 @@ function sh_update_cache_snap {
 	# jq -r '._embedded."clickindex:package"[]| select( .package_name == "wps-2019-snap" )' $folder_to_save_files*
 
 	# Faz o download da página inicial
-	curl --silent "https://api.snapcraft.io/api/v1/snaps/search?confinement=strict&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:" >${folder_to_save_files}
+	curl --silent "https://api.snapcraft.io/api/v1/snaps/search?confinement=strict&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:" >"$folder_to_save_files"
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $numbe_of_pages
-	number_of_pages="$(jq -r '._links.last' ${folder_to_save_files} | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
+	number_of_pages="$(jq -r '._links.last' "$folder_to_save_files" | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
 
 	# Inicia o download em paralelo de todas as paginas
 	page=2
 	while [[ "$page" -lt "$number_of_pages" ]]; do
 		echo "Downloading $page of $number_of_pages"
-		curl --silent "https://api.snapcraft.io/api/v1/snaps/search?confinement=strict,classic&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:&page=$page" >>${folder_to_save_files}$page &
+		curl --silent "https://api.snapcraft.io/api/v1/snaps/search?confinement=strict,classic&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:&page=$page" >>"${folder_to_save_files}${page}" &
 		((page++))
 	done
 
@@ -676,8 +696,8 @@ function sh_update_cache_snap {
 	wait
 
 	# Filtra o resultado dos arquivos e cria um arquivo de cache que será utilizado nas buscas
-	jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' ${folder_to_save_files}* |
-		sort -u >$file_to_save_cache
+	jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}*" |
+		sort -u >"$file_to_save_cache"
 	grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 }
 export -f sh_update_cache_snap
@@ -691,14 +711,14 @@ function sh_update_cache_flatpak {
 	[[ -e "$CACHE_FILE" ]] && rm -f "$CACHE_FILE"
 
 	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
-    flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/'  | grep '|stable|' | rev | uniq --skip-fields=2 | rev > "$HOME/.bigstore/flatpak.cache"
-#	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u >"$CACHE_FILE"
-#    flatpak search --arch x86_64 "" |
-#        sed '/\t/s//|/g' |
-#        grep '|stable|' |
-#        rev |
-#        uniq --skip-fields=2 |
-#        rev >"$CACHE_FILE"
+	flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' | grep '|stable|' | rev | uniq --skip-fields=2 | rev >"$HOME/.bigstore/flatpak.cache"
+	#	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u >"$CACHE_FILE"
+	#    flatpak search --arch x86_64 "" |
+	#        sed '/\t/s//|/g' |
+	#        grep '|stable|' |
+	#        rev |
+	#        uniq --skip-fields=2 |
+	#        rev >"$CACHE_FILE"
 
 	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
@@ -723,19 +743,19 @@ function sh_run_pacman_mirror {
 export -f sh_run_pacman_mirror
 
 function sh_snap_clean {
-    if [ "$(snap get system refresh.retain)" != "2" ]; then
-        snap set system refresh.retain=2
-    fi
+	if [ "$(snap get system refresh.retain)" != "2" ]; then
+		snap set system refresh.retain=2
+	fi
 
-    OIFS=$IFS
-    IFS=$'\n'
+	OIFS=$IFS
+	IFS=$'\n'
 
-    for i in $(snap list --all | awk '/disabled/{print "snap remove", $1, "--revision", $3}'); do
-        IFS=$OIFS
-        $i
-        IFS=$'\n'
-    done
-    IFS=$OIFS
+	for i in $(snap list --all | awk '/disabled/{print "snap remove", $1, "--revision", $3}'); do
+		IFS=$OIFS
+		$i
+		IFS=$'\n'
+	done
+	IFS=$OIFS
 }
 export -f sh_snap_clean
 
@@ -752,9 +772,9 @@ function sh_run_pamac_installer {
 	LangFilterLowercase="${LangFilter,,}"
 	LangClean="${LangFilterLowercase%%_*}"
 	LangCountry="${LangFilterLowercase#*_}"
-	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
+	AutoAddLangPkg="$(pacman -Ssq "$1.*$LangClean.*" | grep -m1 "[_-]$LangCountry")"
 
-	pamac-installer $@ $AutoAddLangPkg &
+	pamac-installer "$@" "$AutoAddLangPkg" &
 	PID="$!"
 
 	if [[ -z "$PID" ]]; then
@@ -785,23 +805,23 @@ export -f sh_run_pamac_mirror
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_version {
-#   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f4 -d"|"
-    grep -i "$1|" $HOME_FOLDER/flatpak.cache | cut -f4 -d"|"
-    echo "$1" > $HOME_FOLDER/flatpak-verification-fault
+	#   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f4 -d"|"
+	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f4 -d"|"
+	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_version
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_update {
-#   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f7 -d"|"
-    grep -i "$1|" $HOME_FOLDER/flatpak.cache | cut -f6 -d"|"
+	#   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f7 -d"|"
+	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f6 -d"|"
 }
 export -f sh_pkg_flatpak_update
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
-#   echo "$1" > ~/.bigstore/flatpak-verification-fault
-    echo "$1" > $HOME_FOLDER/flatpak-verification-fault
+	#   echo "$1" > ~/.bigstore/flatpak-verification-fault
+	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_verify
 
@@ -809,8 +829,8 @@ export -f sh_pkg_flatpak_verify
 function sh_load_main {
 	local pacote="$2"
 	local paths
-    declare -g msgNenhumParam=$"Nenhum pacote passado como parâmetro"
-    declare -g msgDownload=$"Baixando pacotes novos da base de dados do servidor"
+	declare -g msgNenhumParam=$"Nenhum pacote passado como parâmetro"
+	declare -g msgDownload=$"Baixando pacotes novos da base de dados do servidor"
 
 	echo "$msgDownload"
 	pacman -Fy >/dev/null 2>&-
@@ -818,8 +838,8 @@ function sh_load_main {
 	if [[ -n "$pacote" ]]; then
 		case $1 in
 		pkg_not_installed)
-        	pacman -Flq "$pacote" | sed 's|^|/|'
-		    ;;
+			pacman -Flq "$pacote" | sed 's|^|/|'
+			;;
 		pkg_installed)
 			pacman -Qk "$pacote"
 			pacman -Qlq "$pacote"
@@ -837,12 +857,12 @@ export -f sh_load_main
 
 # qua 23 ago 2023 20:37:16 -04
 function sh_this_package_update {
-    pacman -Qu $1 2>/dev/null | awk '{print $NF}'
+	pacman -Qu "$1" 2>/dev/null | awk '{print $NF}'
 }
 export -f sh_this_package_update
 
 function sh_main {
-    local execute_app="$1"
+	local execute_app="$1"
 
 	if test $# -ge 1; then
 		shift
