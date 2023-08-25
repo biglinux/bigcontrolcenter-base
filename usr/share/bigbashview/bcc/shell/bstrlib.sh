@@ -43,7 +43,7 @@ declare -g Programas_Nativos=$"Programas Nativos"
 
 function sh_search_flatpak() {
 	# Le o parametro passado via terminal e cria a variavel $search
-	search="$*"
+	local search="$*"
 
 #	OIFS=$IFS
 #	IFS=$'\n'
@@ -272,21 +272,319 @@ function sh_search_flatpak() {
 	# Aguarda todos os resultados antes de exibir para o usuário
 	wait
 
-	# if [[ "$COUNT" -gt "0" ]]; then
+#	if [[ "$COUNT" -gt "0" ]]; then
 	if ((COUNT)); then
-		#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
+#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
 		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
 		EOF
+		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
+		cp -f ${TMP_FOLDER}/flatpak_build.html ${TMP_FOLDER}/flatpak.html
 	fi
-
-	echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
-
-	cp -f ${TMP_FOLDER}/flatpak_build.html ${TMP_FOLDER}/flatpak.html
 	# cat "${TMP_FOLDER}/flatpak_build.html" >> ${TMP_FOLDER}/flatpak.html
 	# IFS=$OIFS
 }
 export -f sh_search_flatpak
+
+function sh_search_snap() {
+	# Le o parametro passado via terminal e cria a variavel $search
+	local search="$*"
+	declare -g VERSION=$"Versão: "
+	declare -g PACKAGE=$"Pacote: "
+	declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
+
+	# Lê os pacotes instalados em snap
+	#	SNAP_INSTALLED_LIST="|$(snap list | cut -f1 -d" " | tail -n +2 | tr '\n' '|')"
+	SNAP_INSTALLED_LIST="|$(awk 'NR>1 {printf "%s|", $1} END {printf "\b\n"}' <(snap list))"
+
+	# Remova o comentário para fazer testes no terminal
+	#search=office
+
+	# Muda o delimitador para somente quebra de linha
+	#	OIFS=$IFS
+	#	IFS=$'\n'
+
+	# Inicia uma função para possibilitar o uso em modo assíncrono
+	snap_parallel_filter() {
+		mapfile -t -d"|" myarray <<<"$1"
+		PKG_NAME="${myarray[0]}"
+		PKG_ID="${myarray[1]}"
+		PKG_ICON="${myarray[2]}"
+		PKG_DESC="${myarray[3]}"
+		PKG_VERSION="${myarray[4]}"
+		PKG_CMD="${myarray[5]}"
+
+		#		xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
+
+		#Melhora a ordem de exibição dos pacotes, funciona em conjunto com o css que irá reordenar
+		#de acordo com o id da div, que aqui é representado pela variavel $PKG_ORDER
+		#		PKG_NAME_CLEAN="$(echo "$search" | cut -f1 -d" ")"
+		PKG_NAME_CLEAN="${search%% *}"
+
+		# Verifica se o pacote está instalado
+		#		if [[ "$(echo "$SNAP_INSTALLED_LIST" | grep -i -m1 "|$PKG_CMD|")" != "" ]]; then
+		if [[ "${SNAP_INSTALLED_LIST,,}" == *"|$PKG_CMD|"* ]]; then
+			PKG_INSTALLED=$"Remover"
+			DIV_SNAP_INSTALLED="appstream_installed"
+			PKG_ORDER="SnapP1"
+		else
+			PKG_INSTALLED=$"Instalar"
+			DIV_SNAP_INSTALLED="appstream_not_installed"
+
+			PKG_ORDER="SnapP3"
+			#			[[ "$(echo "$PKG_NAME $PKG_CMD" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]] && PKG_ORDER="SnapP2"
+			[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
+
+			PKG_ORDER="SnapP3"
+			#			[[ "$(echo "$PKG_NAME $PKG_CMD" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]] && PKG_ORDER="SnapP2"
+			[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
+		fi
+		if [[ -z "$PKG_ICON" ]]; then
+			cat >>"$TMP_FOLDER/snap_build.html" <<-EOF
+				<!--$PKG_NAME-->
+				<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
+				<div class="col s12 m6 l3" id="$PKG_ORDER">
+				<div class="showapp">
+				<div id="snap_icon">
+				<div class="icon_middle">
+				<div class="avatar_snap">
+				${PKG_NAME:0:3}
+				</div>
+				</div>
+				<div id="snap_name">
+				$PKG_NAME
+				<div id="version">
+				$PKG_VERSION
+				</div>
+				</div>
+				</div>
+				<div id="box_snap_desc">
+				<div id="snap_desc">
+				$PKG_DESC
+				</div>
+				</div>
+				<div id="$DIV_SNAP_INSTALLED">
+				$PKG_INSTALLED
+				</div>
+				</a>
+				</div>
+				</div>
+			EOF
+		else
+			cat >>"$TMP_FOLDER/snap_build.html" <<-EOF
+				<!--$PKG_NAME-->
+				<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
+				<div class="col s12 m6 l3" id="$PKG_ORDER">
+				<div class="showapp">
+				<div id="snap_icon">
+				<div class="icon_middl">
+				<img class="icon" loading="lazy" src="$PKG_ICON">
+				</div>
+				<div id="snap_name">
+				$PKG_NAME
+				<div id="version">
+				$PKG_VERSION
+				</div>
+				</div>
+				</div>
+				<div id="box_snap_desc">
+				<div id="snap_desc">
+				$PKG_DESC
+				</div>
+				</div>
+				<div id="$DIV_SNAP_INSTALLED">
+				$PKG_INSTALLED
+				</div>
+				</a>
+				</div>
+				</div>
+			EOF
+		fi
+	}
+
+	# Inicia o loop, filtrando o conteudo do arquivo ${HOME_FOLDER}/snap.cache
+	[[ -e "$TMP_FOLDER/snap_build.html" ]] && rm -f "$TMP_FOLDER/snap_build.html"
+
+	if [[ -z "$resultFilter_checkbox" ]]; then
+		cacheFile="${HOME_FOLDER}/snap.cache"
+	else
+		cacheFile="${HOME_FOLDER}/snap_filtered.cache"
+	fi
+
+	local COUNT=0
+	local LIMITE=10000
+#	local pattern1="${search%% *}"
+#	local pattern2="${search#*}"
+#	local pattern2="${pattern2%% *}"
+#	local pattern3="${search##*}"
+#
+#	case $(wc -w <<<"$search") in
+#	1)
+#		while IFS= read -r line; do
+#			((++COUNT))
+#			snap_parallel_filter "$line" &
+#			if [ "$COUNT" = "60" ]; then
+#				break
+#			fi
+#		done < <(grep -i -m 60 -e "$pattern1" "$cacheFile")
+#		;;
+#	2)
+#		while IFS= read -r line; do
+#			((++COUNT))
+#			snap_parallel_filter "$line" &
+#			if [ "$COUNT" = "60" ]; then
+#				break
+#			fi
+#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m 60 -e "$pattern2" "$cacheFile")
+#		;;
+#	*)
+#		while IFS= read -r line; do
+#			((++COUNT))
+#			snap_parallel_filter "$line" &
+#			if [ "$COUNT" = "60" ]; then
+#				break
+#			fi
+#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m 60 -e "$pattern3" "$cacheFile")
+#		;;
+#	esac
+
+#xdebug "$search"
+	for i in ${search[@]}; do
+#xdebug "$i"
+		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
+#xdebug "$result"
+			while IFS= read -r line; do
+				((++COUNT))
+				snap_parallel_filter "$line" &
+				if [ "$COUNT" = "$LIMITE" ]; then
+					break
+				fi
+			done <<< "$result"
+		fi
+	done
+
+	# Aguarda todos os resultados antes de exibir para o usuário
+	wait
+
+
+#	if [[ "$COUNT" -gt "0" ]]; then
+	if ((COUNT)); then
+#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
+		cat >>"$TMP_FOLDER/snap_build.html" <<-EOF
+			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_snap").show();});</script>
+		EOF
+		echo "$COUNT" >"$TMP_FOLDER/snap_number.html"
+		cp -f ${TMP_FOLDER}/snap_build.html ${TMP_FOLDER}/snap.html
+	fi
+	# cat "${TMP_FOLDER}/snap_build.html" >> ${TMP_FOLDER}/snap.html
+	# IFS=$OIFS
+}
+export -f sh_search_snap
+
+function sh_search_aur {
+	local search="$*"
+
+	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
+	#PKG="$@"
+#	LANGUAGE=C yay -a -Si "$@" | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
+	LANGUAGE=C yay -a -Si ${search[@]} | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
+
+	### Begin of gawk script
+	BEGIN {
+		OFS = "\n"
+	}
+
+	# Following block runs when blank line found, i.e., on the transition between packages
+	!$0 {
+		title = version = description = not_installed = idaur = button = skipping = ""
+	}
+
+	# Skips lines between packages
+	skipping {
+		next
+	}
+
+	/^Name/ {
+	    title = gensub(/^Name +: /,"",1)
+	    not_installed = system("pacman -Q " title " 2> /dev/null 1> /dev/null")
+	    if ( not_installed ) {
+	        idaur = "AurP2"
+	        button = "<div id=\"aur_not_installed\">" instalar "</div></a></div></div>"
+	    } else {
+	        idaur = "AurP1"
+	        button = "<div id=\"aur_installed\">" remover "</div></a></div></div>"
+	    }
+	}
+
+	/^Version/     {
+		version = gensub(/^Version +: /,"",1)
+	}
+	/^Description/ {
+		description = gensub(/^Description +: /,"",1)
+	}
+
+	# When all variables are set
+	title && version && description && idaur && button {
+	    if ( system("[ ! -e icons/" title ".png ]") ) {
+	        icon = "<img class=\"icon\" src=\"icons/" title ".png\">"
+	    } else {
+	        icon = "<div class=\"avatar_aur\">" substr(title,1,3) "</div>"
+	    }
+
+	# Checking custom localized description
+	    shortlang = gensub(/\..+/,"",1,ENVIRON["LANG"])
+	    summaryfile = "description/" title "/" shortlang "/summary"
+	# Double negative because system() returns exit status of shell command inside ()
+	    if ( !system("[ -e " summaryfile " ]") ) {
+	        RS_BAK = RS
+	        RS = "^$"
+	        getline description < summaryfile
+	        close(summaryfile)
+	        RS = RS_BAK
+	    }
+
+	# Writes html of current package on aur_build.html
+	# Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
+	    print(\
+	"<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
+	"<div class=\"col s12 m6 l3\" id=\"idaur\">",
+	"<div class=\"showapp\">",
+	"<div id=\"aur_icon\"><div class=\"icon_middle\">" icon "</div>",
+	"<div id=\"aur_name\"><div id=\"limit_title_name\">" title "</div>",
+	"<div id=\"version\">" version "</div></div></div>",
+	"<div id=\"box_aur_desc\"><div id=\"aur_desc\">" description "</div></div>",
+	button) > tmpfolder "/aur_build.html"
+
+	    count++
+	    skipping++
+	# Getting ready for next package
+	    title = version = description = not_installed = idaur = icon = button = ""
+	}
+
+	END{
+		if (count) {
+		print(\
+	"<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
+	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
+	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+		print(count) > tmpfolder "/aur_number.html"
+	} else {
+		print(\
+	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
+	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+		print(count) > tmpfolder "/aur_number.html"
+       }
+   }
+
+	'
+	# End of gawk script
+
+	#    COUNT=1
+	#	echo "$COUNT" >"${TMP_FOLDER}/aur_number.html"
+	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+}
+export -f sh_search_aur
+
 
 function sh_reinstall_allpkg {
 	pacman -Sy --noconfirm - < <(pacman -Qnq)
@@ -354,273 +652,6 @@ function sh_pkg_pacman_build_date {
 	fi
 }
 export -f sh_pkg_pacman_build_date
-
-function sh_search_snap {
-	declare -g VERSION=$"Versão: "
-	declare -g PACKAGE=$"Pacote: "
-	declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
-
-	# Lê os pacotes instalados em snap
-	#	SNAP_INSTALLED_LIST="|$(snap list | cut -f1 -d" " | tail -n +2 | tr '\n' '|')"
-	SNAP_INSTALLED_LIST="|$(awk 'NR>1 {printf "%s|", $1} END {printf "\b\n"}' <(snap list))"
-
-	# Remova o comentário para fazer testes no terminal
-	#search=office
-
-	# Muda o delimitador para somente quebra de linha
-	#	OIFS=$IFS
-	#	IFS=$'\n'
-
-	# Inicia uma função para possibilitar o uso em modo assíncrono
-	snap_parallel_filter() {
-		mapfile -t -d"|" myarray <<<"$1"
-		PKG_NAME="${myarray[0]}"
-		PKG_ID="${myarray[1]}"
-		PKG_ICON="${myarray[2]}"
-		PKG_DESC="${myarray[3]}"
-		PKG_VERSION="${myarray[4]}"
-		PKG_CMD="${myarray[5]}"
-
-		#		xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
-
-		#Melhora a ordem de exibição dos pacotes, funciona em conjunto com o css que irá reordenar
-		#de acordo com o id da div, que aqui é representado pela variavel $PKG_ORDER
-		#		PKG_NAME_CLEAN="$(echo "$search" | cut -f1 -d" ")"
-		PKG_NAME_CLEAN="${search%% *}"
-
-		# Verifica se o pacote está instalado
-		#		if [[ "$(echo "$SNAP_INSTALLED_LIST" | grep -i -m1 "|$PKG_CMD|")" != "" ]]; then
-		if [[ "${SNAP_INSTALLED_LIST,,}" == *"|$PKG_CMD|"* ]]; then
-			PKG_INSTALLED=$"Remover"
-			DIV_SNAP_INSTALLED="appstream_installed"
-			PKG_ORDER="SnapP1"
-		else
-			PKG_INSTALLED=$"Instalar"
-			DIV_SNAP_INSTALLED="appstream_not_installed"
-
-			PKG_ORDER="SnapP3"
-			#			[[ "$(echo "$PKG_NAME $PKG_CMD" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]] && PKG_ORDER="SnapP2"
-			[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
-
-			PKG_ORDER="SnapP3"
-			#			[[ "$(echo "$PKG_NAME $PKG_CMD" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]] && PKG_ORDER="SnapP2"
-			[[ "${PKG_NAME} ${PKG_CMD}" == *"${PKG_NAME_CLEAN}"* ]] && PKG_ORDER="SnapP2"
-		fi
-		if [[ -z "$PKG_ICON" ]]; then
-			cat >>"$TMP_FOLDER/snapbuild.html" <<-EOF
-				<!--$PKG_NAME-->
-				<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
-				<div class="col s12 m6 l3" id="$PKG_ORDER">
-				<div class="showapp">
-				<div id="snap_icon">
-				<div class="icon_middle">
-				<div class="avatar_snap">
-				${PKG_NAME:0:3}
-				</div>
-				</div>
-				<div id="snap_name">
-				$PKG_NAME
-				<div id="version">
-				$PKG_VERSION
-				</div>
-				</div>
-				</div>
-				<div id="box_snap_desc">
-				<div id="snap_desc">
-				$PKG_DESC
-				</div>
-				</div>
-				<div id="$DIV_SNAP_INSTALLED">
-				$PKG_INSTALLED
-				</div>
-				</a>
-				</div>
-				</div>
-			EOF
-		else
-			cat >>"$TMP_FOLDER/snapbuild.html" <<-EOF
-				<!--$PKG_NAME-->
-				<a onclick="disableBody();" href="view_snap.sh.htm?pkg_id=$PKG_ID">
-				<div class="col s12 m6 l3" id="$PKG_ORDER">
-				<div class="showapp">
-				<div id="snap_icon">
-				<div class="icon_middl">
-				<img class="icon" loading="lazy" src="$PKG_ICON">
-				</div>
-				<div id="snap_name">
-				$PKG_NAME
-				<div id="version">
-				$PKG_VERSION
-				</div>
-				</div>
-				</div>
-				<div id="box_snap_desc">
-				<div id="snap_desc">
-				$PKG_DESC
-				</div>
-				</div>
-				<div id="$DIV_SNAP_INSTALLED">
-				$PKG_INSTALLED
-				</div>
-				</a>
-				</div>
-				</div>
-			EOF
-		fi
-	}
-
-	# Inicia o loop, filtrando o conteudo do arquivo ${HOME_FOLDER}/snap.cache
-	[[ -e "$TMP_FOLDER/snapbuild.html" ]] && rm -f "$TMP_FOLDER/snapbuild.html"
-
-	if [[ -z "$resultFilter_checkbox" ]]; then
-		cacheFile="${HOME_FOLDER}/snap.cache"
-	else
-		cacheFile="${HOME_FOLDER}/snap_filtered.cache"
-	fi
-
-	COUNT=0
-	pattern1="${search%% *}"
-	pattern2="${search#*}"
-	pattern2="${pattern2%% *}"
-	pattern3="${search##*}"
-
-	case $(wc -w <<<"$search") in
-	1)
-		while IFS= read -r line; do
-			((++COUNT))
-			snap_parallel_filter "$line" &
-			if [ "$COUNT" = "60" ]; then
-				break
-			fi
-		done < <(grep -i -m 60 -e "$pattern1" "$cacheFile")
-		;;
-	2)
-		while IFS= read -r line; do
-			((++COUNT))
-			snap_parallel_filter "$line" &
-			if [ "$COUNT" = "60" ]; then
-				break
-			fi
-		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m 60 -e "$pattern2" "$cacheFile")
-		;;
-	*)
-		while IFS= read -r line; do
-			((++COUNT))
-			snap_parallel_filter "$line" &
-			if [ "$COUNT" = "60" ]; then
-				break
-			fi
-		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m 60 -e "$pattern3" "$cacheFile")
-		;;
-	esac
-
-	# Aguarda todos os resultados antes de exibir para o usuário
-	wait
-
-	# Se houver resultados utiliza o javascript para exibir na tela
-	if [[ "$COUNT" -gt 0 ]]; then
-		cat >>"$TMP_FOLDER/snapbuild.html" <<-EOF
-			<script>runAvatarSnap();\$(document).ready(function () {\$("#box_snap").show();});</script>
-		EOF
-	fi
-
-	echo "$COUNT" >"$TMP_FOLDER/snap_number.html"
-	mv -f "$TMP_FOLDER/snapbuild.html" "$TMP_FOLDER/snap.html"
-	#	IFS=$OIFS
-}
-export -f sh_search_snap
-
-function sh_search_aur {
-	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
-	#PKG="$@"
-	LANGUAGE=C yay -a -Si "$@" | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
-
-	### Begin of gawk script
-	BEGIN { OFS = "\n" }
-
-	# Following block runs when blank line found, i.e., on the transition between packages
-	!$0 { title = version = description = not_installed = idaur = button = skipping = "" }
-
-	# Skips lines between packages
-	skipping { next }
-
-	/^Name/ {
-	    title = gensub(/^Name +: /,"",1)
-	    not_installed = system("pacman -Q " title " 2> /dev/null 1> /dev/null")
-	    if ( not_installed ) {
-	        idaur = "AurP2"
-	        button = "<div id=aur_not_installed>" instalar "</div></a></div></div>"
-	    } else {
-	        idaur = "AurP1"
-	        button = "<div id=aur_installed>" remover "</div></a></div></div>"
-	    }
-	}
-
-	/^Version/     { version = gensub(/^Version +: /,"",1) }
-	/^Description/ { description = gensub(/^Description +: /,"",1) }
-
-	# When all variables are set
-	title && version && description && idaur && button {
-	    if ( system("[ ! -e icons/" title ".png ]") ) {
-	        icon = "<img class=\"icon\" src=\"icons/" title ".png\">"
-	    } else {
-	        icon = "<div class=avatar_aur>" substr(title,1,3) "</div>"
-	    }
-
-	# Checking custom localized description
-	    shortlang = gensub(/\..+/,"",1,ENVIRON["LANG"])
-	    summaryfile = "description/" title "/" shortlang "/summary"
-	# Double negative because system() returns exit status of shell command inside ()
-	    if ( !system("[ -e " summaryfile " ]") ) {
-	        RS_BAK = RS
-	        RS = "^$"
-	        getline description < summaryfile
-	        close(summaryfile)
-	        RS = RS_BAK
-	    }
-
-	# Writes html of current package on aur_build.html
-	# Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
-	    print(\
-	"<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
-	"<div class=\"col s12 m6 l3\" id=" idaur ">",
-	"<div class=\"showapp\">",
-	"<div id=aur_icon><div class=icon_middle>" icon "</div>",
-	"<div id=aur_name><div id=limit_title_name>" title "</div>",
-	"<div id=version>" version "</div></div></div>",
-	"<div id=box_aur_desc><div id=aur_desc>" description "</div></div>",
-	button) > tmpfolder "/aur_build.html"
-
-	    count++
-	    skipping++
-	# Getting ready for next package
-	    title = version = description = not_installed = idaur = icon = button = ""
-	}
-
-	END{
-	    if (count) {
-	        print(\
-	"<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
-	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-	        print(count) > tmpfolder "/aur_number.html"
-	    } else {
-	        print(\
-	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-	        print(count) > tmpfolder "/aur_number.html"
-	    }
-	}
-
-
-	'
-	# End of gawk script
-
-	#    COUNT=1
-	#	echo "$COUNT" >"${TMP_FOLDER}/aur_number.html"
-	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
-}
-export -f sh_search_aur
 
 function sh_run_pamac_remove {
 	#	PKGS=""
