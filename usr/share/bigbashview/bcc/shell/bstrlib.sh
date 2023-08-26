@@ -141,9 +141,9 @@ function sh_search_flatpak() {
 
 		# Verify if package are installed
 		# if [ "$(echo "$FLATPAK_INSTALLED_LIST" | LC_ALL=C grep -i -m1 "|$PKG_ID|")" != "" ]; then
-		if [[ "$FLATPAK_INSTALLED_LIST" == *"|$PKG_ID|"* ]]; then
+		if [[ "$FLATPAK_INSTALLED_LIST" == *"|${PKG_FLATPAK[PKG_ID]}|"* ]]; then
 			# if [ "$(echo "$PKG_UPDATE" | tr -d '\n')" != "" ]; then
-			if [ -n "$(tr -d '\n' <<<"$PKG_UPDATE")" ]; then
+			if [ -n "$(tr -d '\n' <<<"${PKG_FLATPAK[PKG_UPDATE]}")" ]; then
 				PKG_FLATPAK[PKG_INSTALLED]=$"Atualizar"
 				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_upgradable"
 				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
@@ -160,7 +160,7 @@ function sh_search_flatpak() {
 			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
 				PKG_FLATPAK[PKG_ORDER]="FlatpakP2"
 			# elif [ "$(echo "$ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
-			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"$ID"; then
+			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
 				PKG_FLATPAK[PKG_ORDER]="FlatpakP3"
 			else
 				PKG_FLATPAK[PKG_ORDER]="FlatpakP4"
@@ -183,7 +183,7 @@ function sh_search_flatpak() {
 				<div id="flatpak_name">
 				${PKG_FLATPAK[PKG_NAME]}
 				<div id="version">
-				${PKG_FLATPAK[PKG_VERSION_ORIG]}
+				${PKG_FLATPAK[PKG_VERSION]}
 				</div></div></div>
 				<div id="box_flatpak_desc">
 				<div id="flatpak_desc">
@@ -205,7 +205,7 @@ function sh_search_flatpak() {
 				<div id="flatpak_name">
 				${PKG_FLATPAK[PKG_NAME]}
 				<div id="version">
-				${PKG_FLATPAK[PKG_VERSION_ORIG]}
+				${PKG_FLATPAK[PKG_VERSION]}
 				</div></div></div>
 				<div id="box_flatpak_desc">
 				<div id="flatpak_desc">
