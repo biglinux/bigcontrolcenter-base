@@ -40,61 +40,101 @@ export TEXTDOMAIN=big-store
 declare -g Programas_AUR=$"Programas AUR"
 declare -g Programas_Flatpak=$"Programas Flatpak"
 declare -g Programas_Nativos=$"Programas Nativos"
+declare -g flatpak_versao=$"Versão: "
+declare -g flatpak_pacote=$"Pacote: "
+declare -g flatpak_nao_infomada=$"Não informada"
+declare -gA PKG_FLATPAK
+
+function sh_flatpak_installed_list {
+	# Le os pacotes instalados em flatpak
+	local FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
+	echo "$FLATPAK_INSTALLED_LIST"
+}
+
+function sh_seek_flatpak_parallel_filter() {
+	local package="$1"
+	local myarray
+
+	mapfile -t -d"|" myarray <<<"$package"
+	PKG_FLATPAK[PKG_NAME]="${myarray[0]}"
+	PKG_FLATPAK[PKG_DESC]="${myarray[1]}"
+	PKG_FLATPAK[PKG_ID]="${myarray[2]}"
+	PKG_FLATPAK[PKG_VERSION]="${myarray[3]}"
+	PKG_FLATPAK[PKG_STABLE]="${myarray[4]}"
+	PKG_FLATPAK[PKG_REMOTE]="${myarray[5]}"
+	PKG_FLATPAK[PKG_UPDATE]="${myarray[6]}"
+
+	# Seleciona o arquivo xml para filtrar os dados
+	PKG_FLATPAK[PKG_XML_APPSTREAM]="/var/lib/flatpak/appstream/${PKG_FLATPAK[PKG_REMOTE]}/x86_64/active/appstream.xml"
+	if [[ -z "${PKG_FLATPAK[PKG_VERSION]}" ]]; then
+		PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
+	fi
+
+	# Search icon
+	PKG_FLATPAK[PKG_ICON]="$(find /var/lib/flatpak/appstream/ -type f -iname "${PKG_FLATPAK[PKG_ID]}.png" -print -quit)"
+
+	# If not found try another way
+	if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
+		# If cached icon not found, try online
+		PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+
+		# If online icon not found, try another way
+		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
+			PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}.desktop\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+		fi
+	fi
+}
 
 function sh_search_flatpak() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
 
-#	OIFS=$IFS
-#	IFS=$'\n'
-
-	#   xdebug "sh_search_flatpak[$LINENO]: $search"
+	# Muda o delimitador para somente quebra de linha
+	#	OIFS=$IFS
+	#	IFS=$'\n'
 
 	# Le os pacotes instalados em flatpak
-	FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
+	FLATPAK_INSTALLED_LIST=$(sh_flatpak_installed_list)
 
-	#xdebug "$FLATPAK_INSTALLED_LIST"
-
-	VERSION=$"Versão: "
-	PACKAGE=$"Pacote: "
-	NOT_VERSION=$"Não informada"
-
-	#xdebug "$search"
-
-	# Muda o delimitador para somente quebra de linha
+	#	xdebug "$0[$LINENO]: $search"
+	#	xdebug "$FLATPAK_INSTALLED_LIST"
+	#	xdebug "$search"
 
 	# Inicia uma função para possibilitar o uso em modo assíncrono
 	function flatpak_parallel_filter() {
-		mapfile -t -d"|" myarray <<<"$1"
-		PKG_NAME="${myarray[0]}"
-		PKG_DESC="${myarray[1]}"
-		PKG_ID="${myarray[2]}"
-		PKG_VERSION="${myarray[3]}"
-		PKG_STABLE="${myarray[4]}"
-		PKG_REMOTE="${myarray[5]}"
-		PKG_UPDATE="${myarray[6]}"
+		local package="$1"
+		sh_seek_flatpak_parallel_filter "$package"
 
-		# Seleciona o arquivo xml para filtrar os dados
-		PKG_XML_APPSTREAM="/var/lib/flatpak/appstream/$PKG_REMOTE/x86_64/active/appstream.xml"
-
-		PKG_VERSION_ORIG="$PKG_VERSION"
-		if [[ -z "$PKG_VERSION" ]]; then
-			PKG_VERSION="$NOT_VERSION"
-		fi
-
-		# Search icon
-		PKG_ICON="$(find /var/lib/flatpak/appstream/ -type f -iname "$PKG_ID.png" -print -quit)"
-
-		# If not found try another way
-		if [[ -z "$PKG_ICON" ]]; then
-			# If cached icon not found, try online
-			PKG_ICON="$(awk /\<id\>$PKG_ID\<\\/id\>/,/\<\\/component\>/ $PKG_XML_APPSTREAM | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
-
-			# If online icon not found, try another way
-			if [[ -z "$PKG_ICON" ]]; then
-				PKG_ICON="$(awk /\<id\>$PKG_ID.desktop\<\\/id\>/,/\<\\/component\>/ $PKG_XML_APPSTREAM | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
-			fi
-		fi
+#		mapfile -t -d"|" myarray <<<"$1"
+#		PKG_NAME="${myarray[0]}"
+#		PKG_DESC="${myarray[1]}"
+#		PKG_ID="${myarray[2]}"
+#		PKG_VERSION="${myarray[3]}"
+#		PKG_STABLE="${myarray[4]}"
+#		PKG_REMOTE="${myarray[5]}"
+#		PKG_UPDATE="${myarray[6]}"
+#
+#		# Seleciona o arquivo xml para filtrar os dados
+#		PKG_XML_APPSTREAM="/var/lib/flatpak/appstream/$PKG_REMOTE/x86_64/active/appstream.xml"
+#
+#		PKG_VERSION_ORIG="$PKG_VERSION"
+#		if [[ -z "$PKG_VERSION" ]]; then
+#			PKG_VERSION="$NOT_VERSION"
+#		fi
+#
+#		# Search icon
+#		PKG_ICON="$(find /var/lib/flatpak/appstream/ -type f -iname "$PKG_ID.png" -print -quit)"
+#
+#		# If not found try another way
+#		if [[ -z "$PKG_ICON" ]]; then
+#			# If cached icon not found, try online
+#			PKG_ICON="$(awk /\<id\>$PKG_ID\<\\/id\>/,/\<\\/component\>/ $PKG_XML_APPSTREAM | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+#
+#			# If online icon not found, try another way
+#			if [[ -z "$PKG_ICON" ]]; then
+#				PKG_ICON="$(awk /\<id\>$PKG_ID.desktop\<\\/id\>/,/\<\\/component\>/ $PKG_XML_APPSTREAM | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+#			fi
+#		fi
 
 		# Improve order of packages
 		PKG_NAME_CLEAN="${search% *}"
@@ -104,79 +144,79 @@ function sh_search_flatpak() {
 		if [[ "$FLATPAK_INSTALLED_LIST" == *"|$PKG_ID|"* ]]; then
 			# if [ "$(echo "$PKG_UPDATE" | tr -d '\n')" != "" ]; then
 			if [ -n "$(tr -d '\n' <<<"$PKG_UPDATE")" ]; then
-				PKG_INSTALLED=$"Atualizar"
-				DIV_FLATPAK_INSTALLED="flatpak_upgradable"
-				PKG_ORDER="FlatpakP1"
+				PKG_FLATPAK[PKG_INSTALLED]=$"Atualizar"
+				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_upgradable"
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
 			else
-				PKG_INSTALLED=$"Remover"
-				DIV_FLATPAK_INSTALLED="flatpak_installed"
-				PKG_ORDER="FlatpakP1"
+				PKG_FLATPAK[PKG_INSTALLED]=$"Remover"
+				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_installed"
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
 			fi
 		else
-			PKG_INSTALLED=$"Instalar"
-			DIV_FLATPAK_INSTALLED="flatpak_not_installed"
+			PKG_FLATPAK[PKG_INSTALLED]=$"Instalar"
+			PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_not_installed"
 
 			# if [ "$(echo "$PKG_NAME $PKG_ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
-			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"$PKG_NAME $PKG_ID"; then
-				PKG_ORDER="FlatpakP2"
+			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP2"
 			# elif [ "$(echo "$ID" | grep -i -m1 "$PKG_NAME_CLEAN")" != "" ]; then
 			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"$ID"; then
-				PKG_ORDER="FlatpakP3"
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP3"
 			else
-				PKG_ORDER="FlatpakP4"
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP4"
 			fi
 		fi
 
 		# If all fail, use generic icon
 		# if [ "$PKG_ICON" = "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 'type=')" != "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 '<description>')" != "" ]; then
-		if [[ -z "$PKG_ICON" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"$PKG_ICON")" ]]; then
+		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${PKG_FLATPAK[PKG_ICON]}")" ]]; then
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
-				<div class="col s12 m6 l3" id="$PKG_ORDER">
+				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
 				<div class="icon_middle">
 				<div class="icon_middle">
 				<div class="avatar_flatpak">
-				${PKG_NAME:0:3}
+				${PKG_FLATPAK[PKG_NAME]:0:3}
 				</div></div></div>
 				<div id="flatpak_name">
-				$PKG_NAME
+				${PKG_FLATPAK[PKG_NAME]}
 				<div id="version">
-				$PKG_VERSION_ORIG
+				${PKG_FLATPAK[PKG_VERSION_ORIG]}
 				</div></div></div>
 				<div id="box_flatpak_desc">
 				<div id="flatpak_desc">
-				$PKG_DESC
+				${PKG_FLATPAK[PKG_DESC]}
 				</div></div>
-				<div id="$DIV_FLATPAK_INSTALLED">
-				$PKG_INSTALLED
+				<div id="${PKG_FLATPAK[DIV_FLATPAK_INSTALLED]}">
+				${PKG_FLATPAK[PKG_INSTALLED]}
 				</div></a></div></div>
 			EOF
 		else
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
-				<div class="col s12 m6 l3" id="$PKG_ORDER">
+				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
 				<div class="icon_middle">
-				<img class="icon" loading="lazy" src="$PKG_ICON">
+				<img class="icon" loading="lazy" src="${PKG_FLATPAK[PKG_ICON]}">
 				</div>
 				<div id="flatpak_name">
-				$PKG_NAME
+				${PKG_FLATPAK[PKG_NAME]}
 				<div id="version">
-				$PKG_VERSION_ORIG
+				${PKG_FLATPAK[PKG_VERSION_ORIG]}
 				</div></div></div>
 				<div id="box_flatpak_desc">
 				<div id="flatpak_desc">
-				$PKG_DESC
+				${PKG_FLATPAK[PKG_DESC]}
 				</div></div>
-				<div id="$DIV_FLATPAK_INSTALLED">
-				$PKG_INSTALLED
+				<div id="${PKG_FLATPAK[DIV_FLATPAK_INSTALLED]}">
+				${PKG_FLATPAK[PKG_INSTALLED]}
 				</div></a></div></div>
 			EOF
 		fi
-#		IFS=$OIFS
+		#		IFS=$OIFS
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
@@ -185,96 +225,29 @@ function sh_search_flatpak() {
 		cacheFile="$HOME_FOLDER/flatpak_filtered.cache"
 	fi
 
-	#	COUNT=0
-	#	case "$(echo "$search" | wc -w)" in
-	#	1)
-	#		for i in $(grep -i -m 60 -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile); do
-	#			((++COUNT))
-	#			flatpak_parallel_filter "$i" &
-	#			if [ "$COUNT" = "60" ]; then
-	#				break
-	#			fi
-	#		done
-	#		;;
-	#	2)
-	#		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -m 60 -e "$(echo "$search" | cut -f2 -d" ")"); do
-	#			((++COUNT))
-	#			flatpak_parallel_filter "$i" &
-	#			if [ "$COUNT" = "60" ]; then
-	#				break
-	#			fi
-	#		done
-	#		;;
-	#	*)
-	#		for i in $(grep -i -e "$(echo "$search" | cut -f1 -d" " | sed 's|"||g')" $cacheFile | grep -i -e "$(echo "$search" | cut -f2 -d" ")" | grep -i -m 60 -e "$(echo "$search" | cut -f3 -d" ")"); do
-	#			((++COUNT))
-	#			flatpak_parallel_filter "$i" &
-	#			if [ "$COUNT" = "60" ]; then
-	#				break
-	#			fi
-	#		done
-	#		;;
-	#	esac
-	#	wait
-
 	local COUNT=0
 	local LIMITE=10000
-#	local pattern1="${search%% *}"
-#	local pattern2="${search#*}"
-#	local pattern2="${pattern2%% *}"
-#	local pattern3="${search##*}"
-#
-#	case $(wc -w <<<"$search") in
-#	1)
-#		while IFS= read -r line; do
-#			((++COUNT))
-#			flatpak_parallel_filter "$line" &
-#			if [ "$COUNT" = "$LIMITE" ]; then
-#				break
-#			fi
-#		done < <(grep -i -m $LIMITE -e "$pattern1" "$cacheFile")
-#		;;
-#	2)
-#		while IFS= read -r line; do
-#			((++COUNT))
-#			flatpak_parallel_filter "$line" &
-#			if [ "$COUNT" = "$LIMITE" ]; then
-#				break
-#			fi
-#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m $LIMITE -e "$pattern2" "$cacheFile")
-#		;;
-#	*)
-#		while IFS= read -r line; do
-#			((++COUNT))
-#			flatpak_parallel_filter "$line" &
-#			if [ "$COUNT" = "$LIMITE" ]; then
-#				break
-#			fi
-#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m $LIMITE -e "$pattern3" "$cacheFile")
-#		;;
-#	esac
 
-#xdebug "$search"
 	for i in ${search[@]}; do
-#xdebug "$i"
+#		xdebug "$i"
 		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
-#xdebug "$result"
+			#xdebug "$result"
 			while IFS= read -r line; do
 				((++COUNT))
 				flatpak_parallel_filter "$line" &
 				if [ "$COUNT" = "$LIMITE" ]; then
 					break
 				fi
-			done <<< "$result"
+			done <<<"$result"
 		fi
 	done
 
 	# Aguarda todos os resultados antes de exibir para o usuário
 	wait
 
-#	if [[ "$COUNT" -gt "0" ]]; then
+	#	if [[ "$COUNT" -gt "0" ]]; then
 	if ((COUNT)); then
-#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
+		#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
 		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
 		EOF
@@ -413,63 +386,62 @@ function sh_search_snap() {
 
 	local COUNT=0
 	local LIMITE=10000
-#	local pattern1="${search%% *}"
-#	local pattern2="${search#*}"
-#	local pattern2="${pattern2%% *}"
-#	local pattern3="${search##*}"
-#
-#	case $(wc -w <<<"$search") in
-#	1)
-#		while IFS= read -r line; do
-#			((++COUNT))
-#			snap_parallel_filter "$line" &
-#			if [ "$COUNT" = "60" ]; then
-#				break
-#			fi
-#		done < <(grep -i -m 60 -e "$pattern1" "$cacheFile")
-#		;;
-#	2)
-#		while IFS= read -r line; do
-#			((++COUNT))
-#			snap_parallel_filter "$line" &
-#			if [ "$COUNT" = "60" ]; then
-#				break
-#			fi
-#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m 60 -e "$pattern2" "$cacheFile")
-#		;;
-#	*)
-#		while IFS= read -r line; do
-#			((++COUNT))
-#			snap_parallel_filter "$line" &
-#			if [ "$COUNT" = "60" ]; then
-#				break
-#			fi
-#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m 60 -e "$pattern3" "$cacheFile")
-#		;;
-#	esac
+	#	local pattern1="${search%% *}"
+	#	local pattern2="${search#*}"
+	#	local pattern2="${pattern2%% *}"
+	#	local pattern3="${search##*}"
+	#
+	#	case $(wc -w <<<"$search") in
+	#	1)
+	#		while IFS= read -r line; do
+	#			((++COUNT))
+	#			snap_parallel_filter "$line" &
+	#			if [ "$COUNT" = "60" ]; then
+	#				break
+	#			fi
+	#		done < <(grep -i -m 60 -e "$pattern1" "$cacheFile")
+	#		;;
+	#	2)
+	#		while IFS= read -r line; do
+	#			((++COUNT))
+	#			snap_parallel_filter "$line" &
+	#			if [ "$COUNT" = "60" ]; then
+	#				break
+	#			fi
+	#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -m 60 -e "$pattern2" "$cacheFile")
+	#		;;
+	#	*)
+	#		while IFS= read -r line; do
+	#			((++COUNT))
+	#			snap_parallel_filter "$line" &
+	#			if [ "$COUNT" = "60" ]; then
+	#				break
+	#			fi
+	#		done < <(grep -i -e "$pattern1" "$cacheFile" | grep -i -e "$pattern2" "$cacheFile" | grep -i -m 60 -e "$pattern3" "$cacheFile")
+	#		;;
+	#	esac
 
-#xdebug "$search"
+	#xdebug "$search"
 	for i in ${search[@]}; do
-#xdebug "$i"
+		#xdebug "$i"
 		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
-#xdebug "$result"
+			#xdebug "$result"
 			while IFS= read -r line; do
 				((++COUNT))
 				snap_parallel_filter "$line" &
 				if [ "$COUNT" = "$LIMITE" ]; then
 					break
 				fi
-			done <<< "$result"
+			done <<<"$result"
 		fi
 	done
 
 	# Aguarda todos os resultados antes de exibir para o usuário
 	wait
 
-
-#	if [[ "$COUNT" -gt "0" ]]; then
+	#	if [[ "$COUNT" -gt "0" ]]; then
 	if ((COUNT)); then
-#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
+		#		echo "<script>runAvatarFlatpak();\$(document).ready(function () {\$(\"#box_flatpak\").show();});</script>" >>"$TMP_FOLDER/flatpak_build.html"
 		cat >>"$TMP_FOLDER/snap_build.html" <<-EOF
 			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_snap").show();});</script>
 		EOF
@@ -486,7 +458,7 @@ function sh_search_aur {
 
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	#PKG="$@"
-#	LANGUAGE=C yay -a -Si "$@" | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
+	#	LANGUAGE=C yay -a -Si "$@" | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
 	LANGUAGE=C yay -a -Si ${search[@]} | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
 
 	### Begin of gawk script
@@ -584,7 +556,6 @@ function sh_search_aur {
 	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
 }
 export -f sh_search_aur
-
 
 function sh_reinstall_allpkg {
 	pacman -Sy --noconfirm - < <(pacman -Qnq)
@@ -799,12 +770,17 @@ function sh_snap_enable {
 export -f sh_snap_enable
 
 function sh_run_pamac_installer {
-	LangFilter="${LANG%%.*}"
-	LangFilterLowercase="${LangFilter,,}"
-	LangClean="${LangFilterLowercase%%_*}"
-	LangCountry="${LangFilterLowercase#*_}"
-	AutoAddLangPkg="$(pacman -Ssq "$1.*$LangClean.*" | grep -m1 "[_-]$LangCountry")"
+	local action="$1"
+	local package="$2"
+	local options="$3"
 
+	local LangFilter="${LANG%%.*}"
+	local LangFilterLowercase="${LangFilter,,}"
+	local LangClean="${LangFilterLowercase%%_*}"
+	local LangCountry="${LangFilterLowercase#*_}"
+
+	#	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
+	AutoAddLangPkg="$(pacman -Ssq $package.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
 	pamac-installer "$@" "$AutoAddLangPkg" &
 	PID="$!"
 
