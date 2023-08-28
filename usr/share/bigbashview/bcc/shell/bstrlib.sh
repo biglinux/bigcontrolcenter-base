@@ -459,103 +459,209 @@ function sh_search_aur {
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	#PKG="$@"
 	#	LANGUAGE=C yay -a -Si "$@" | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
-	LANGUAGE=C yay -a -Si ${search[@]} | gawk -v tmpfolder="$TMP_FOLDER" -v instalar=$"Instalar" -v remover=$"Remover" -- '
+# 	kdialog --msgbox "$@"
+	LANGUAGE=C yay --sortby popularity -Ssa --singlelineresults --topdown $(echo $@ | sed "s| |\n|g") |
+		gawk -v tmpfolder="${TMP_FOLDER}" \
+			-v searchterms="$@" \
+			-v resultfilter="$resultFilter_checkbox" \
+			-v instalar=$"Instalar" \
+			-v remover=$"Remover" -- '
 
-	### Begin of gawk script
-	BEGIN {
-		OFS = "\n"
-	}
+				### Begin of gawk script
+				BEGIN {
+					# This OFS allows readable code during printing
+					OFS="\n"
+				}
 
-	# Following block runs when blank line found, i.e., on the transition between packages
-	!$0 {
-		title = version = description = not_installed = idaur = button = skipping = ""
-	}
+				# The following block runs once per line given by yay to gawk
+				{
+					# Resetting variables
+					title = title_simple = idaur = icon = title = version = description = button = ""
+					title = gensub(/.*\//,"",1,$1)
+					RS_BAK = RS
+					RS = "^$"
+					getline aurlist < "/usr/share/bigbashview/bcc/apps/big-store/list/aur_list.txt"
+					close("/usr/share/bigbashview/bcc/apps/big-store/list/aur_list.txt")
+					RS = RS_BAK
 
-	# Skips lines between packages
-	skipping {
-		next
-	}
+					# If resultfilter is not set, or package is in aur_list.txt
+					if ( ( !resultfilter ) || ( aurlist ~ "\\<" title "\\>" ) ) {
+						# title_simple = gensub(/-.*/,"",1,title)
+						description = gensub(/.+\t/,"",1)
+						installed = /Installed/ ? 1 : 0
+						version = $2
 
-	/^Name/ {
-	    title = gensub(/^Name +: /,"",1)
-	    not_installed = system("pacman -Q " title " 2> /dev/null 1> /dev/null")
-	    if ( not_installed ) {
-	        idaur = "AurP2"
-	        button = "<div id=\"aur_not_installed\">" instalar "</div></a></div></div>"
-	    } else {
-	        idaur = "AurP1"
-	        button = "<div id=\"aur_installed\">" remover "</div></a></div></div>"
-	    }
-	}
+						if ( !installed ) {
+							button = "<div id=aur_not_installed>" instalar "</div></a></div></div>"
+							if ( searchterms ~ "\\<" title "\\>" ) {
+								idaur = "AurP2"
+							} else {
+								idaur = "AurP3"
+							}
+						} else {
+							button = "<div id=aur_installed>" remover "</div></a></div></div>"
+							idaur = "AurP1"
+						}
 
-	/^Version/     {
-		version = gensub(/^Version +: /,"",1)
-	}
-	/^Description/ {
-		description = gensub(/^Description +: /,"",1)
-	}
+						if ( system("[ ! -e icons/" title ".png ]") ) {
+							icon = "<img class=\"icon\" src=\"icons/" title ".png\">"
+						} else {
+							icon = "<div class=avatar_aur>" substr(title,1,3) "</div>"
+						}
 
-	# When all variables are set
-	title && version && description && idaur && button {
-	    if ( system("[ ! -e icons/" title ".png ]") ) {
-	        icon = "<img class=\"icon\" src=\"icons/" title ".png\">"
-	    } else {
-	        icon = "<div class=\"avatar_aur\">" substr(title,1,3) "</div>"
-	    }
+						# Checking custom localized description
+						shortlang = gensub(/\..+/,"",1,ENVIRON["LANG"])
+						summaryfile = "description/" title "/" shortlang "/summary"
 
-	# Checking custom localized description
-	    shortlang = gensub(/\..+/,"",1,ENVIRON["LANG"])
-	    summaryfile = "description/" title "/" shortlang "/summary"
-	# Double negative because system() returns exit status of shell command inside ()
-	    if ( !system("[ -e " summaryfile " ]") ) {
-	        RS_BAK = RS
-	        RS = "^$"
-	        getline description < summaryfile
-	        close(summaryfile)
-	        RS = RS_BAK
-	    }
+						# Double negative because system() returns exit status of shell command inside ()
+						if ( !system("[ -e " summaryfile " ]") ) {
+							RS_BAK = RS
+							RS = "^$"
+							getline description < summaryfile
+							close(summaryfile)
+							RS = RS_BAK
+						}
 
-	# Writes html of current package on aur_build.html
-	# Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
-	    print(\
-	"<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
-	"<div class=\"col s12 m6 l3\" id=\"idaur\">",
-	"<div class=\"showapp\">",
-	"<div id=\"aur_icon\"><div class=\"icon_middle\">" icon "</div>",
-	"<div id=\"aur_name\"><div id=\"limit_title_name\">" title "</div>",
-	"<div id=\"version\">" version "</div></div></div>",
-	"<div id=\"box_aur_desc\"><div id=\"aur_desc\">" description "</div></div>",
-	button) > tmpfolder "/aur_build.html"
+						# Checks if package is orphaned
+						# TODO: bash localization for "Orphaned"
+						description = description ( /Orphaned/ ? " (Orphaned)" : "")
 
-	    count++
-	    skipping++
-	# Getting ready for next package
-	    title = version = description = not_installed = idaur = icon = button = ""
-	}
+						# Writes html of current package on aurbuild.html
+						# Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
 
-	END{
-		if (count) {
-		print(\
-	"<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
-	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-		print(count) > tmpfolder "/aur_number.html"
-	} else {
-		print(\
-	"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-	"<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-		print(count) > tmpfolder "/aur_number.html"
-       }
-   }
+						print(\
+							"<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
+							"<div class=\"col s12 m6 l3\" id=" idaur ">",
+							"<div class=\"showapp\">",
+							"<div id=aur_icon><div class=icon_middle>" icon "</div>",
+							"<div id=aur_name><div id=limit_title_name>" title "</div>",
+							"<div id=version>" version "</div></div></div>",
+							"<div id=box_aur_desc><div id=aur_desc>" description "</div></div>",
+							button) > tmpfolder "/aurbuild.html"
+					}
+				}
 
-	'
-	# End of gawk script
+				# Stops right after the 60th package
+				NR == 60 { exit }
 
-	#    COUNT=1
-	#	echo "$COUNT" >"${TMP_FOLDER}/aur_number.html"
-	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+				END {
+					if (NR > 0) {
+						print("<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
+								"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\"; runAvatarAur();</script>") > tmpfolder "/aurbuild.html"
+					} else {
+						print("<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\"; runAvatarAur();</script>") > tmpfolder "/aurbuild.html"
+					}
+
+					# Writes on aur_number.html the number of packages read
+					print NR > tmpfolder "/aur_number.html"
+				}
+		'
+		### End of gawk script
+
+	mv ${TMP_FOLDER}/aurbuild.html ${TMP_FOLDER}/aur.html
 }
 export -f sh_search_aur
+
+
+function sh_search_aur_category {
+
+rm -f ${TMP_FOLDER}/aurbuild.html
+
+LANGUAGE=C yay -a -Si $@ | \
+gawk -v tmpfolder=${TMP_FOLDER} -v instalar=$"Instalar" -v remover=$"Remover" -- '
+### Begin of gawk script
+
+BEGIN {
+    OFS = "\n"
+}
+
+# Following block runs when blank line found, i.e., on the transition between packages
+!$0 {
+    title = version = description = not_installed = idaur = button = skipping = ""
+}
+
+# Skips lines between packages
+skipping {
+    next
+}
+
+/^Name/ {
+    title = gensub(/^Name +: /,"",1)
+    not_installed = system("pacman -Q " title " 2> /dev/null 1> /dev/null")
+    if ( not_installed ) {
+        idaur = "AurP2"
+        button = "<div id=aur_not_installed>" instalar "</div></a></div></div>"
+    } else {
+        idaur = "AurP1"
+        button = "<div id=aur_installed>" remover "</div></a></div></div>"
+    }
+}
+
+/^Version/ {
+    version = gensub(/^Version +: /,"",1)
+}
+
+/^Description/ {
+    description = gensub(/^Description +: /,"",1)
+}
+
+# When all variables are set
+title && version && description && idaur && button {
+    if ( system("[ ! -e icons/" title ".png ]") ) {
+        icon = "<img class=\"icon\" src=\"icons/" title ".png\">"
+    } else {
+        icon = "<div class=avatar_aur>" substr(title,1,3) "</div>"
+    }
+
+# Checking custom localized description
+    shortlang = gensub(/\..+/,"",1,ENVIRON["LANG"])
+    summaryfile = "description/" title "/" shortlang "/summary"
+# Double negative because system() returns exit status of shell command inside ()
+    if ( !system("[ -e " summaryfile " ]") ) {
+        RS_BAK = RS
+        RS = "^$"
+        getline description < summaryfile
+        close(summaryfile)
+        RS = RS_BAK
+    }
+
+# Writes html of current package on aurbuild.html
+# Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
+    print(\
+"<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
+"<div class=\"col s12 m6 l3\" id=" idaur ">",
+"<div class=\"showapp\">",
+"<div id=aur_icon><div class=icon_middle>" icon "</div>",
+"<div id=aur_name><div id=limit_title_name>" title "</div>",
+"<div id=version>" version "</div></div></div>",
+"<div id=box_aur_desc><div id=aur_desc>" description "</div></div>",
+button) > tmpfolder "/aurbuild.html"
+
+    count++
+    skipping++
+# Getting ready for next package
+    title = version = description = not_installed = idaur = icon = button = ""
+}
+
+END{
+    if (count) {
+        print(\
+"<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
+"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
+"<script>runAvatarAur();</script>") > tmpfolder "/aurbuild.html"
+    } else {
+        print(\
+"<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
+"<script>runAvatarAur();</script>") > tmpfolder "/aurbuild.html"
+    }
+}
+'
+# End of gawk script
+
+mv ${TMP_FOLDER}/aurbuild.html ${TMP_FOLDER}/aur.html
+}
+export -f sh_search_aur_category
+
 
 function sh_reinstall_allpkg {
 	pacman -Sy --noconfirm - < <(pacman -Qnq)
@@ -631,18 +737,18 @@ function sh_run_pamac_remove {
 	#	done
 	#  	PKGS="$PKGS $(echo "$i" | sed 's|-[0-9].*||g')"
 	#	pamac-installer --remove $@ "$(LC_ALL=C timeout 10s pamac remove -odc $PKGS | grep "^  " | cut -f3 -d" ")" &
+# 
+# 	PKGS=""
+# 	while read -r line; do
+# 		if [[ $line =~ ^Packages ]]; then
+# 			PKGS+=" ${line#Packages }"
+# 		fi
+# 	done < <(LC_ALL=C pacman -Rc "$@" 2>/dev/null)
+# 	# Remover números e caracteres após o traço diretamente em Bash
+# 	PKGS="${PKGS//-[0-9]*/}"
 
-	PKGS=""
-	while read -r line; do
-		if [[ $line =~ ^Packages ]]; then
-			PKGS+=" ${line#Packages }"
-		fi
-	done < <(LC_ALL=C pacman -Rc "$@" 2>/dev/null)
-	# Remover números e caracteres após o traço diretamente em Bash
-	PKGS="${PKGS//-[0-9]*/}"
-
-	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$PKGS" | awk '/^  / { print $2 }')
-	pamac-installer --remove "$@" "$packages_to_remove" &
+	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
+	pamac-installer --remove "$@" $packages_to_remove &
 	PID="$!"
 	if [[ -z "$PID" ]]; then
 		exit
@@ -698,7 +804,7 @@ function sh_update_cache_snap {
 	wait
 
 	# Filtra o resultado dos arquivos e cria um arquivo de cache que será utilizado nas buscas
-	jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}*" |
+	jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' ${folder_to_save_files}* |
 		sort -u >"$file_to_save_cache"
 	grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 }
@@ -738,12 +844,6 @@ function sh_update_cache_complete {
 }
 export -f sh_update_cache_complete
 
-function sh_run_pacman_mirror {
-	pacman-mirrors --geoip
-	pacman -Syy
-}
-export -f sh_run_pacman_mirror
-
 function sh_snap_clean {
 	if [ "$(snap get system refresh.retain)" != "2" ]; then
 		snap set system refresh.retain=2
@@ -778,10 +878,13 @@ function sh_run_pamac_installer {
 	local LangFilterLowercase="${LangFilter,,}"
 	local LangClean="${LangFilterLowercase%%_*}"
 	local LangCountry="${LangFilterLowercase#*_}"
-
+	if [[ -z "$package" ]]; then
+		package=$action
+	fi
+	
 	#	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
-	AutoAddLangPkg="$(pacman -Ssq $package.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
-	pamac-installer "$@" "$AutoAddLangPkg" &
+	AutoAddLangPkg="$(pacman -Ssq $package-.18.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
+	pamac-installer $@ $AutoAddLangPkg &
 	PID="$!"
 
 	if [[ -z "$PID" ]]; then
