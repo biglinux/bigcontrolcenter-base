@@ -844,12 +844,6 @@ function sh_update_cache_complete {
 }
 export -f sh_update_cache_complete
 
-function sh_run_pacman_mirror {
-	pacman-mirrors --geoip
-	pacman -Syy
-}
-export -f sh_run_pacman_mirror
-
 function sh_snap_clean {
 	if [ "$(snap get system refresh.retain)" != "2" ]; then
 		snap set system refresh.retain=2
