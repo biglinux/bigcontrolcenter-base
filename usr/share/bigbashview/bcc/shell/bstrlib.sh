@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/08/24
+#  Altered: 2023/08/26
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -171,7 +171,7 @@ function sh_search_flatpak() {
 		# if [ "$PKG_ICON" = "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 'type=')" != "" ] || [ "$(echo "$PKG_ICON" | LC_ALL=C grep -i -m1 '<description>')" != "" ]; then
 		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${PKG_FLATPAK[PKG_ICON]}")" ]]; then
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
+				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_NAME]}">
 				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
@@ -195,7 +195,7 @@ function sh_search_flatpak() {
 			EOF
 		else
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=$PKG_ID">
+				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_ID]}">
 				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
