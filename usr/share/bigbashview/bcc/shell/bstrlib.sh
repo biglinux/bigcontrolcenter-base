@@ -812,9 +812,11 @@ export -f sh_run_pamac_mirror
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_version {
+    [[ -e "$HOME_FOLDER/flatpak-verification-fault" ]] && rm -f "$HOME_FOLDER/flatpak-verification-fault"
 	#   grep "|$1|" ~/.bigstore/flatpak.cache | cut -f4 -d"|"
-	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f4 -d"|"
-	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
+	if ! grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f4 -d"|"; then
+    	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
+    fi
 }
 export -f sh_pkg_flatpak_version
 
