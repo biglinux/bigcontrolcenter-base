@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2023/08/04
-#  Altered: 2023/08/12
+#  Altered: 2023/09/01
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -43,7 +43,7 @@ function sh_reset_brave {
 		echo -n "$result"
 		return
 	fi
-	cmdlogger rm -r ~/.config/BraveSoftware
+	 rm -r ~/.config/BraveSoftware
 	echo -n "#"
 	return
 }
@@ -57,10 +57,10 @@ function sh_reset_chromium {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/chromium
-	cmdlogger rm -r ~/.config/chromium-optimize
+	 rm -r ~/.config/chromium
+	rm -r ~/.config/chromium-optimize
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/chromium ~/.config/chromium
+		cp -r /etc/skel/.config/chromium ~/.config/chromium
 	fi
 	echo -n "#"
 	return
@@ -75,9 +75,9 @@ function sh_reset_clementine {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/Clementine
+	rm -r ~/.config/Clementine
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/Clementine ~/.config/Clementine
+		cp -r /etc/skel/.config/Clementine ~/.config/Clementine
 	fi
 	echo -n "#"
 	return
@@ -91,13 +91,13 @@ function sh_reset_dolphin {
 		echo -n "$result"
 		return
 	fi
-	cmdlogger rm -r ~/.local/share/kxmlgui5/dolphin
-	cmdlogger rm -r ~/.local/share/dolphin
-	cmdlogger rm ~/.config/session/dolphin_dolphin_dolphin
-	cmdlogger rm ~/.config/dolphinrc
+	rm -r ~/.local/share/kxmlgui5/dolphin
+	rm -r ~/.local/share/dolphin
+	rm ~/.config/session/dolphin_dolphin_dolphin
+	rm ~/.config/dolphinrc
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -f /etc/skel/.config/dolphinrc ~/.config/dolphinrc
-		cmdlogger cp -r /etc/skel/.local/share/kxmlgui5/dolphin ~/.local/share/kxmlgui5/dolphin
+		cp -f /etc/skel/.config/dolphinrc ~/.config/dolphinrc
+		cp -r /etc/skel/.local/share/kxmlgui5/dolphin ~/.local/share/kxmlgui5/dolphin
 	fi
 	echo -n "#"
 	return
@@ -112,7 +112,7 @@ function sh_reset_firefox {
 		return
 	fi
 
-	cmdlogger rm -r ~/.mozilla
+	rm -r ~/.mozilla
 	echo -n "#"
 	return
 }
@@ -142,7 +142,7 @@ function sh_reset_chrome {
 		echo -n "$result"
 		return
 	fi
-	cmdlogger rm -r ~/.config/google-chrome
+	rm -r ~/.config/google-chrome
 	echo -n "#"
 	return
 }
@@ -156,13 +156,13 @@ function sh_reset_gwenview {
 		return
 	fi
 
-	cmdlogger rm -r ~/.local/share/kxmlgui5/gwenview
-	cmdlogger rm -r ~/.local/share/gwenview
-	cmdlogger rm ~/.config/gwenviewrc
+	rm -r ~/.local/share/kxmlgui5/gwenview
+	rm -r ~/.local/share/gwenview
+	rm ~/.config/gwenviewrc
 	if [[ "$1" = "skel" ]]; then
-		cmdlogger cp -r /etc/skel/.local/share/kxmlgui5/gwenview ~/.local/share/kxmlgui5/gwenview
-		cmdlogger cp -r /etc/skel/.local/share/gwenview ~/.local/share/gwenview
-		cmdlogger cp -f /etc/skel/.config/gwenviewrc ~/.config/gwenviewrc
+		cp -r /etc/skel/.local/share/kxmlgui5/gwenview ~/.local/share/kxmlgui5/gwenview
+		cp -r /etc/skel/.local/share/gwenview ~/.local/share/gwenview
+		cp -f /etc/skel/.config/gwenviewrc ~/.config/gwenviewrc
 	fi
 	echo -n "#"
 	return
@@ -176,7 +176,7 @@ function sh_reset_inkscape {
 		echo -n "$result"
 		return
 	fi
-	cmdlogger rm -r ~/.config/inkscape
+	rm -r ~/.config/inkscape
 	echo -n "#"
 	return
 }
@@ -190,25 +190,25 @@ function sh_reset_kate {
 		return
 	fi
 
-	cmdlogger rm -r ~/.local/share/kate
-	cmdlogger rm -r ~/.local/share/kxmlgui5/kate
-	cmdlogger rm -r ~/.local/share/kxmlgui5/katepart
-	cmdlogger rm -r ~/.local/share/ktexteditor_snippets
-	cmdlogger rm ~/.config/katevirc
-	cmdlogger rm ~/.config/katemetainfos
-	cmdlogger rm ~/.config/kateschemarc
-	cmdlogger rm ~/.config/katesyntaxhighlightingrc
-	cmdlogger rm ~/.config/katerc
+	rm -r ~/.local/share/kate
+	rm -r ~/.local/share/kxmlgui5/kate
+	rm -r ~/.local/share/kxmlgui5/katepart
+	rm -r ~/.local/share/ktexteditor_snippets
+	rm ~/.config/katevirc
+	rm ~/.config/katemetainfos
+	rm ~/.config/kateschemarc
+	rm ~/.config/katesyntaxhighlightingrc
+	rm ~/.config/katerc
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -f /etc/skel/.config/katevirc ~/.config/katevirc
-		cmdlogger cp -f /etc/skel/.config/katemetainfos ~/.config/katemetainfos
-		cmdlogger cp -f /etc/skel/.config/kateschemarc ~/.config/kateschemarc
-		cmdlogger cp -f /etc/skel/.config/katesyntaxhighlightingrc ~/.config/katesyntaxhighlightingrc
-		cmdlogger cp -f /etc/skel/.config/katerc ~/.config/katerc
-		cmdlogger cp -r /etc/skel/.local/share/kate ~/.local/share/kate
-		cmdlogger cp -r /etc/skel/.local/share/kxmlgui5/kate ~/.local/share/kxmlgui5/kate
-		cmdlogger cp -r /etc/skel/.local/share/kxmlgui5/katepart ~/.local/share/kxmlgui5/katepart
-		cmdlogger cp -r /etc/skel/.local/share/ktexteditor_snippets ~/.local/share/ktexteditor_snippets
+		cp -f /etc/skel/.config/katevirc ~/.config/katevirc
+		cp -f /etc/skel/.config/katemetainfos ~/.config/katemetainfos
+		cp -f /etc/skel/.config/kateschemarc ~/.config/kateschemarc
+		cp -f /etc/skel/.config/katesyntaxhighlightingrc ~/.config/katesyntaxhighlightingrc
+		cp -f /etc/skel/.config/katerc ~/.config/katerc
+		cp -r /etc/skel/.local/share/kate ~/.local/share/kate
+		cp -r /etc/skel/.local/share/kxmlgui5/kate ~/.local/share/kxmlgui5/kate
+		cp -r /etc/skel/.local/share/kxmlgui5/katepart ~/.local/share/kxmlgui5/katepart
+		cp -r /etc/skel/.local/share/ktexteditor_snippets ~/.local/share/ktexteditor_snippets
 	fi
 	echo -n "#"
 	return
@@ -224,112 +224,112 @@ function sh_reset_kde {
 	fi
 
 	#Remove(home) folders
-	cmdlogger rm -r ~/.cache/*
-	cmdlogger rm -r ~/.config/dconf
-	cmdlogger rm -r ~/.config/gtk-3.0
-	cmdlogger rm -r ~/.config/gtk-4.0
-	cmdlogger rm -r ~/.config/KDE
-	cmdlogger rm -r ~/.config/kde.org
-	cmdlogger rm -r ~/.config/kdeconnect
-	cmdlogger rm -r ~/.config/kdedefaults
-	cmdlogger rm -r ~/.config/Kvantum
-	cmdlogger rm -r ~/.config/latte
-	cmdlogger rm -r ~/.config/pulse
-	cmdlogger rm -r ~/.kdebiglinux
-	cmdlogger rm -r ~/.local/share/kactivitymanagerd
-	cmdlogger rm -r ~/.local/share/kcookiejar
-	cmdlogger rm -r ~/.local/share/kded5
-	cmdlogger rm -r ~/.local/share/knewstuff3
-	cmdlogger rm -r ~/.local/share/konsole
-	cmdlogger rm -r ~/.local/share/kpeoplevcard
-	cmdlogger rm -r ~/.local/share/kscreen
-	cmdlogger rm -r ~/.local/share/ksysguard
-	cmdlogger rm -r ~/.local/share/kwalletd
-	cmdlogger rm -r ~/.local/share/kwin
-	cmdlogger rm -r ~/.local/share/kxmlgui5
-	cmdlogger rm -r ~/.local/share/plasma_icons
-	cmdlogger rm -r ~/.local/share/plasma
+	rm -r ~/.cache/*
+	rm -r ~/.config/dconf
+	rm -r ~/.config/gtk-3.0
+	rm -r ~/.config/gtk-4.0
+	rm -r ~/.config/KDE
+	rm -r ~/.config/kde.org
+	rm -r ~/.config/kdeconnect
+	rm -r ~/.config/kdedefaults
+	rm -r ~/.config/Kvantum
+	rm -r ~/.config/latte
+	rm -r ~/.config/pulse
+	rm -r ~/.kdebiglinux
+	rm -r ~/.local/share/kactivitymanagerd
+	rm -r ~/.local/share/kcookiejar
+	rm -r ~/.local/share/kded5
+	rm -r ~/.local/share/knewstuff3
+	rm -r ~/.local/share/konsole
+	rm -r ~/.local/share/kpeoplevcard
+	rm -r ~/.local/share/kscreen
+	rm -r ~/.local/share/ksysguard
+	rm -r ~/.local/share/kwalletd
+	rm -r ~/.local/share/kwin
+	rm -r ~/.local/share/kxmlgui5
+	rm -r ~/.local/share/plasma_icons
+	rm -r ~/.local/share/plasma
 
 	#Remove(home) files
-	cmdlogger rm ~/.bash_history
-	cmdlogger rm ~/.bash_logout
-	cmdlogger rm ~/.bashrc
-	cmdlogger rm ~/.bash_profile
-	cmdlogger rm ~/.big_desktop_theme
-	cmdlogger rm ~/.big_performance
-	cmdlogger rm ~/.big_preload
-	cmdlogger rm ~/.gtkrc-2.0
-	cmdlogger rm ~/.config/akregatorrc
-	cmdlogger rm ~/.config/arkrc
-	cmdlogger rm ~/.config/baloofileinformationrc
-	cmdlogger rm ~/.config/baloofilerc
-	cmdlogger rm ~/.config/bluedevilglobalrc
-	cmdlogger rm ~/.config/breezerc
-	cmdlogger rm ~/.config/drkonqirc
-	cmdlogger rm ~/.config/gtkrc
-	cmdlogger rm ~/.config/gtkrc-2.0
-	cmdlogger rm ~/.config/latte
-	cmdlogger rm ~/.config/kactivitymanagerdrc
-	cmdlogger rm ~/.config/kcminputrc
-	cmdlogger rm ~/.config/kconf_updaterc
-	cmdlogger rm ~/.config/kded5rc
-	cmdlogger rm ~/.config/kdeglobals
-	cmdlogger rm ~/.config/kdialogrc
-	cmdlogger rm ~/.config/kfontinstuirc
-	cmdlogger rm ~/.config/kgammarc
-	cmdlogger rm ~/.config/kglobalshortcutsrc
-	cmdlogger rm ~/.config/khotkeysrc
-	cmdlogger rm ~/.config/kiorc
-	cmdlogger rm ~/.config/klaunchrc
-	cmdlogger rm ~/.config/klassyrc
-	cmdlogger rm ~/.config/kmenueditrc
-	cmdlogger rm ~/.config/kmixrc
-	cmdlogger rm ~/.local/share/krunnerstaterc
-	cmdlogger rm ~/.config/kscreenlockerrc
-	cmdlogger rm ~/.config/kservicemenurc
-	cmdlogger rm ~/.config/ksmserverrc
-	cmdlogger rm ~/.config/ksplashrc
-	cmdlogger rm ~/.config/ksysguardrc
-	cmdlogger rm ~/.config/ktimezonedrc
-	cmdlogger rm ~/.config/kwalletrc
-	cmdlogger rm ~/.config/kwinrc
-	cmdlogger rm ~/.config/kwinrulesrc
-	cmdlogger rm ~/.config/kxkbrc
-	cmdlogger rm ~/.config/plasma-localerc
-	cmdlogger rm ~/.config/plasma-nm
-	cmdlogger rm ~/.config/plasma-org.kde.plasma.desktop-appletsrc
-	cmdlogger rm ~/.config/plasma.emojierrc
-	cmdlogger rm ~/.config/plasma_calendar_holiday_regions
-	cmdlogger rm ~/.config/plasma_workspace.notifyrc
-	cmdlogger rm ~/.config/plasmanotifyrc
-	cmdlogger rm ~/.config/plasmarc
-	cmdlogger rm ~/.config/plasmashellrc
-	cmdlogger rm ~/.config/plasmavaultrc
-	cmdlogger rm ~/.config/plasmawindowed-appletsrc
-	cmdlogger rm ~/.config/plasmawindowedrc
-	cmdlogger rm ~/.config/powerdevil.notifyrc
-	cmdlogger rm ~/.config/powerdevilrc
-	cmdlogger rm ~/.config/powermanagementprofilesrc
-	cmdlogger rm ~/.config/spectaclerc
-	cmdlogger rm ~/.config/systemmonitorrc
-	cmdlogger rm ~/.config/systemsettingsrc
-	cmdlogger rm ~/.config/Trolltech.conf
-	cmdlogger rm ~/.config/xdg-desktop-portal-kderc
-	cmdlogger rm ~/.local/share/RecentDocuments/*
-	cmdlogger rm ~/.local/share/Trash/files/*
+	rm ~/.bash_history
+	rm ~/.bash_logout
+	rm ~/.bashrc
+	rm ~/.bash_profile
+	rm ~/.big_desktop_theme
+	rm ~/.big_performance
+	rm ~/.big_preload
+	rm ~/.gtkrc-2.0
+	rm ~/.config/akregatorrc
+	rm ~/.config/arkrc
+	rm ~/.config/baloofileinformationrc
+	rm ~/.config/baloofilerc
+	rm ~/.config/bluedevilglobalrc
+	rm ~/.config/breezerc
+	rm ~/.config/drkonqirc
+	rm ~/.config/gtkrc
+	rm ~/.config/gtkrc-2.0
+	rm ~/.config/latte
+	rm ~/.config/kactivitymanagerdrc
+	rm ~/.config/kcminputrc
+	rm ~/.config/kconf_updaterc
+	rm ~/.config/kded5rc
+	rm ~/.config/kdeglobals
+	rm ~/.config/kdialogrc
+	rm ~/.config/kfontinstuirc
+	rm ~/.config/kgammarc
+	rm ~/.config/kglobalshortcutsrc
+	rm ~/.config/khotkeysrc
+	rm ~/.config/kiorc
+	rm ~/.config/klaunchrc
+	rm ~/.config/klassyrc
+	rm ~/.config/kmenueditrc
+	rm ~/.config/kmixrc
+	rm ~/.local/share/krunnerstaterc
+	rm ~/.config/kscreenlockerrc
+	rm ~/.config/kservicemenurc
+	rm ~/.config/ksmserverrc
+	rm ~/.config/ksplashrc
+	rm ~/.config/ksysguardrc
+	rm ~/.config/ktimezonedrc
+	rm ~/.config/kwalletrc
+	rm ~/.config/kwinrc
+	rm ~/.config/kwinrulesrc
+	rm ~/.config/kxkbrc
+	rm ~/.config/plasma-localerc
+	rm ~/.config/plasma-nm
+	rm ~/.config/plasma-org.kde.plasma.desktop-appletsrc
+	rm ~/.config/plasma.emojierrc
+	rm ~/.config/plasma_calendar_holiday_regions
+	rm ~/.config/plasma_workspace.notifyrc
+	rm ~/.config/plasmanotifyrc
+	rm ~/.config/plasmarc
+	rm ~/.config/plasmashellrc
+	rm ~/.config/plasmavaultrc
+	rm ~/.config/plasmawindowed-appletsrc
+	rm ~/.config/plasmawindowedrc
+	rm ~/.config/powerdevil.notifyrc
+	rm ~/.config/powerdevilrc
+	rm ~/.config/powermanagementprofilesrc
+	rm ~/.config/spectaclerc
+	rm ~/.config/systemmonitorrc
+	rm ~/.config/systemsettingsrc
+	rm ~/.config/Trolltech.conf
+	rm ~/.config/xdg-desktop-portal-kderc
+	rm ~/.local/share/RecentDocuments/*
+	rm ~/.local/share/Trash/files/*
 
 	#Copy(skel) folders
-	cmdlogger cp -rf /etc/skel/.config ~
-	cmdlogger cp -rf /etc/skel/.local ~
-	cmdlogger cp -rf /etc/skel/.pje ~
-	cmdlogger cp -rf /etc/skel/.pki ~
+	cp -rf /etc/skel/.config ~
+	cp -rf /etc/skel/.local ~
+	cp -rf /etc/skel/.pje ~
+	cp -rf /etc/skel/.pki ~
 
 	#Copy(skel) files
-	cmdlogger cp -f /etc/skel/.bash_logout ~
-	cmdlogger cp -f /etc/skel/.bash_profile ~
-	cmdlogger cp -f /etc/skel/.bashrc ~
-	cmdlogger cp -f /etc/skel/.gtkrc-2.0 ~
-	cmdlogger cp -f /etc/skel/.xinitrc ~
+	cp -f /etc/skel/.bash_logout ~
+	cp -f /etc/skel/.bash_profile ~
+	cp -f /etc/skel/.bashrc ~
+	cp -f /etc/skel/.gtkrc-2.0 ~
+	cp -f /etc/skel/.xinitrc ~
 
 	#Default theme
 	first-login-theme &>/dev/null
@@ -377,14 +377,14 @@ function sh_reset_konsole {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/konsole.knsrc
-	cmdlogger rm -r ~/.config/konsolerc
-	cmdlogger rm -r ~/.local/share/konsole
-	cmdlogger rm -r ~/.local/share/kxmlgui5/konsole
+	rm -r ~/.config/konsole.knsrc
+	rm -r ~/.config/konsolerc
+	rm -r ~/.local/share/konsole
+	rm -r ~/.local/share/kxmlgui5/konsole
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp /etc/skel/.config/konsole.knsrc ~/.config/konsole.knsrc
-		cmdlogger cp /etc/skel/.config/konsolerc ~/.config/konsolerc
-		cmdlogger cp -r /etc/skel/.local/share/konsole ~/.local/share/konsole
+		cp /etc/skel/.config/konsole.knsrc ~/.config/konsole.knsrc
+		cp /etc/skel/.config/konsolerc ~/.config/konsolerc
+		cp -r /etc/skel/.local/share/konsole ~/.local/share/konsole
 	fi
 	echo -n "#"
 	return
@@ -399,9 +399,9 @@ function sh_reset_ksnip {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/ksnip
+	rm -r ~/.config/ksnip
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/ksnip ~/.config/ksnip
+		cp -r /etc/skel/.config/ksnip ~/.config/ksnip
 	fi
 	echo -n "#"
 	return
@@ -416,10 +416,10 @@ function sh_reset_libreoffice {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/libreoffice
-	cmdlogger rm -r ~/.config/LanguageTool
+	rm -r ~/.config/libreoffice
+	rm -r ~/.config/LanguageTool
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/libreoffice ~/.config/libreoffice
+		cp -r /etc/skel/.config/libreoffice ~/.config/libreoffice
 	fi
 	echo -n "#"
 	return
@@ -434,9 +434,9 @@ function sh_reset_mystiq {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/mystiq
+	rm -r ~/.config/mystiq
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/mystiq ~/.config/mystiq
+		cp -r /etc/skel/.config/mystiq ~/.config/mystiq
 	fi
 	echo -n "#"
 	return
@@ -451,14 +451,14 @@ function sh_reset_okular {
 		return
 	fi
 
-	cmdlogger rm -r ~/.local/share/kxmlgui5/okular
-	cmdlogger rm -r ~/.local/share/okular
-	cmdlogger rm ~/.config/okularpartrc
-	cmdlogger rm ~/.config/okularrc
+	rm -r ~/.local/share/kxmlgui5/okular
+	rm -r ~/.local/share/okular
+	rm ~/.config/okularpartrc
+	rm ~/.config/okularrc
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.local/share/kxmlgui5/okular ~/.local/share/kxmlgui5/okular
-		cmdlogger cp -f /etc/skel/.config/okularpartrc ~/.config/okularpartrc
-		cmdlogger cp -f /etc/skel/.config/okularrc ~/.config/okularrc
+		cp -r /etc/skel/.local/share/kxmlgui5/okular ~/.local/share/kxmlgui5/okular
+		cp -f /etc/skel/.config/okularpartrc ~/.config/okularpartrc
+		cp -f /etc/skel/.config/okularrc ~/.config/okularrc
 	fi
 	echo -n "#"
 	return
@@ -473,11 +473,11 @@ function sh_reset_qbittorrent {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/qBittorrent
-	cmdlogger rm -r ~/.local/share/data/qBittorrent
+	rm -r ~/.config/qBittorrent
+	rm -r ~/.local/share/data/qBittorrent
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/qBittorrent ~/.config/qBittorrent
-		cmdlogger cp -r /etc/skel/.local/share/data/qBittorrent ~/.local/share/data/qBittorrent
+		cp -r /etc/skel/.config/qBittorrent ~/.config/qBittorrent
+		cp -r /etc/skel/.local/share/data/qBittorrent ~/.local/share/data/qBittorrent
 	fi
 	echo -n "#"
 	return
@@ -492,9 +492,9 @@ function sh_reset_smplayer {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/smplayer
+	rm -r ~/.config/smplayer
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/smplayer ~/.config/smplayer
+		cp -r /etc/skel/.config/smplayer ~/.config/smplayer
 	fi
 	echo -n "#"
 	return
@@ -509,7 +509,7 @@ function sh_reset_vokoscreenNG {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/vokoscreenNG
+	rm -r ~/.config/vokoscreenNG
 	echo -n "#"
 	return
 }
@@ -523,9 +523,9 @@ function sh_reset_vlc {
 		return
 	fi
 
-	cmdlogger rm -r ~/.config/vlc
+	rm -r ~/.config/vlc
 	if [ "$1" = "skel" ]; then
-		cmdlogger cp -r /etc/skel/.config/vlc ~/.config/vlc
+		cp -r /etc/skel/.config/vlc ~/.config/vlc
 	fi
 	echo -n "#"
 	return
@@ -541,31 +541,31 @@ function sh_reset_xfce {
 	fi
 
 	#Remove(home) folders
-	cmdlogger rm -r ~/.cache/*
-	cmdlogger mv ~/.config/xfce4 /tmp/./config/xfce4_backup
+	rm -r ~/.cache/*
+	mv ~/.config/xfce4 /tmp/./config/xfce4_backup
 
 	#Remove(home) files
-	cmdlogger rm ~/.bash_history
-	cmdlogger rm ~/.bash_logout
-	cmdlogger rm ~/.bashrc
-	cmdlogger rm ~/.bash_profile
-	cmdlogger rm ~/.big_desktop_theme
-	cmdlogger rm ~/.big_performance
-	cmdlogger rm ~/.big_preload
-	cmdlogger rm ~/.local/share/RecentDocuments/*
-	cmdlogger rm ~/.local/share/Trash/files/*
+	rm ~/.bash_history
+	rm ~/.bash_logout
+	rm ~/.bashrc
+	rm ~/.bash_profile
+	rm ~/.big_desktop_theme
+	rm ~/.big_performance
+	rm ~/.big_preload
+	rm ~/.local/share/RecentDocuments/*
+	rm ~/.local/share/Trash/files/*
 
 	#Copy(skel) folders
-	cmdlogger cp -rf /etc/skel/.config ~
-	cmdlogger cp -rf /etc/skel/.local ~
-	cmdlogger cp -rf /etc/skel/.pje ~
-	cmdlogger cp -rf /etc/skel/.pki ~
+	cp -rf /etc/skel/.config ~
+	cp -rf /etc/skel/.local ~
+	cp -rf /etc/skel/.pje ~
+	cp -rf /etc/skel/.pki ~
 
 	#Copy(skel) files
-	cmdlogger cp -f /etc/skel/.bash_logout ~
-	cmdlogger cp -f /etc/skel/.bash_profile ~
-	cmdlogger cp -f /etc/skel/.bashrc ~
-	cmdlogger cp -f /etc/skel/.xinitrc ~
+	cp -f /etc/skel/.bash_logout ~
+	cp -f /etc/skel/.bash_profile ~
+	cp -f /etc/skel/.bashrc ~
+	cp -f /etc/skel/.xinitrc ~
 
 	sleep 1
 	echo -n "#"

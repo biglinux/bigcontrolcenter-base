@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2023/08/24
+#  Altered: 2023/09/01
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -34,7 +34,7 @@
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230824"
+_VERSION_="1.0.0-20230901"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -351,7 +351,7 @@ function sh_kscreen_clean {
 	local xtitle=$"Configurações da tela"
 	local xmsgbox=$"As configurações da tela foram resetadas."
 
-	cmdlogger rm -Rf ~/.local/share/kscreen
+	rm -Rf ~/.local/share/kscreen
 	#	kdialog --msgbox "$xmsgbox" --title "$xtitle" --icon "$xicon" &
 	yad --title="$xtitle" --text="\n$xmsgbox" --width=400 --window-icon="$xicon" --button="OK:0" &
 	sleep 5
