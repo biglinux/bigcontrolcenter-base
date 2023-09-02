@@ -303,20 +303,24 @@ function xdebug {
 	local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
 	local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
 	local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
-	kdialog --title "[xdebug (kdialog)]$0" --yesno "\n${*}\n" --icon dialog-information
+
+	kdialog --title "[xdebug (kdialog)]$0" \
+		--yes-label="Não" \
+		--no-label="Sim" \
+		--warningyesno "\n${*}\n\nContinuar ?\n"
 	result=$?
-	((result)) && exit 1
+	[[ $result -eq 0 ]] && exit 1	# botões invertidos
 	return $result
 
-	#	yad --title="[xdebug (yad)]$script_name1"	\
-	#		--text="${*}\n"						\
-	#		--width=400								\
-	#		--window-icon="$xicon"				\
-	#		--button="Sim:1"						\
-	#		--button="Não:2"
-	#	result=$?
-	#	[[ $result -eq 2 ]] && exit 1
-	#	return $result
+#	yad --title="[xdebug (yad)]$script_name1"	\
+#		--text="${*}\n\nContinuar ?"			\
+#		--width=400								\
+#		--window-icon="$xicon"					\
+#		--button="Sim:1"						\
+#		--button="Não:2"
+#	result=$?
+#	[[ $result -eq 2 ]] && exit 1
+#	return $result
 }
 export -f xdebug
 
