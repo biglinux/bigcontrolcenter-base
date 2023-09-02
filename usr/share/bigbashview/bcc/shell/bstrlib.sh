@@ -185,7 +185,7 @@ function sh_search_flatpak() {
 	fi
 
 	local COUNT=0
-	local LIMITE=10000
+	local LIMITE=60
 
 	for i in ${search[@]}; do
 		#xdebug "$i"
@@ -202,7 +202,7 @@ function sh_search_flatpak() {
 	done
 
 	# Aguarda todos os resultados antes de exibir para o usuário
-	wait
+	# wait
 
 	if ((COUNT)); then
 		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
@@ -335,7 +335,7 @@ function sh_search_snap() {
 	fi
 
 	local COUNT=0
-	local LIMITE=10000
+	local LIMITE=60
 
 	#xdebug "$search"
 	for i in ${search[@]}; do
@@ -352,8 +352,8 @@ function sh_search_snap() {
 		fi
 	done
 
-	# Aguarda todos os resultados antes de exibir para o usuário
-	wait
+	#Aguarda todos os resultados antes de exibir para o usuário
+	#wait
 
 	if ((COUNT)); then
 		echo "$COUNT" >"$TMP_FOLDER/snap_number.html"
