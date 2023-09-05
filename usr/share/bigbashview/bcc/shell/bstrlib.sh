@@ -202,7 +202,7 @@ function sh_search_flatpak() {
 	done
 
 	# Aguarda todos os resultados antes de exibir para o usuário
-	# wait
+	wait
 
 	if ((COUNT)); then
 		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
@@ -212,6 +212,7 @@ function sh_search_flatpak() {
 		EOF
 	fi
 	echo '<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>' >>"$TMP_FOLDER/flatpak_build.html"
+	
 	cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
 }
 export -f sh_search_flatpak
