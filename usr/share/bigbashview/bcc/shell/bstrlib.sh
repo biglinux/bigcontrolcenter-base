@@ -212,6 +212,7 @@ function sh_search_flatpak() {
 		EOF
 	fi
 	echo '<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>' >>"$TMP_FOLDER/flatpak_build.html"
+	wait
 	cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
 }
 export -f sh_search_flatpak
@@ -740,10 +741,10 @@ function sh_update_cache_flatpak {
 		# Filtra apenas as linhas que contêm '|stable|'
 		grep '|stable|' |
 		# Inverte a ordem dos campos, removendo a segunda coluna duplicada
-		rev | uniq --skip-fields=2 | rev |
+		rev | uniq --skip-fields=2 | rev > "$CACHE_FILE"
 		# Utiliza o parallel para escrever o resultado no arquivo
-		parallel --gnu --jobs 100% "echo {} >> '$CACHE_FILE'"
-	wait
+		# parallel --gnu --jobs 100% "echo {} >> '$CACHE_FILE'"
+	
 
 	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 	#		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
@@ -752,9 +753,8 @@ function sh_update_cache_flatpak {
 	# Executa o comando flatpak update para listar atualizações disponíveis
 	# Filtra as linhas que começam com um espaço seguido por um dígito de 1 a 9 (indicando um pacote atualizável)
 	# Extrai o nome do pacote (segundo campo) das linhas filtradas
-	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 100% \
-		"sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
-	wait
+	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | "sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
+	
 	#Realize a busca e filtragem de pacotes Flatpak
 	grep -Fwf "$LIST_FILE" "$CACHE_FILE" >"$FILTERED_CACHE_FILE"
 }
@@ -846,7 +846,7 @@ export -f sh_run_pamac_mirror
 function sh_pkg_flatpak_version {
 	[[ -e "$HOME_FOLDER/flatpak-verification-fault" ]] && rm -f "$HOME_FOLDER/flatpak-verification-fault"
 	if ! grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f4 -d"|"; then
-		echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
+		echo "$1" > "$HOME_FOLDER/flatpak-verification-fault"
 	fi
 }
 export -f sh_pkg_flatpak_version
@@ -859,7 +859,7 @@ export -f sh_pkg_flatpak_update
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
-	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
+	echo "$1" > "$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_verify
 
