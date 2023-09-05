@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/09/01
+#  Altered: 2023/09/02
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -42,7 +42,11 @@ declare -g Programas_Flatpak=$"Programas Flatpak"
 declare -g Programas_Nativos=$"Programas Nativos"
 declare -g flatpak_versao=$"Versão: "
 declare -g flatpak_pacote=$"Pacote: "
-declare -g flatpak_nao_infomada=$"Não informada"
+declare -g flatpak_nao_informada=$"Não informada"
+declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
+declare -g snap_cache_filtered_file="$HOME_FOLDER/snap_filtered.cache"
+declare -g flatpak_cache_file="$HOME_FOLDER/flatpak.cache"
+declare -g flatpak_cache_filtered_file="$HOME_FOLDER/flatpak_filtered.cache"
 declare -gA PKG_FLATPAK
 
 function sh_flatpak_installed_list {
@@ -88,6 +92,10 @@ function sh_seek_flatpak_parallel_filter() {
 function sh_search_flatpak() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
+
+	[[ -e "$TMP_FOLDER/flatpak_number.html" ]] && rm -f "$TMP_FOLDER/flatpak_number.html"
+	[[ -e "$TMP_FOLDER/flatpak.html" ]] && rm -f "$TMP_FOLDER/flatpak.html"
+	[[ -e "$TMP_FOLDER/flatpak_build.html" ]] && rm -f "$TMP_FOLDER/flatpak_build.html"
 
 	# Le os pacotes instalados em flatpak
 	FLATPAK_INSTALLED_LIST=$(sh_flatpak_installed_list)
@@ -179,9 +187,9 @@ function sh_search_flatpak() {
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
-		cacheFile="$HOME_FOLDER/flatpak.cache"
+		cacheFile="$flatpak_cache_file"
 	else
-		cacheFile="$HOME_FOLDER/flatpak_filtered.cache"
+		cacheFile="$flatpak_cache_filtered_file"
 	fi
 
 	local COUNT=0
@@ -202,27 +210,27 @@ function sh_search_flatpak() {
 	done
 
 	# Aguarda todos os resultados antes de exibir para o usuário
-	# wait
+	wait
 
 	if ((COUNT)); then
 		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
 		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
 			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
-			<script>$(document).ready(function() {$("#box_flatpak").show();});</script>
+			<script>\$(document).ready(function() {\$("#box_flatpak").show();});</script>
+			<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
 		EOF
+		cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
 	fi
-	echo '<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>' >>"$TMP_FOLDER/flatpak_build.html"
-	wait
-	cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
 }
 export -f sh_search_flatpak
 
 function sh_search_snap() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
-	declare -g VERSION=$"Versão: "
-	declare -g PACKAGE=$"Pacote: "
-	declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
+
+	[[ -e "$TMP_FOLDER/snap.html" ]] && rm -f "$TMP_FOLDER/snap.html"
+	[[ -e "$TMP_FOLDER/snap_number.html" ]] && rm -f "$TMP_FOLDER/snap_number.html"
+	[[ -e "$TMP_FOLDER/snap_build.html" ]] && rm -f "$TMP_FOLDER/snap_build.html"
 
 	# Lê os pacotes instalados em snap
 	SNAP_INSTALLED_LIST="|$(awk 'NR>1 {printf "%s|", $1} END {printf "\b\n"}' <(snap list))"
@@ -324,15 +332,10 @@ function sh_search_snap() {
 		fi
 	}
 
-	# Inicia o loop, filtrando o conteudo do arquivo ${HOME_FOLDER}/snap.cache
-	[[ -e "$TMP_FOLDER/snap_build.html" ]] && rm -f "$TMP_FOLDER/snap_build.html"
-	[[ -e "$TMP_FOLDER/snap.html" ]] && rm -f "$TMP_FOLDER/snap.html"
-	[[ -e "$TMP_FOLDER/snap_number.html" ]] && rm -f "$TMP_FOLDER/snap_number.html"
-
 	if [[ -z "$resultFilter_checkbox" ]]; then
-		cacheFile="${HOME_FOLDER}/snap.cache"
+		cacheFile="$snap_cache_file"
 	else
-		cacheFile="${HOME_FOLDER}/snap_filtered.cache"
+		cacheFile="$snap_cache_filtered_file"
 	fi
 
 	local COUNT=0
@@ -354,18 +357,17 @@ function sh_search_snap() {
 	done
 
 	#Aguarda todos os resultados antes de exibir para o usuário
-	#wait
+	wait
 
 	if ((COUNT)); then
 		echo "$COUNT" >"$TMP_FOLDER/snap_number.html"
 		cat >>"$TMP_FOLDER/snap_build.html" <<-EOF
 			<script>runAvatarSnap();\$(document).ready(function () {\$("#box_snap").show();});</script>
-			<script>$(document).ready(function() {$("#box_snap").show();});</script>
+			<script>\$(document).ready(function() {\$("#box_snap").show();});</script>
+			<script>document.getElementById("snap_icon_loading").innerHTML = ""; runAvatarSnap();</script>
 		EOF
+		cp -f "${TMP_FOLDER}/snap_build.html" "${TMP_FOLDER}/snap.html"
 	fi
-	echo '<script>document.getElementById("snap_icon_loading").innerHTML = ""; runAvatarSnap();</script>' >>"$TMP_FOLDER/snap_build.html"
-	cp -f "${TMP_FOLDER}/snap_build.html" "${TMP_FOLDER}/snap.html"
-
 }
 export -f sh_search_snap
 
@@ -377,7 +379,9 @@ function sh_search_aur {
 	local -i total=0
 	local cmd
 
-	[[ -e "${TMP_FOLDER}/aur_build.html" ]] && rm -f "${TMP_FOLDER}/aur_build.html"
+	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
+	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
+	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
 	cmd="$(LC_ALL=C paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)"
 	while read -r line; do
@@ -444,20 +448,21 @@ function sh_search_aur {
 
 	done <<<"$cmd"
 
-	echo "$total" >"$TMP_FOLDER/aur_number.html"
 	if ((total)); then
+		echo "$total" >"$TMP_FOLDER/aur_number.html"
 		echo '<script>$(document).ready(function() {$("#box_aur").show();});</script>' >>"$TMP_FOLDER/aur_build.html"
-	fi
-	echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
+		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
 
-	# Move temporary HTML file to final location
-	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+		# Move temporary HTML file to final location
+		mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+	fi
 }
 export -f sh_search_aur
 
 function sh_search_aur_category {
 	local search="$*"
 
+	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
@@ -539,26 +544,28 @@ function sh_search_aur_category {
     END{
         if (count) {
             print(\
-    "<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
-    "<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-    "<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-        } else {
-            print(\
-    "<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-    "<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+		    "<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
+		    "<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
+		    "<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+			print(count) > tmpfolder "/aur_number.html"
         }
-    print(count) > tmpfolder "/aur_number.html"
+#		else {
+#           print(\
+#		    "<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
+#		    "<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
+#			print(count) > tmpfolder "/aur_number.html"
+#        }
     }
     '
 	# End of gawk script
 
 	if [[ -e "$TMP_FOLDER/aur_number.html" ]]; then
 		echo '<script>$(document).ready(function() {$("#box_aur").show();});</script>' >>"$TMP_FOLDER/aur_build.html"
-	fi
-	echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
+		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
 
-	# Move temporary HTML file to final location
-	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+		# Move temporary HTML file to final location
+		mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+	fi
 }
 export -f sh_search_aur_category
 
@@ -736,25 +743,30 @@ function sh_update_cache_flatpak {
 	#        uniq --skip-fields=2 |
 	#        rev >"$CACHE_FILE"
 
+	# Repara o banco de dados flatpak
+	flatpak repair >/dev/null 2>&-
+
 	# Realiza a busca usando flatpak search e filtra as informações necessárias
 	flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' |
 		# Filtra apenas as linhas que contêm '|stable|'
 		grep '|stable|' |
 		# Inverte a ordem dos campos, removendo a segunda coluna duplicada
-		rev | uniq --skip-fields=2 | rev > "$CACHE_FILE"
+#		rev | uniq --skip-fields=2 | rev > "$CACHE_FILE"
+		rev | uniq --skip-fields=2 | rev |
 		# Utiliza o parallel para escrever o resultado no arquivo
-		# parallel --gnu --jobs 100% "echo {} >> '$CACHE_FILE'"
-	
-
-	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
-	#		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
-	#	done
+		parallel --gnu --jobs 100% "echo {} >> '$CACHE_FILE'"
+	wait
 
 	# Executa o comando flatpak update para listar atualizações disponíveis
 	# Filtra as linhas que começam com um espaço seguido por um dígito de 1 a 9 (indicando um pacote atualizável)
 	# Extrai o nome do pacote (segundo campo) das linhas filtradas
-	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | "sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
-	
+	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
+	#		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
+	#	done
+	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 100% \
+		"sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
+	wait
+
 	#Realize a busca e filtragem de pacotes Flatpak
 	grep -Fwf "$LIST_FILE" "$CACHE_FILE" >"$FILTERED_CACHE_FILE"
 }
@@ -846,22 +858,22 @@ export -f sh_run_pamac_mirror
 function sh_pkg_flatpak_version {
 	[[ -e "$HOME_FOLDER/flatpak-verification-fault" ]] && rm -f "$HOME_FOLDER/flatpak-verification-fault"
 	if ! grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f4 -d"|"; then
-		echo "$1" > "$HOME_FOLDER/flatpak-verification-fault"
+		echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
 	fi
 }
 export -f sh_pkg_flatpak_version
-
-# qua 23 ago 2023 19:20:09 -04
-function sh_pkg_flatpak_update {
-	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f6 -d"|"
-}
-export -f sh_pkg_flatpak_update
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
 	echo "$1" > "$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_verify
+
+# qua 23 ago 2023 19:20:09 -04
+function sh_pkg_flatpak_update {
+	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f6 -d"|"
+}
+export -f sh_pkg_flatpak_update
 
 #qua 23 ago 2023 19:40:41 -04
 function sh_load_main {
