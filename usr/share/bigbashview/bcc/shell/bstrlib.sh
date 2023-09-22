@@ -754,7 +754,7 @@ function sh_update_cache_flatpak {
 #		rev | uniq --skip-fields=2 | rev > "$CACHE_FILE"
 		rev | uniq --skip-fields=2 | rev |
 		# Utiliza o parallel para escrever o resultado no arquivo
-		parallel --gnu --jobs 100% "echo {} >> '$CACHE_FILE'"
+		parallel --gnu --jobs 50% "echo {} >> '$CACHE_FILE'"
 	wait
 
 	# Executa o comando flatpak update para listar atualizações disponíveis
@@ -763,7 +763,7 @@ function sh_update_cache_flatpak {
 	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 	#		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
 	#	done
-	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 100% \
+	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 50% \
 		"sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
 	wait
 
