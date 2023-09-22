@@ -1,6 +1,8 @@
+# Maintainer	: Vilmar Catafesta <vcatafesta@gmail.com>
+
+
 pkgname=bigcontrolcenter-base
 pkgdesc="Base files and libs to bigcontrolcenter interfaces"
-depends=('bigbashview' )
 # makedepends=('')
 # conflicts=('')
 pkgver=$(date +%y.%m.%d)
@@ -9,6 +11,36 @@ arch=('any')
 license=('GPL3')
 url="https://github.com/biglinux/$pkgname"
 provides=("$pkgname")
+depends=('bash'
+    'curl'
+    'coreutils' 		# cat, cut, mkdir,rmdir, rm, sort, uniq, ... etc
+    'util-linux' 		# rev
+    'gawk'
+    'grep'
+    'jq'
+    'pamac-gtk'
+    'paru'
+    'polkit'
+    'parallel'
+    'rxvt-unicode'
+    'sed'
+    'xorg-xwininfo'
+    'xorg-xrandr'
+    'xorg-xprop' 		# xprop
+    'xsetprop' 			# xsetprop
+    'xtermset'
+    'wmctrl' 			# wmctrl
+    'yay'
+    'yad'
+    'libnotify'			# notify-send
+    'kdialog'
+    'lsof'
+    'libnewt' 			# whiptail
+    'procps-ng' 		# pipof, pgrep
+    'pacman'
+    'pacman-mirrors'
+    'mhwd'
+    )
 source=("git+${url}.git")
 md5sums=('SKIP')
 if [ -e "${pkgname}.install" ];then

@@ -57,7 +57,7 @@ function sh_reset_chromium {
 		return
 	fi
 
-	 rm -r ~/.config/chromium
+	rm -r ~/.config/chromium
 	rm -r ~/.config/chromium-optimize
 	if [ "$1" = "skel" ]; then
 		cp -r /etc/skel/.config/chromium ~/.config/chromium
