@@ -679,17 +679,17 @@ function sh_update_cache_snap {
 	# jq -r '._embedded."clickindex:package"[]| select( .package_name == "wps-2019-snap" )' $folder_to_save_files*
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $number_of_pages
-	#	echo "Baixando header: $SITE"
-	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
+#	echo "Baixando header: $SITE"
+#	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
 	number_of_pages="$(curl --silent --compressed --insecure --url "$SITE" | jq -r '._links.last' | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
 
 	if ((number_of_pages)); then
 		# Baixa os arquivos em paralelo
-		parallel --gnu --jobs 100% \
+		parallel --gnu --jobs 50% \
 			"curl --compressed --silent --insecure -s --url '${URL}{}' --continue-at - --output '${folder_to_save_files}{}'" ::: $(seq 1 $number_of_pages)
 
 		# Filtra e processa os arquivos em paralelo
-		parallel --gnu --jobs 100% \
+		parallel --gnu --jobs 50% \
 			"jq -r '._embedded.\"clickindex:package\"[]| .title + \"|\" + .snap_id + \"|\" + .media[0].url + \"|\" + .summary + \"|\" + .version + \"|\" + .package_name + \"|\"' '${folder_to_save_files}{}' | sort -u >> '${file_to_save_cache}'" ::: $(seq 1 $number_of_pages)
 		# Aguarda o processamento
 		wait
