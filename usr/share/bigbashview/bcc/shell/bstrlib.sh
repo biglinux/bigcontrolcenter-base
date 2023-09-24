@@ -799,6 +799,7 @@ function sh_enable_snapd_and_apparmor {
 
 	if sh_package_is_installed 'apparmor'; then
 		systemctl enable --now apparmor
+		systemctl enable --now snapd.apparmor
 		if sh_package_is_installed 'snapd'; then
 			systemctl enable --now snapd
 		fi
