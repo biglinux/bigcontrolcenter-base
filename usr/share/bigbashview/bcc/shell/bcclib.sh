@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2023/09/02
+#  Altered: 2023/09/24
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -33,8 +33,11 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+[[ -n "$LIB_BCCLIB_SH" ]] && return
+LIB_BCCLIB_SH=1
+
 APP="${0##*/}"
-_VERSION_="1.0.0-20230902"
+_VERSION_="1.0.0-20230924"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -616,10 +619,10 @@ function sh_install_terminal {
 		"install_snap")
 			if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
             	pkexec env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" snap install "$PACKAGE_NAME"
-            	sh_snap_clean 
+            	sh_snap_clean
          	else
 	           	snap install "$PACKAGE_NAME"
-            	sh_snap_clean 
+            	sh_snap_clean
 			fi
          	;;
       	"remove_snap")
@@ -636,6 +639,7 @@ function sh_install_terminal {
 		"reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
 		"system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
 		"system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
+		"enable_snapd") sh_enable_snapd_and_apparmor;;
 		esac
 	fi
 
@@ -673,6 +677,169 @@ function sh_install_terminal_resize {
 	done
 }
 export -f sh_install_terminal_resize
+
+# Função para atualizar um valor no arquivo INI ou criar o arquivo se não existir
+# Exemplo de uso: atualize o valor da chave "versao" da seção "App" no arquivo "config.ini"
+# tini.write_value "config.ini" "App" "versao" "2.0"
+function tini.write_value {
+	local config_file="$1"
+	local section="$2"
+	local key="$3"
+	local new_value="$4"
+
+	declare -A ini_data # Array associativo para armazenar as seções e chaves
+
+	if [[ -f "$config_file" ]]; then
+		# Ler o arquivo INI e armazenar as informações em um array associativo
+		local current_section=""
+		while IFS= read -r line; do
+			if [[ "$line" =~ ^\[(.*)\] ]]; then
+				current_section="${BASH_REMATCH[1]}"
+			elif [[ "$line" =~ ^([^=]+)=(.*) ]]; then
+				local current_key="${BASH_REMATCH[1]}"
+				local current_value="${BASH_REMATCH[2]}"
+				ini_data["$current_section,$current_key"]="$current_value"
+			fi
+		done <"$config_file"
+	fi
+
+	# Atualizar o valor no array associativo
+	ini_data["$section,$key"]="$new_value"
+
+:<<'comment'
+	# Extrair as chaves do array associativo para um array de strings
+	keys=("${!ini_data[@]}")
+
+	# Ordenar o array de chaves pelo section_key
+	IFS=$'\n' sorted_keys=($(sort <<<"${keys[*]}"))
+	unset IFS
+
+	# Iterar sobre as chaves ordenadas e acessar os valores correspondentes no array associativo
+	for sorted_key in "${sorted_keys[@]}"; do
+		local key="${key_pair##*,}"
+		local section_key="${sorted_key%,*}"
+		local value="${ini_data[$sorted_key]}"
+		# Faça o que você precisa com section_key e value aqui
+	done
+comment
+
+	# Reescrever o arquivo INI com as seções e chaves atualizadas
+	>"$config_file"
+	local current_section=""
+	for section_key in "${!ini_data[@]}"; do
+		local section_name="${section_key%,*}"
+		local key_name="${section_key#*,}"
+		local value="${ini_data[$section_key]}"
+
+		# Verifique se a seção já foi gravada
+		if [[ "$current_section" != "$section_name" ]]; then
+			echo "" >>"$config_file"
+			echo "[$section_name]" >>"$config_file"
+			current_section="$section_name"
+		fi
+		echo "$key_name=$value" >>"$config_file"
+	done
+	tini.align_ini_file "$config_file"
+}
+export -f tini.write_value
+
+# Função para atualizar o valor de uma chave em uma seção no arquivo INI
+function tini.update_value {
+    local config_file="$1"
+    local section="$2"
+    local key="$3"
+    local new_value="$4"
+
+    if [[ -f "$config_file" ]]; then
+        sed -i "/^\[$section\]/s/^$key=.*/$key=$new_value/" "$config_file"
+    fi
+}
+export -f tini.update_value
+
+# Função para verificar se um valor em uma seção corresponde a um valor de referência em um arquivo INI
+# tini.exist_value "config.ini" "flatpak" "active" '0'; echo $?
+# tini.exist_value "config.ini" "snapd" "active" '1'; echo $?
+# tini.exist_value "config.ini" "flatpak" "active" '1'; echo $?
+# tini.exist_value "config.ini" "snapd" "active" '0'; echo $?
+# tini.exist_value "config.ini" "snapd" "xactive" '0'; echo $?
+function tini.exist_value {
+    local config_file="$1"
+    local section="$2"
+    local key="$3"
+    local comp_value="$4"
+
+    if [[ -f "$config_file" ]]; then
+        local section_found=false
+        local key_found=false
+        local value=""
+
+        while IFS= read -r line; do
+            if [[ "$line" == "[$section]" ]]; then
+                section_found=true
+            elif [[ "$line" == "["* ]]; then
+                section_found=false
+            fi
+
+            if [[ "$section_found" == true && "$line" == "$key="* ]]; then
+                value=$(echo "$line" | cut -d'=' -f2)
+                key_found=true
+            fi
+
+            if [[ "$section_found" == true && "$key_found" == true ]]; then
+                if [[ "$value" == "$comp_value" ]]; then
+                    return 0  # Valor encontrado e corresponde ao valor de referência
+                else
+                    return 1  # Valor encontrado, mas não corresponde ao valor de referência
+                fi
+            fi
+        done < "$config_file"
+    fi
+    return 2  # Seção ou chave não encontrada no arquivo INI
+}
+export -f tini.exist_value
+
+# Função para ler um valor do arquivo INI
+# tini.read_value "config.ini" "flatpak" "active"
+function tini.read_value {
+    local config_file="$1"
+    local section="$2"
+    local key="$3"
+    local found_section=false
+
+    # Variável para armazenar o valor encontrado
+    local value=""
+
+    # Use grep para encontrar a chave na seção especificada no arquivo INI
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\[$section\] ]]; then
+            found_section=true
+        elif [[ "$found_section" == true && "$line" =~ ^$key= ]]; then
+            # Encontramos a chave dentro da seção
+            value=$(echo "$line" | cut -d'=' -f2)
+            break  # Saia do loop, pois encontramos o valor
+        elif [[ "$line" =~ ^\[.*\] ]]; then
+            # Se encontrarmos outra seção, saia do loop para evitar procurar em outras seções
+            found_section=false
+        fi
+    done < "$config_file"
+
+    # Verifique se encontramos o valor
+    if [[ -n "$value" ]]; then
+        echo "$value"
+    else
+        echo "Chave não encontrada."
+    fi
+}
+export -f tini.read_value
+
+function tini.align_ini_file {
+	local fini="$1"
+	local fini_tmp=(mktemp "$fini-xxx")
+	awk 'BEGIN { insection=0; } /^\[.*\]$/ { if (!seen[$0]++) print; insection=1; next; } insection { print; }' "$fini" > "$fini_tmp"
+	sed -i '/^[[:space:]]*$/d' "$fini_tmp"
+	mv -f "$fini_tmp" "$fini"
+}
+export -f tini.align_ini_file
 
 function sh_main {
 	local execute_app="$1"

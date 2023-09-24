@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/09/02
+#  Altered: 2023/09/24
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -30,6 +30,13 @@
 #  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[[ -n "$LIB_BSTRLIB_SH" ]] && return
+LIB_BSTRLIB_SH=1
+
+APP="${0##*/}"
+_VERSION_="1.0.0-20230924"
+LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
 export TMP_FOLDER="/tmp/bigstore-$USER"
@@ -635,30 +642,6 @@ function sh_pkg_pacman_build_date {
 }
 export -f sh_pkg_pacman_build_date
 
-function sh_run_pamac_remove {
-	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
-	pamac-installer --remove "$@" $packages_to_remove &
-	PID="$!"
-	if [[ -z "$PID" ]]; then
-		exit
-	fi
-
-	CONTADOR=0
-	while [ $CONTADOR -lt 100 ]; do
-		if [ "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" != "" ]; then
-			xsetprop -id="$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" --atom WM_TRANSIENT_FOR --value "$(wmctrl -p -l -x | grep Big-Store$ | cut -f1 -d" ")" -f 32x
-			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b add,skip_pager,skip_taskbar
-			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b toggle,modal
-			break
-		fi
-
-		sleep 0.1
-		((++CONTADOR))
-	done
-	wait
-}
-export -f sh_run_pamac_remove
-
 function sh_update_cache_snap {
 	folder_to_save_files="$HOME_FOLDER/snap_list_files/snap_list"
 	file_to_save_cache="$HOME_FOLDER/snap.cache"
@@ -679,17 +662,17 @@ function sh_update_cache_snap {
 	# jq -r '._embedded."clickindex:package"[]| select( .package_name == "wps-2019-snap" )' $folder_to_save_files*
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $number_of_pages
-	#	echo "Baixando header: $SITE"
-	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
+#	echo "Baixando header: $SITE"
+#	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
 	number_of_pages="$(curl --silent --compressed --insecure --url "$SITE" | jq -r '._links.last' | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
 
 	if ((number_of_pages)); then
 		# Baixa os arquivos em paralelo
-		parallel --gnu --jobs 100% \
+		parallel --gnu --jobs 50% \
 			"curl --compressed --silent --insecure -s --url '${URL}{}' --continue-at - --output '${folder_to_save_files}{}'" ::: $(seq 1 $number_of_pages)
 
 		# Filtra e processa os arquivos em paralelo
-		parallel --gnu --jobs 100% \
+		parallel --gnu --jobs 50% \
 			"jq -r '._embedded.\"clickindex:package\"[]| .title + \"|\" + .snap_id + \"|\" + .media[0].url + \"|\" + .summary + \"|\" + .version + \"|\" + .package_name + \"|\"' '${folder_to_save_files}{}' | sort -u >> '${file_to_save_cache}'" ::: $(seq 1 $number_of_pages)
 		# Aguarda o processamento
 		wait
@@ -754,7 +737,7 @@ function sh_update_cache_flatpak {
 #		rev | uniq --skip-fields=2 | rev > "$CACHE_FILE"
 		rev | uniq --skip-fields=2 | rev |
 		# Utiliza o parallel para escrever o resultado no arquivo
-		parallel --gnu --jobs 100% "echo {} >> '$CACHE_FILE'"
+		parallel --gnu --jobs 50% "echo {} >> '$CACHE_FILE'"
 	wait
 
 	# Executa o comando flatpak update para listar atualizações disponíveis
@@ -763,7 +746,7 @@ function sh_update_cache_flatpak {
 	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 	#		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
 	#	done
-	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 100% \
+	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 50% \
 		"sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
 	wait
 
@@ -802,13 +785,57 @@ function sh_snap_clean {
 }
 export -f sh_snap_clean
 
-function sh_snap_enable {
-	systemctl start snapd
-	systemctl enable snapd
-	systemctl start apparmor
-	systemctl enable apparmor
+function sh_package_is_installed {
+	pacman -Q $1
+	return $?
 }
-export -f sh_snap_enable
+export -f sh_package_is_installed
+
+function sh_enable_snapd_and_apparmor {
+	# need param in boot loader
+	# linux /boot/vmlinuz-linux root=UUID=978e3e81-8048-4ae1-8a06-aa727458e8ff quiet splash apparmor=1 security=apparmor
+	# /etc/default/grub
+	# GRUB_CMDLINE_LINUX_DEFAULT="quiet apparmor=1 security=apparmor"
+
+	if sh_package_is_installed 'apparmor'; then
+		systemctl enable --now apparmor
+		if sh_package_is_installed 'snapd'; then
+			systemctl enable --now snapd
+		fi
+	fi
+	systemctl status apparmor
+#	systemctl status snapd
+#	failed
+#	inactive
+#	active
+	systemctl is-active apparmor
+	systemctl is-active snapd
+}
+export -f sh_enable_snapd_and_apparmor
+
+function sh_run_pamac_remove {
+	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
+	pamac-installer --remove "$@" $packages_to_remove &
+	PID="$!"
+	if [[ -z "$PID" ]]; then
+		exit
+	fi
+
+	CONTADOR=0
+	while [ $CONTADOR -lt 100 ]; do
+		if [ "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" != "" ]; then
+			xsetprop -id="$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" --atom WM_TRANSIENT_FOR --value "$(wmctrl -p -l -x | grep Big-Store$ | cut -f1 -d" ")" -f 32x
+			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b add,skip_pager,skip_taskbar
+			wmctrl -i -r "$(wmctrl -p -l | grep -m1 " $PID " | cut -f1 -d" ")" -b toggle,modal
+			break
+		fi
+
+		sleep 0.1
+		((++CONTADOR))
+	done
+	wait
+}
+export -f sh_run_pamac_remove
 
 function sh_run_pamac_installer {
 	local action="$1"
