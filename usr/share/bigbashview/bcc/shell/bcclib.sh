@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2023/09/24
+#  Altered: 2023/09/25
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230924"
+_VERSION_="1.0.0-20230925"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -557,6 +557,31 @@ EOF
 }
 export -f sh_catp
 
+function sh_run_action_standalone {
+    local cmd="$1"
+    shift
+    local retval
+    export WINDOW_ID
+
+    [[ -z "$WINDOW_ID" ]] && WINDOW_ID="$(sh_window_id)"
+    export PID_BIG_DEB_INSTALLER="$$"
+	export MARGIN_TOP_MOVE=-90
+	export WINDOW_HEIGHT=12
+
+	urxvt +sb \
+        -internalBorder 1 \
+        -borderColor rgb:00/22/40 \
+        -depth 32 \
+        -fg rgb:00/ff/ff \
+        -bg rgb:00/22/40 \
+        -fn "xft:Ubuntu Mono:pixelsize=14" \
+        -embed "$WINDOW_ID" \
+        -sr \
+        -bc -e bash -c "sh_install_terminal_resize & $cmd $@"
+#       -bc -e bash -c "MARGIN_TOP_MOVE=-90 WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER=$$ WINDOW_ID=$WINDOW_ID sh_install_terminal_resize & $cmd $@"
+}
+export -f sh_run_action_standalone
+
 function sh_run_action {
 	local action="$1"
 	local window_id="$2"
@@ -607,14 +632,14 @@ function sh_install_terminal {
 			if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
 				flatpak uninstall --unused -y
 			fi
-			sh_update_cache_flatpak
+#			sh_update_cache_flatpak
 			;;
 		"remove_flatpak")
 			pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY flatpak remove $PACKAGE_ID -y
 			if [ ! -e "$HOME_FOLDER/disable_flatpak_unused_remove" ]; then
 				flatpak uninstall --unused -y
 			fi
-			sh_update_cache_flatpak
+#			sh_update_cache_flatpak
 			;;
 		"install_snap")
 			if [[ ! -e "$HOME_FOLDER/disable_snap_unused_remove" ]]; then
@@ -632,14 +657,17 @@ function sh_install_terminal {
             	snap remove $PACKAGE_NAME
          	fi
          	;;
-		"update_pacman") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman -Syy --noconfirm ;;
+#		"update_pacman") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syy --noconfirm ;;
+		"update_pacman") sh_pkexec pacman -Syy --noconfirm ;;
 		"update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman-mirrors --geoip ;;
 		"update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
 		"force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
 		"reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
 		"system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
 		"system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
-		"enable_snapd") sh_enable_snapd_and_apparmor;;
+		"update_flatpak") sh_update_cache_flatpak ;;
+		"update_snap") sh_update_cache_snap ;;
+		"enable_snapd") sh_enable_snapd_and_apparmor ;;
 		esac
 	fi
 
@@ -739,7 +767,7 @@ comment
 		fi
 		echo "$key_name=$value" >>"$config_file"
 	done
-	tini.align_ini_file "$config_file"
+#	tini.align_ini_file "$config_file"
 }
 export -f tini.write_value
 
@@ -840,6 +868,11 @@ function tini.align_ini_file {
 	mv -f "$fini_tmp" "$fini"
 }
 export -f tini.align_ini_file
+
+function sh_pkexec {
+	pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY KDE_SESSION_VERSION=5 KDE_FULL_SESSION=true ${1+"$@"}
+}
+export -f sh_pkexec
 
 function sh_main {
 	local execute_app="$1"

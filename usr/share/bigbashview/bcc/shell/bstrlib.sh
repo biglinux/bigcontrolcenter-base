@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/09/24
+#  Altered: 2023/09/25
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230924"
+_VERSION_="1.0.0-20230925"
 LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
@@ -643,13 +643,21 @@ function sh_pkg_pacman_build_date {
 export -f sh_pkg_pacman_build_date
 
 function sh_update_cache_snap {
-	folder_to_save_files="$HOME_FOLDER/snap_list_files/snap_list"
-	file_to_save_cache="$HOME_FOLDER/snap.cache"
-	file_to_save_cache_filtered="$HOME_FOLDER/snap_filtered.cache"
-	path_snap_list_files="$HOME_FOLDER/snap_list_files/"
-	SITE="https://api.snapcraft.io/api/v1/snaps/search?confinement=strict&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media&scope=wide:"
-	URL="https://api.snapcraft.io/api/v1/snaps/search?confinement=strict,classic&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:&page="
+	local processamento_em_paralelo="$1"
+	local folder_to_save_files="$HOME_FOLDER/snap_list_files/snap_list"
+	local file_to_save_cache="$HOME_FOLDER/snap.cache"
+	local file_to_save_cache_filtered="$HOME_FOLDER/snap_filtered.cache"
+	local path_snap_list_files="$HOME_FOLDER/snap_list_files/"
+	local SITE="https://api.snapcraft.io/api/v1/snaps/search?confinement=strict&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media&scope=wide:"
+	local URL="https://api.snapcraft.io/api/v1/snaps/search?confinement=strict,classic&fields=architecture,summary,description,package_name,snap_id,title,content,version,common_ids,binary_filesize,license,developer_name,media,&scope=wide:&page="
 
+	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
+		processamento_em_paralelo=0
+	else
+		processamento_em_paralelo=1
+	fi
+
+	echo "Aguarde, criando necessários arquivos e 'paths'"
 	[[ -e "$file_to_save_cache" ]] && rm -f "$file_to_save_cache"
 	[[ -e "$file_to_save_cache_filtered" ]] && rm -f "$file_to_save_cache_filtered"
 	[[ -d "$path_snap_list_files" ]] && rm -R "$path_snap_list_files"
@@ -662,58 +670,68 @@ function sh_update_cache_snap {
 	# jq -r '._embedded."clickindex:package"[]| select( .package_name == "wps-2019-snap" )' $folder_to_save_files*
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $number_of_pages
-#	echo "Baixando header: $SITE"
+	echo "Aguarde, baixando header: $SITE"
 #	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
 	number_of_pages="$(curl --silent --compressed --insecure --url "$SITE" | jq -r '._links.last' | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
+	echo "Numero de páginas a serem processadas: $number_of_pages"
+	echo "Aguarde o inicio dos downloads"
 
-	if ((number_of_pages)); then
-		# Baixa os arquivos em paralelo
-		parallel --gnu --jobs 50% \
-			"curl --compressed --silent --insecure -s --url '${URL}{}' --continue-at - --output '${folder_to_save_files}{}'" ::: $(seq 1 $number_of_pages)
+	if ((processamento_em_paralelo)); then
+		if ((number_of_pages)); then
+			# Baixa os arquivos em paralelo
+			parallel --gnu --jobs 50% \
+				"curl --compressed --silent --insecure -s --url '${URL}{}' --continue-at - --output '${folder_to_save_files}{}'" ::: $(seq 1 $number_of_pages)
+			# Filtra e processa os arquivos em paralelo
+			parallel --gnu --jobs 50% \
+				"jq -r '._embedded.\"clickindex:package\"[]| .title + \"|\" + .snap_id + \"|\" + .media[0].url + \"|\" + .summary + \"|\" + .version + \"|\" + .package_name + \"|\"' '${folder_to_save_files}{}' \
+				| sort -u >> '${file_to_save_cache}'" ::: $(seq 1 $number_of_pages)
+			# Aguarda o processamento
+			wait
+			grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
+		fi
+	else
+		if (( number_of_pages )); then
+			for ((page=1; page<=number_of_pages; page++)); do
+				echo "Baixando arquivo em: ${folder_to_save_files}${page}"
+#				notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando arquivo ${folder_to_save_files}${page}" --expire-time=2000
+				curl -# --compressed --insecure --url "$URL$page" --continue-at - --output "${folder_to_save_files}${page}"
+			done
+			echo "Aguardando o download de todos os arquivos..."
+#			wait
+			echo "Downloads efetuados, prosseguindo!"
 
-		# Filtra e processa os arquivos em paralelo
-		parallel --gnu --jobs 50% \
-			"jq -r '._embedded.\"clickindex:package\"[]| .title + \"|\" + .snap_id + \"|\" + .media[0].url + \"|\" + .summary + \"|\" + .version + \"|\" + .package_name + \"|\"' '${folder_to_save_files}{}' | sort -u >> '${file_to_save_cache}'" ::: $(seq 1 $number_of_pages)
-		# Aguarda o processamento
-		wait
-		grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
+		    echo "Filtrando o resultado dos arquivos e criando um arquivo de cache que será utilizado nas buscas"
+			jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "$folder_to_save_files*" | sort -u >"$file_to_save_cache"
+
+			for ((page=1; page<=number_of_pages; page++)); do
+				echo "Processando com jq a página : $page/$number_of_pages"
+#				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache" &
+				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache"
+			done
+			echo "Aguarde o processamento do jq"
+#			wait
+	  	  echo "Filtrando o resultado com grep"
+		    grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
+		fi
 	fi
-
-	#	if (( number_of_pages )); then
-	#		# Inicia o download em paralelo de todas as paginas
-	#		for ((page=1; page<=number_of_pages; page++)); do
-	#			echo "Baixando arquivo ${folder_to_save_files}${page}"
-	#			notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando arquivo ${folder_to_save_files}${page}" --expire-time=2000
-	#			curl --compressed --silent --url "$URL$page" > "${folder_to_save_files}${page}" &
-	#			curl --compressed --silent --insecure -s --url "$URL$page" --continue-at - --output "${folder_to_save_files}${page}" &
-	#		done
-
-	#		# Aguarda o download de todos os arquivos
-	#		wait
-
-	#	    # Filtra o resultado dos arquivos e cria um arquivo de cache que será utilizado nas buscas
-	#		jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "$folder_to_save_files*" |
-	#			sort -u >"$file_to_save_cache"
-	#		for ((page=1; page<=number_of_pages; page++)); do
-	#			echo "Processando jq página $page/$number_of_pages"
-	#			notify-send --icon=big-store --app-name "$0" "$TITLE" "Processando jq página $page/$number_of_pages" --expire-time=2000
-	#			jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" |
-	#				sort -u >> "$file_to_save_cache" &
-	#		done
-
-	#		# Aguarda o processamento do jq
-	#		wait
-	#	    grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
-	#	fi
+	tini.write_value "$INI_FILE_BIG_STORE" "snap" "snap_atualizado" '1'
+	tini.write_value "$INI_FILE_BIG_STORE" "snap" "snap_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 }
 export -f sh_update_cache_snap
 
 function sh_update_cache_flatpak {
-	# Defina os caminhos dos arquivos
+	local processamento_em_paralelo="$1"
 	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
 	local CACHE_FILE="$HOME_FOLDER/flatpak.cache"
 	local FILTERED_CACHE_FILE="$HOME_FOLDER/flatpak_filtered.cache"
 
+	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
+		processamento_em_paralelo=0
+	else
+		processamento_em_paralelo=1
+	fi
+
+	echo "Aguarde, criando e removendo necessários arquivos e 'paths'"
 	[[ -e "$CACHE_FILE" ]] && rm -f "$CACHE_FILE"
 
 	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
@@ -726,32 +744,35 @@ function sh_update_cache_flatpak {
 	#        uniq --skip-fields=2 |
 	#        rev >"$CACHE_FILE"
 
-	# Repara o banco de dados flatpak
-	flatpak repair >/dev/null 2>&-
+	if ((processamento_em_paralelo)); then
+		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
+		flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' |
+			grep '|stable|' |
+			rev | uniq --skip-fields=2 | rev |
+			parallel --gnu --jobs 50% "echo {} >> '$CACHE_FILE'"
+		wait
+		LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 50% "sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
+		wait
+	else
+		echo "Reparando banco de dados Flatpak"
+		flatpak repair
+		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
+		flatpak search --arch x86_64 "" |
+			sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' |
+			grep '|stable|' |
+			rev |
+			uniq --skip-fields=2 |
+			rev |
+			tee -a  "$CACHE_FILE"
+		for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
+			sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
+		done
+	fi
 
-	# Realiza a busca usando flatpak search e filtra as informações necessárias
-	flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' |
-		# Filtra apenas as linhas que contêm '|stable|'
-		grep '|stable|' |
-		# Inverte a ordem dos campos, removendo a segunda coluna duplicada
-#		rev | uniq --skip-fields=2 | rev > "$CACHE_FILE"
-		rev | uniq --skip-fields=2 | rev |
-		# Utiliza o parallel para escrever o resultado no arquivo
-		parallel --gnu --jobs 50% "echo {} >> '$CACHE_FILE'"
-	wait
-
-	# Executa o comando flatpak update para listar atualizações disponíveis
-	# Filtra as linhas que começam com um espaço seguido por um dígito de 1 a 9 (indicando um pacote atualizável)
-	# Extrai o nome do pacote (segundo campo) das linhas filtradas
-	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
-	#		sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
-	#	done
-	LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 50% \
-		"sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
-	wait
-
-	#Realize a busca e filtragem de pacotes Flatpak
+	echo "Realizando filtragem de pacotes Flatpak"
 	grep -Fwf "$LIST_FILE" "$CACHE_FILE" >"$FILTERED_CACHE_FILE"
+	tini.write_value "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
+	tini.write_value "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 }
 export -f sh_update_cache_flatpak
 
@@ -786,31 +807,48 @@ function sh_snap_clean {
 export -f sh_snap_clean
 
 function sh_package_is_installed {
-	pacman -Q $1
+	pacman -Q $1 >/dev/null 2>&-
 	return $?
 }
 export -f sh_package_is_installed
 
-function sh_enable_snapd_and_apparmor {
-	# need param in boot loader
-	# linux /boot/vmlinuz-linux root=UUID=978e3e81-8048-4ae1-8a06-aa727458e8ff quiet splash apparmor=1 security=apparmor
-	# /etc/default/grub
-	# GRUB_CMDLINE_LINUX_DEFAULT="quiet apparmor=1 security=apparmor"
+function sh_enable_snapd_and_apparmor() {
+    echo "Verificando o status do serviço apparmor..."
+    systemctl status apparmor --lines=0
 
-	if sh_package_is_installed 'apparmor'; then
-		systemctl enable --now apparmor
-		systemctl enable --now snapd.apparmor
-		if sh_package_is_installed 'snapd'; then
-			systemctl enable --now snapd
-		fi
-	fi
-	systemctl status apparmor
-#	systemctl status snapd
-#	failed
-#	inactive
-#	active
-	systemctl is-active apparmor
-	systemctl is-active snapd
+    echo "Verificando o status do serviço snapd..."
+    systemctl status snapd --lines=0
+
+    if result=$(systemctl is-active apparmor) && { [[ $result = failed || $result = inactive ]]; }; then
+        echo "O serviço apparmor está nos estados 'failed' ou 'inactive'."
+        pacman -Q apparmor
+        echo "Ativando e iniciando o serviço apparmor..."
+        sudo systemctl enable --now apparmor
+    fi
+
+    if result=$(systemctl is-active snapd) && { [[ $result = failed || $result = inactive ]]; }; then
+        echo "O serviço snapd está nos estados 'failed' ou 'inactive'."
+        pacman -Q snapd
+        echo "Ativando e iniciando o serviço snapd..."
+        sudo systemctl enable --now snapd
+    fi
+
+    if result=$(systemctl is-active snapd.apparmor) && { [[ $result = failed || $result = inactive ]]; }; then
+        echo "Ativando e iniciando o serviço snapd.apparmor..."
+        sudo systemctl enable --now snapd.apparmor
+    fi
+
+    echo "Verificando o status atualizado do serviço apparmor..."
+    systemctl status apparmor --lines=0
+
+    echo "Verificando o status atualizado do serviço snapd..."
+    systemctl status snapd --lines=0
+
+    echo
+    echo -n "systemctl is-active apparmor      : "; systemctl is-active apparmor        # failed, inactive, active
+    echo -n "systemctl is-active snap          : "; systemctl is-active snapd           # failed, inactive, active
+    echo -n "systemctl is-active snapd.apparmor: "; systemctl is-active snapd.apparmor  # failed, inactive, active
+    sleep 2
 }
 export -f sh_enable_snapd_and_apparmor
 
