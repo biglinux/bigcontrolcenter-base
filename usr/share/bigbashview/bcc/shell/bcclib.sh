@@ -768,6 +768,7 @@ comment
 		echo "$key_name=$value" >>"$config_file"
 	done
 #	tini.align_ini_file "$config_file"
+	tini_pretty "$config_file"
 }
 export -f tini.write_value
 
