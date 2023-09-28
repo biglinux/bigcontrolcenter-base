@@ -714,8 +714,8 @@ function sh_update_cache_snap {
 		    grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 		fi
 	fi
-	tini.write_value "$INI_FILE_BIG_STORE" "snap" "snap_atualizado" '1'
-	tini.write_value "$INI_FILE_BIG_STORE" "snap" "snap_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
+	TIni.Set "$INI_FILE_BIG_STORE" "snap" "snap_atualizado" '1'
+	TIni.Set "$INI_FILE_BIG_STORE" "snap" "snap_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 }
 export -f sh_update_cache_snap
 
@@ -771,8 +771,8 @@ function sh_update_cache_flatpak {
 
 	echo "Realizando filtragem de pacotes Flatpak"
 	grep -Fwf "$LIST_FILE" "$CACHE_FILE" >"$FILTERED_CACHE_FILE"
-	tini.write_value "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
-	tini.write_value "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
+	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
+	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 }
 export -f sh_update_cache_flatpak
 
