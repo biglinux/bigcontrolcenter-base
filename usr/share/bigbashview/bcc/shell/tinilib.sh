@@ -85,7 +85,7 @@ function TIni.Set {
 		echo "$key_name=$value" >>"$config_file"
 	done
 #	TIni.AlignAllSections "$config_file"
-	tini_pretty "$config_file"
+	big-tini-pretty -q "$config_file"
 }
 export -f TIni.Set
 

@@ -112,6 +112,11 @@ function sh_lang_he {
 }
 export -f sh_lang_he
 
+function sh_get_locale {
+	grep _ <(locale -a) | head -1 | cut -c1-5
+}
+export -f sh_get_locale
+
 function sh_get_code_lang {
 	LangFilter="${LANG%%.*}"
 	LangFilterLowercase="${LangFilter,,}"
@@ -121,6 +126,36 @@ function sh_get_code_lang {
 	echo "$LangFilterLowercaseModified"
 }
 export -f sh_get_code_lang
+
+function sh_get_lang {
+	echo "$LANG"
+}
+export -f sh_get_lang
+
+function sh_get_lang_without_utf8 {
+	echo "${LANG%%.*}"
+}
+export -f sh_get_lang_without_utf8
+
+function sh_get_code_language {
+	LangFilter="${LANGUAGE%%.*}"
+	LangFilterLowercase="${LangFilter,,}"
+	LangClean="${LangFilterLowercase%%_*}"
+	LangCountry="${LangFilterLowercase#*_}"
+	LangFilterLowercaseModified="${LangFilterLowercase//_/-}"
+	echo "$LangFilterLowercaseModified"
+}
+export -f sh_get_code_language
+
+function sh_get_language {
+	echo "$LANGUAGE"
+}
+export -f sh_get_language
+
+function sh_get_language_without_utf8 {
+	echo "${LANGUAGE%%.*}"
+}
+export -f sh_get_language_without_utf8
 
 function sh_getcpu {
 	#awk -F ':' 'NR==1 {print $2}' <<< "$(grep 'model name' /proc/cpuinfo)"
@@ -184,16 +219,6 @@ function sh_get_user {
 	[[ "$USER" != "biglinux" ]] && echo " $USER"
 }
 export -f sh_get_user
-
-function sh_get_lang {
-	echo "$LANG"
-}
-export -f sh_get_lang
-
-function sh_get_locale {
-	grep _ <(locale -a) | head -1 | cut -c1-5
-}
-export -f sh_get_locale
 
 function sh_ignore_error {
 	"$@" 2>/dev/null
