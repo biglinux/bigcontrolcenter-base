@@ -54,12 +54,65 @@ declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
 declare -g snap_cache_filtered_file="$HOME_FOLDER/snap_filtered.cache"
 declare -g flatpak_cache_file="$HOME_FOLDER/flatpak.cache"
 declare -g flatpak_cache_filtered_file="$HOME_FOLDER/flatpak_filtered.cache"
+declare -g Instalar_text=$"Instalar"
+declare -g Remover_text=$"Remover"
+declare -g Atualizar_text=$"Atualizar"
 declare -gA PKG_FLATPAK
+declare -gA PKG_TRANSLATE_DESC
+export PKG_TRANSLATE_DESC
 
 function sh_flatpak_installed_list {
 	# Le os pacotes instalados em flatpak
 	local FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
 	echo "$FLATPAK_INSTALLED_LIST"
+}
+
+# seg 02 out 2023 03:39:10 -04
+function sh_translate_desc {
+	local pkg="$1"
+	local lang_without_utf8="$2"
+	local traducao_online="$3"
+	local description="$4"
+	local summary
+	local retval=1
+
+	if [[ -n "${PKG_TRANSLATE_DESC[$pkg]}" ]] ; then
+		echo "${PKG_TRANSLATE_DESC[$pkg]}"
+		return 0
+	fi
+
+	summary="$description"
+	if ((traducao_online)); then
+		case "${lang_without_utf8^^}" in
+		EN_US)
+			;;
+		PT_BR)
+			if summary="$(big-sqlite -q --json -Q $pkg | jq -r '.Summary')" && [[ -z "$summary" ]]; then
+				if ((traducao_online)); then
+					if summary_online=$(trans -no-auto -b :"${lang_without_utf8/_/-}" "$description") && [[ -n "$summary_online" ]]; then
+						summary=$summary_online
+						PKG_TRANSLATE_DESC+=([$pkg]="$summary_online")
+						retval=0
+					fi
+				fi
+			else
+				PKG_TRANSLATE_DESC+=([$pkg]="$summary")
+				retval=0
+			fi
+			;;
+		*)
+			if ((traducao_online)); then
+				if summary_online=$(trans -no-auto -b :"${lang_without_utf8/_/-}" "$description") && [[ -n "$summary_online" ]]; then
+					summary=$summary_online
+					PKG_TRANSLATE_DESC+=([$pkg]="$summary_online")
+					retval=0
+				fi
+			fi
+			;;
+		esac
+	fi
+	echo "$summary"
+	return "$retval"
 }
 
 function sh_seek_flatpak_parallel_filter() {
@@ -74,6 +127,12 @@ function sh_seek_flatpak_parallel_filter() {
 	PKG_FLATPAK[PKG_STABLE]="${myarray[4]}"
 	PKG_FLATPAK[PKG_REMOTE]="${myarray[5]}"
 	PKG_FLATPAK[PKG_UPDATE]="${myarray[6]}"
+
+	local pkg="${PKG_FLATPAK[PKG_ID]}"
+	local description="${PKG_FLATPAK[PKG_DESC]}"
+	local summary="$description"
+	summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+	PKG_FLATPAK[PKG_DESC]="$summary"
 
 	# Seleciona o arquivo xml para filtrar os dados
 	PKG_FLATPAK[PKG_XML_APPSTREAM]="/var/lib/flatpak/appstream/${PKG_FLATPAK[PKG_REMOTE]}/x86_64/active/appstream.xml"
@@ -99,10 +158,15 @@ function sh_seek_flatpak_parallel_filter() {
 function sh_search_flatpak() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
+	local lang_without_utf8
+	local traducao_online
 
 	[[ -e "$TMP_FOLDER/flatpak_number.html" ]] && rm -f "$TMP_FOLDER/flatpak_number.html"
 	[[ -e "$TMP_FOLDER/flatpak.html" ]] && rm -f "$TMP_FOLDER/flatpak.html"
 	[[ -e "$TMP_FOLDER/flatpak_build.html" ]] && rm -f "$TMP_FOLDER/flatpak_build.html"
+
+	lang_without_utf8="${LANGUAGE%%.*}"
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	# Le os pacotes instalados em flatpak
 	FLATPAK_INSTALLED_LIST=$(sh_flatpak_installed_list)
@@ -114,6 +178,7 @@ function sh_search_flatpak() {
 	# Inicia uma função para possibilitar o uso em modo assíncrono
 	function flatpak_parallel_filter() {
 		local package="$1"
+
 		sh_seek_flatpak_parallel_filter "$package"
 
 		# Improve order of packages
@@ -234,10 +299,15 @@ export -f sh_search_flatpak
 function sh_search_snap() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
+	local lang_without_utf8
+	local traducao_online
 
 	[[ -e "$TMP_FOLDER/snap.html" ]] && rm -f "$TMP_FOLDER/snap.html"
 	[[ -e "$TMP_FOLDER/snap_number.html" ]] && rm -f "$TMP_FOLDER/snap_number.html"
 	[[ -e "$TMP_FOLDER/snap_build.html" ]] && rm -f "$TMP_FOLDER/snap_build.html"
+
+	lang_without_utf8="${LANGUAGE%%.*}"
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	# Lê os pacotes instalados em snap
 	SNAP_INSTALLED_LIST="|$(awk 'NR>1 {printf "%s|", $1} END {printf "\b\n"}' <(snap list))"
@@ -246,7 +316,7 @@ function sh_search_snap() {
 	#search=office
 
 	# Inicia uma função para possibilitar o uso em modo assíncrono
-	snap_parallel_filter() {
+	function snap_parallel_filter() {
 		mapfile -t -d"|" myarray <<<"$1"
 		PKG_NAME="${myarray[0]}"
 		PKG_ID="${myarray[1]}"
@@ -255,7 +325,13 @@ function sh_search_snap() {
 		PKG_VERSION="${myarray[4]}"
 		PKG_CMD="${myarray[5]}"
 
-		#xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
+		pkg="$PKG_NAME"
+		description="$PKG_DESC"
+		summary="$description"
+		summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+		PKG_DESC="$summary"
+
+#xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
 
 		#Melhora a ordem de exibição dos pacotes, funciona em conjunto com o css que irá reordenar
 		#de acordo com o id da div, que aqui é representado pela variavel $PKG_ORDER
@@ -378,23 +454,126 @@ function sh_search_snap() {
 }
 export -f sh_search_snap
 
-function sh_search_aur {
+function sh_search_aur_category {
 	local search="$*"
-	local install_text=$"Instalar"
-	local remove_text=$"Remover"
-	local -i n=1
-	local -i total=0
-	local cmd
+	local pkg=""
+	local version=""
+	local description=""
+	local not_installed=""
+	local idaur=""
+	local button=""
+	local count=0
+	local icon=""
+	local line
+	local lang_without_utf8
+	local traducao_online
 
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
-	cmd="$(LC_ALL=C paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)"
-	while read -r line; do
-		if [[ $line == aur/* ]]; then
-			pkg=${line#aur/}
-			pkg=${pkg%% *}
+	lang_without_utf8="${LANGUAGE%%.*}"
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+
+	while IFS= read -r line; do
+		if [[ -z "$line" ]]; then
+			if [[ -n "$pkg" || -n "$version" || -n "$description" || -n "$idaur" || -n "$button" ]]; then
+				icon=""
+				if [[ -e "icons/$pkg.png" ]]; then
+					icon="<img class=\"icon\" src=\"icons/$pkg.png\">"
+				else
+					icon="<div class=avatar_aur>${pkg:0:3}</div>"
+				fi
+				{
+					echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=$pkg\">"
+					echo "<div class=\"col s12 m6 l3\" id=$idaur>"
+					echo "<div class=\"showapp\">"
+					echo "<div id=aur_icon><div class=icon_middle>$icon</div>"
+					echo "<div id=aur_name><div id=limit_title_name>$pkg</div>"
+					echo "<div id=version>$version</div></div></div>"
+					echo "<div id=box_aur_desc><div id=aur_desc>$description</div></div>"
+					echo "$button"
+				} >>"$TMP_FOLDER/aur_build.html"
+				((++count))
+			fi
+
+			pkg=""
+			version=""
+			description=""
+			not_installed=""
+			idaur=""
+			button=""
+		elif [[ $line =~ ^Name ]]; then
+			pkg="${line#*: }"
+			if ! sh_package_is_installed "$pkg"; then
+				idaur="AurP2"
+				button="<div id=aur_not_installed>Instalar</div></a></div></div>"
+			else
+				idaur="AurP1"
+				button="<div id=aur_installed>Remover</div></a></div></div>"
+			fi
+		elif [[ $line =~ ^Version ]]; then
+			version="${line#Version*: }"
+		elif [[ $line =~ ^Description ]]; then
+#			description="${line#Description*: }"
+#			summaryfile="description/$pkg/$lang_without_utf8/summary"
+#			#			[[ -e "$summaryfile" ]] && description=$(<"$summaryfile")
+#			if summary="$(big-sqlite -q --json -Q $pkg | jq -r '.Summary')" && [[ -n "$summary" ]]; then
+#				description="$summary"
+#			fi
+
+			description="${line#Description*: }"
+			summary="$description"
+			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+			description="$summary"
+		fi
+	done < <(LC_ALL=C paru -Sia $search --limit 60 --sortby popularity --topdown)
+	#	done < <(LANGUAGE=C yay -Sia $search --topdown)
+
+	if ((count)); then
+		echo "$count" >"$TMP_FOLDER/aur_number.html"
+		echo "<script>\$(document).ready(function() {\$(\"#box_aur\").show();});</script>" >>"$TMP_FOLDER/aur_build.html"
+		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
+
+		# Move temporary HTML file to final location
+		mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+	fi
+}
+export -f sh_search_aur_category
+
+function sh_search_aur {
+	local search="$*"
+	local n=1
+	local count=0
+	local cmd
+	local lang_without_utf8
+	local traducao_online
+
+	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
+	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
+	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
+
+#	lang_without_utf8=$(sh_get_lang_without_utf8)
+	lang_without_utf8="${LANGUAGE%%.*}"
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+
+	#cmd="$(LC_ALL=C paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)"
+	#json=$(big-pacman-to-json <<<"$cmd")
+	json=$(LC_ALL=C big-pacman-to-json paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)
+
+	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
+	item_json=$(jq -c '.[]' <<<"$json")
+
+	# Use um while loop para processar os itens JSON
+	while IFS= read -r item; do
+		name=$(jq -r '.name' <<<"$item")
+		version=$(jq -r '.version' <<<"$item")
+		size=$(jq -r '.size' <<<"$item")
+		status=$(jq -r '.status' <<<"$item")
+		description=$(jq -r '.description' <<<"$item")
+
+		if [[ $name == aur/* ]]; then
+			pkg=${name#aur/}
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
 			pkgicon=${pkgicon//-beta/}
@@ -405,15 +584,12 @@ function sh_search_aur {
 				title_uppercase_first_letter+=" ${word^}"
 			done
 
-			version=${line#* }
-			version=${version%% *}
-
-			if [[ $line = *' [Installed]'* || $line = *'Installed'* ]]; then
-				button="<div id=aur_installed>$remove_text</div>"
+			if [[ "$status" == *"Installed"* ]]; then
+				button="<div id=aur_installed>$Remover_text</div>"
 				aur_priority="AurP1"
 			else
-				button="<div id=aur_not_installed>$install_text</div>"
-				if [[ "$1" =~ .*"$title".* ]]; then
+				button="<div id=aur_not_installed>$Instalar_text</div>"
+				if [[ "$search" =~ .*"$title".* ]]; then
 					aur_priority="AurP2"
 				else
 					aur_priority="AurP3"
@@ -432,11 +608,8 @@ function sh_search_aur {
 				icon="<div class=avatar_aur>${pkgicon:0:3}</div>"
 			fi
 
-			if [ -e "description/$pkg/pt_BR/summary" ]; then
-				summary=$(<description/$pkg/pt_BR/summary)
-			else
-				summary=$line
-			fi
+			summary="$description"
+			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
 
 			{
 				echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=$pkg\">"
@@ -448,16 +621,15 @@ function sh_search_aur {
 				echo "<div id=box_aur_desc><div id=aur_desc>$summary</div></div>"
 				echo "$button</a></div></div>"
 			} >>"$TMP_FOLDER/aur_build.html"
-			((++total))
+			((++count))
 		else
 			continue
 		fi
+	done < <(echo "$item_json")
 
-	done <<<"$cmd"
-
-	if ((total)); then
-		echo "$total" >"$TMP_FOLDER/aur_number.html"
-		echo '<script>$(document).ready(function() {$("#box_aur").show();});</script>' >>"$TMP_FOLDER/aur_build.html"
+	if ((count)); then
+		echo "$count" >"$TMP_FOLDER/aur_number.html"
+		echo "<script>\$(document).ready(function() {\$(\"#box_aur\").show();});</script>" >>"$TMP_FOLDER/aur_build.html"
 		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
 
 		# Move temporary HTML file to final location
@@ -466,115 +638,136 @@ function sh_search_aur {
 }
 export -f sh_search_aur
 
-function sh_search_aur_category {
+function sh_search_category_appstream_pamac() {
 	local search="$*"
+	local n=1
+	local count=0
+	local cmd
+	local lang_without_utf8
+	local regex=""
+	local traducao_online
 
-	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
-	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
-	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
+	[[ -e "$TMP_FOLDER/category_aur.txt" ]] && rm -f "$TMP_FOLDER/category_aur.txt"
+	[[ -e "$TMP_FOLDER/appstream.html" ]] && rm -f "$TMP_FOLDER/appstream.html"
+	[[ -e "$TMP_FOLDER/appstream_build.html" ]] && rm -f "$TMP_FOLDER/appstream_build.html"
+	[[ -e "$TMP_FOLDER/appstream_number.html" ]] && rm -f "$TMP_FOLDER/appstream_number.html"
 
-	LANGUAGE=C yay -Sia $search --topdown | gawk -v tmpfolder="${TMP_FOLDER}" -v instalar=$"Instalar" -v remover=$"Remover" -- '
-    ### Begin of gawk script
+#	lang_without_utf8=$(sh_get_lang_without_utf8)
+	lang_without_utf8="${LANGUAGE%%.*}"
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
-    BEGIN {
-        OFS = "\n"
-    }
+	# Loop para concatenar os nomes dos pacotes à regex
+	for pacote in ${search[*]}; do
+		if [[ -n "$regex" ]]; then
+			regex+="|"
+		fi
+		regex+="($pacote$)"
+	done
 
-    # Following block runs when blank line found, i.e., on the transition between packages
-    !$0 {
-        title = version = description = not_installed = idaur = button = skipping = ""
-    }
+	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
+	regex="^($regex)"
+	json=$(LC_ALL=C big-pacman-to-json pacman -Ss $regex)
 
-    # Skips lines between packages
-    skipping {
-        next
-    }
+	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
+	item_json=$(jq -c '.[]' <<<"$json")
 
-    /^Name/ {
-        title = gensub(/^Name +: /,"",1)
-        not_installed = system("pacman -Q " title " 2> /dev/null 1> /dev/null")
-        if ( not_installed ) {
-            idaur = "AurP2"
-            button = "<div id=aur_not_installed>" instalar "</div></a></div></div>"
-        } else {
-            idaur = "AurP1"
-            button = "<div id=aur_installed>" remover "</div></a></div></div>"
-        }
-    }
+	# verifica se o pacote está em nativos, senão passa para o AUR
+	for pacote in ${search[@]}; do
+		if [[ $json =~ "\"$pacote\"" ]]; then
+			continue
+		fi
+		echo $pacote >>"$TMP_FOLDER/category_aur.txt"
+	done
 
-    /^Version/ {
-        version = gensub(/^Version +: /,"",1)
-    }
+	# Use um while loop para processar os itens JSON
+	while IFS= read -r item; do
 
-    /^Description/ {
-        description = gensub(/^Description +: /,"",1)
-    }
+		name=$(jq -r '.name' <<<"$item")
+		version=$(jq -r '.version' <<<"$item")
+		size=$(jq -r '.size' <<<"$item")
+		status=$(jq -r '.status' <<<"$item")
+		description=$(jq -r '.description' <<<"$item")
 
-    # When all variables are set
-    title && version && description && idaur && button {
-        if ( system("[ ! -e icons/" title ".png ]") ) {
-            icon = "<img class=\"icon\" src=\"icons/" title ".png\">"
-        } else {
-            icon = "<div class=avatar_aur>" substr(title,1,3) "</div>"
-        }
+		if [[ -n "$name" ]]; then
+			pkg=${name##*/}
+			pkgicon=${pkg//-bin/}
+			pkgicon=${pkgicon//-git/}
+			pkgicon=${pkgicon//-beta/}
+			title=${pkg//-/ }
+			unset title_uppercase_first_letter
 
-    # Checking custom localized description
-        shortlang = gensub(/\..+/,"",1,ENVIRON["LANG"])
-        summaryfile = "description/" title "/" shortlang "/summary"
-    # Double negative because system() returns exit status of shell command inside ()
-        if ( !system("[ -e " summaryfile " ]") ) {
-            RS_BAK = RS
-            RS = "^$"
-            getline description < summaryfile
-            close(summaryfile)
-            RS = RS_BAK
-        }
+			for word in $title; do
+				title_uppercase_first_letter+=" ${word^}"
+			done
 
-    # Writes html of current package on aur_build.html
-    # Do not worry, file redirector ">" works different in awk: only the first interaction deletes file content
-        print(\
-    "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=" title "\">",
-    "<div class=\"col s12 m6 l3\" id=" idaur ">",
-    "<div class=\"showapp\">",
-    "<div id=aur_icon><div class=icon_middle>" icon "</div>",
-    "<div id=aur_name><div id=limit_title_name>" title "</div>",
-    "<div id=version>" version "</div></div></div>",
-    "<div id=box_aur_desc><div id=aur_desc>" description "</div></div>",
-    button) > tmpfolder "/aur_build.html"
+			if [[ -n "$status" || "$status" == *"[I|i]nstalled"* ]]; then
+				id_priority="AppstreamP1"
+				file_path="$TMP_FOLDER/upgradeable.txt"
+				if grep -q "$pkg" "$file_path"; then
+					button="<div id=appstream_upgradable>$Atualizar_text</div>"
+				else
+					button="<div id=appstream_installed>$Remover_text</div>"
+				fi
+			else
+				button="<div id=appstream_not_installed>$Instalar_text</div>"
+				if [[ "$search" =~ .*"$title".* ]]; then
+					id_priority="AppstreamP2"
+				else
+					id_priority="AppstreamP1"
+				fi
+			fi
 
-        count++
-        skipping++
-    # Getting ready for next package
-        title = version = description = not_installed = idaur = icon = button = ""
-    }
+			sh_find_icon() {
+				local pkgicon="$1"
+				find_icon=$(find \
+					icons/\
+					/var/lib/flatpak/appstream/flathub/x86_64/active/icons/64x64/\
+					/usr/share/app-info/icons/archlinux-arch-community/64x64/\
+					/usr/share/app-info/icons/archlinux-arch-ex/\
+					-type f\
+					-iname "*$pkgicon*"\
+					-print\
+					-quit)
+				echo $find_icon
+			}
 
-    END{
-        if (count) {
-            print(\
-		    "<script>$(document).ready(function() {$(\"#box_aur\").show();});</script>",
-		    "<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-		    "<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-			print(count) > tmpfolder "/aur_number.html"
-        }
-#		else {
-#           print(\
-#		    "<script>document.getElementById(\"aur_icon_loading\").innerHTML = \"\";</script>",
-#		    "<script>runAvatarAur();</script>") > tmpfolder "/aur_build.html"
-#			print(count) > tmpfolder "/aur_number.html"
-#        }
-    }
-    '
-	# End of gawk script
+			if [[ -e "icons/$pkgicon.png" ]]; then
+				icon="<img class=\"icon\" src=\"icons/$pkgicon.png\">"
+			elif find_icon=$(sh_find_icon "${pkgicon//-*}") && [[ -e "$find_icon" ]]; then
+				icon="<img class=\"icon\" src=\"$find_icon\">"
+			else
+				icon="<div class=avatar_appstream>${pkgicon:0:3}</div>"
+			fi
 
-	if [[ -e "$TMP_FOLDER/aur_number.html" ]]; then
-		echo '<script>$(document).ready(function() {$("#box_aur").show();});</script>' >>"$TMP_FOLDER/aur_build.html"
-		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
+			summary="$description"
+			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+
+			{
+				echo "<a onclick=\"disableBody();\" href=\"view_appstream.sh.htm?pkg_name=$pkg\">"
+				echo "<div class=\"col s12 m6 l3\" id=$id_priority>"
+				echo "<div class=\"showapp\">"
+				echo "<div id=appstream_icon><div class=icon_middle>$icon</div>"
+				echo "<div id=appstream_name><div id=limit_title_name>$title_uppercase_first_letter</div>"
+				echo "<div id=version>$version</div></div></div>"
+				echo "<div id=box_appstream_desc><div id=appstream_desc>$summary</div></div>"
+				echo "$button</a></div></div>"
+			} >>"$TMP_FOLDER/appstream_build.html"
+			((++count))
+		else
+			continue
+		fi
+	done < <(echo "$item_json")
+
+	if ((count)); then
+		echo "$count" >"$TMP_FOLDER/appstream_number.html"
+		echo '<script>runAvatarAppstream(); $(document).ready(function () $("#box_appstream").show();});</script>'
+		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>"
 
 		# Move temporary HTML file to final location
-		mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+		mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
 	fi
 }
-export -f sh_search_aur_category
+export -f sh_search_category_appstream_pamac
 
 function sh_reinstall_allpkg {
 	pacman -Sy --noconfirm - < <(pacman -Qnq)
@@ -671,7 +864,7 @@ function sh_update_cache_snap {
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $number_of_pages
 	echo "Aguarde, baixando header: $SITE"
-#	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
+	#	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
 	number_of_pages="$(curl --silent --compressed --insecure --url "$SITE" | jq -r '._links.last' | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
 	echo "Numero de páginas a serem processadas: $number_of_pages"
 	echo "Aguarde o inicio dos downloads"
@@ -690,28 +883,28 @@ function sh_update_cache_snap {
 			grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 		fi
 	else
-		if (( number_of_pages )); then
-			for ((page=1; page<=number_of_pages; page++)); do
+		if ((number_of_pages)); then
+			for ((page = 1; page <= number_of_pages; page++)); do
 				echo "Baixando arquivo em: ${folder_to_save_files}${page}"
-#				notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando arquivo ${folder_to_save_files}${page}" --expire-time=2000
+				#				notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando arquivo ${folder_to_save_files}${page}" --expire-time=2000
 				curl -# --compressed --insecure --url "$URL$page" --continue-at - --output "${folder_to_save_files}${page}"
 			done
 			echo "Aguardando o download de todos os arquivos..."
-#			wait
+			#			wait
 			echo "Downloads efetuados, prosseguindo!"
 
-		    echo "Filtrando o resultado dos arquivos e criando um arquivo de cache que será utilizado nas buscas"
+			echo "Filtrando o resultado dos arquivos e criando um arquivo de cache que será utilizado nas buscas"
 			jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "$folder_to_save_files*" | sort -u >"$file_to_save_cache"
 
-			for ((page=1; page<=number_of_pages; page++)); do
+			for ((page = 1; page <= number_of_pages; page++)); do
 				echo "Processando com jq a página : $page/$number_of_pages"
-#				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache" &
-				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache"
+				#				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache" &
+				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >>"$file_to_save_cache"
 			done
 			echo "Aguarde o processamento do jq"
-#			wait
-	  	  echo "Filtrando o resultado com grep"
-		    grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
+			#			wait
+			echo "Filtrando o resultado com grep"
+			grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 		fi
 	fi
 	TIni.Set "$INI_FILE_BIG_STORE" "snap" "snap_atualizado" '1'
@@ -763,7 +956,7 @@ function sh_update_cache_flatpak {
 			rev |
 			uniq --skip-fields=2 |
 			rev |
-			tee -a  "$CACHE_FILE"
+			tee -a "$CACHE_FILE"
 		for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 			sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
 		done
@@ -778,8 +971,8 @@ export -f sh_update_cache_flatpak
 
 function sh_update_cache_complete {
 	[[ ! -d "$HOME_FOLDER" ]] && mkdir -p "$HOME_FOLDER"
-	[[ -e "/usr/lib/libpamac-flatpak.so" ]] && sh_update_cache_flatpak
-	[[ -e "/usr/lib/libpamac-snap.so" ]] && sh_update_cache_snap
+	[[ -e "/usr/lib/libpamac-flatpak.so" ]] && sh_update_cache_flatpak "$@"
+	[[ -e "/usr/lib/libpamac-snap.so" ]] && sh_update_cache_snap "$@"
 }
 export -f sh_update_cache_complete
 
@@ -813,42 +1006,45 @@ function sh_package_is_installed {
 export -f sh_package_is_installed
 
 function sh_enable_snapd_and_apparmor() {
-    echo "Verificando o status do serviço apparmor..."
-    systemctl status apparmor --lines=0
+	echo "Verificando o status do serviço apparmor..."
+	systemctl status apparmor --lines=0
 
-    echo "Verificando o status do serviço snapd..."
-    systemctl status snapd --lines=0
+	echo "Verificando o status do serviço snapd..."
+	systemctl status snapd --lines=0
 
-    if result=$(systemctl is-active apparmor) && { [[ $result = failed || $result = inactive ]]; }; then
-        echo "O serviço apparmor está nos estados 'failed' ou 'inactive'."
-        pacman -Q apparmor
-        echo "Ativando e iniciando o serviço apparmor..."
-        sudo systemctl enable --now apparmor
-    fi
+	if result=$(systemctl is-active apparmor) && { [[ $result = failed || $result = inactive ]]; }; then
+		echo "O serviço apparmor está nos estados 'failed' ou 'inactive'."
+		pacman -Q apparmor
+		echo "Ativando e iniciando o serviço apparmor..."
+		sudo systemctl enable --now apparmor
+	fi
 
-    if result=$(systemctl is-active snapd) && { [[ $result = failed || $result = inactive ]]; }; then
-        echo "O serviço snapd está nos estados 'failed' ou 'inactive'."
-        pacman -Q snapd
-        echo "Ativando e iniciando o serviço snapd..."
-        sudo systemctl enable --now snapd
-    fi
+	if result=$(systemctl is-active snapd) && { [[ $result = failed || $result = inactive ]]; }; then
+		echo "O serviço snapd está nos estados 'failed' ou 'inactive'."
+		pacman -Q snapd
+		echo "Ativando e iniciando o serviço snapd..."
+		sudo systemctl enable --now snapd
+	fi
 
-    if result=$(systemctl is-active snapd.apparmor) && { [[ $result = failed || $result = inactive ]]; }; then
-        echo "Ativando e iniciando o serviço snapd.apparmor..."
-        sudo systemctl enable --now snapd.apparmor
-    fi
+	if result=$(systemctl is-active snapd.apparmor) && { [[ $result = failed || $result = inactive ]]; }; then
+		echo "Ativando e iniciando o serviço snapd.apparmor..."
+		sudo systemctl enable --now snapd.apparmor
+	fi
 
-    echo "Verificando o status atualizado do serviço apparmor..."
-    systemctl status apparmor --lines=0
+	echo "Verificando o status atualizado do serviço apparmor..."
+	systemctl status apparmor --lines=0
 
-    echo "Verificando o status atualizado do serviço snapd..."
-    systemctl status snapd --lines=0
+	echo "Verificando o status atualizado do serviço snapd..."
+	systemctl status snapd --lines=0
 
-    echo
-    echo -n "systemctl is-active apparmor      : "; systemctl is-active apparmor        # failed, inactive, active
-    echo -n "systemctl is-active snap          : "; systemctl is-active snapd           # failed, inactive, active
-    echo -n "systemctl is-active snapd.apparmor: "; systemctl is-active snapd.apparmor  # failed, inactive, active
-    sleep 2
+	echo
+	echo -n "systemctl is-active apparmor      : "
+	systemctl is-active apparmor # failed, inactive, active
+	echo -n "systemctl is-active snap          : "
+	systemctl is-active snapd # failed, inactive, active
+	echo -n "systemctl is-active snapd.apparmor: "
+	systemctl is-active snapd.apparmor # failed, inactive, active
+	sleep 2
 }
 export -f sh_enable_snapd_and_apparmor
 
@@ -931,7 +1127,7 @@ export -f sh_pkg_flatpak_version
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
-	echo "$1" > "$HOME_FOLDER/flatpak-verification-fault"
+	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_verify
 
