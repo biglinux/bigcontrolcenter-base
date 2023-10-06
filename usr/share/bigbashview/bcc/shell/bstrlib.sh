@@ -40,6 +40,8 @@ LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
 export TMP_FOLDER="/tmp/bigstore-$USER"
+#export FILE_DESCRIPTION_JSON="$HOME_FOLDER/description.json"
+export FILE_DESCRIPTION_JSON="/usr/share/bigbashview/bcc/apps/big-store/json/summary.json"
 unset GREP_OPTIONS
 #Translation
 export TEXTDOMAINDIR="/usr/share/locale"
@@ -67,53 +69,154 @@ function sh_flatpak_installed_list {
 	echo "$FLATPAK_INSTALLED_LIST"
 }
 
+# ter 03 out 2023 02:41:00 -04
+function sh_write_json_description_sh {
+	local name="$1"
+	local version="$2"
+	local status="$3"
+	local size="$4"
+	local description="$5"
+	local lang="$6"
+	local tmp="$TMP_FOLDER/tmp.json"
+
+	# Verifique se o arquivo JSON existe e, se não, crie-o com um objeto vazio
+	if [ ! -f $FILE_DESCRIPTION_JSON ]; then
+		echo '{}' >$FILE_DESCRIPTION_JSON
+	fi
+	echo '{}' >$tmp
+
+	# Verifique se o objeto já existe no JSON
+	if jq --arg name "$name" 'has($name)' $FILE_DESCRIPTION_JSON | grep -q 'true'; then
+		# O objeto já existe, então atualize-o
+		jq --arg name "$name" \
+			--arg version "$version" \
+			--arg size "$size" \
+			--arg status "$status" \
+			--arg lang "$lang" \
+			--arg description "$description" \
+			'.[$name] |= {
+               "name": $name,
+               "version": $version,
+               "size": $size,
+               "status": $status,
+               "description": (.description + { ($lang): $description })
+            }' $FILE_DESCRIPTION_JSON >$tmp
+	else
+		# O objeto não existe, então crie-o
+		new_obj="{
+            \"name\": \"$name\",
+            \"version\": \"$version\",
+            \"size\": \"$size\",
+            \"status\": \"$status\",
+            \"description\": {
+                \"$lang\": \"$description\"
+            }
+        }"
+		jq --argjson new_obj "$new_obj" '. += { ($new_obj.name): $new_obj }' $FILE_DESCRIPTION_JSON >$tmp
+	fi
+
+	# Mova o arquivo temporário de volta para o arquivo original
+	mv $tmp $FILE_DESCRIPTION_JSON
+}
+export -f sh_write_json_description_sh
+
+# qua 04 out 2023 01:46:36 -04
+function sh_write_json_description_go {
+	local name="$1"
+	local version="$2"
+	local status="$3"
+	local size="$4"
+	local description="$5"
+	local lang="$6"
+	jason-v7 "$FILE_DESCRIPTION_JSON" "$name" "$version" "$status" "$size" "$description" "$lang"
+}
+
+# ter 03 out 2023 02:41:00 -04
+function sh_seek_json_description {
+	local name="$1"
+	local version="$2"
+	local status="$3"
+	local size="$4"
+	local description="$5"
+	local lang="$6"
+	local result
+	local retval=0
+
+	# Verifique se o arquivo JSON existe e, se não, crie-o com um objeto vazio
+	if [ ! -f $FILE_DESCRIPTION_JSON ]; then
+		echo '{}' >$FILE_DESCRIPTION_JSON
+	fi
+
+	result=$(jq -r --arg name "$name" --arg lang "$lang" '.[$name].summary[$lang]' "$FILE_DESCRIPTION_JSON")
+	if [[ "$result" == "null" || -z "$result" ]]; then
+		#        result="Descrição não encontrada"
+		#        jq --arg name "$name" --arg lang "$lang" --arg newDescription "$result" \
+		#            '.[$name].description[$lang] = $newDescription' "$FILE_DESCRIPTION_JSON" > tmp.json
+		#        mv tmp.json "$FILE_DESCRIPTION_JSON"
+		#		sh_seek_json_description "$name" "$version" "$status" "$size" "$description" "$lang"
+		#		sh_write_json_description "$name" "$version" "$status" "$size" "$description" "$lang"
+		#		echo "$result"
+		retval=1
+	fi
+	echo "$result"
+	return $retval
+}
+export -f sh_seek_json_description
+
 # seg 02 out 2023 03:39:10 -04
 function sh_translate_desc {
-	local pkg="$1"
-	local lang_without_utf8="$2"
+	local name="$1"
+	local lang="$2"
 	local traducao_online="$3"
 	local description="$4"
 	local summary
-	local retval=1
+	local retval=0
+	local result
 
-	if [[ -n "${PKG_TRANSLATE_DESC[$pkg]}" ]] ; then
-		echo "${PKG_TRANSLATE_DESC[$pkg]}"
+	# Transformar em minúscula
+	id_name="${name,,}"
+	# Substituir espaços por hifens
+	id_name="${id_name// /-}"
+	# Substituir pontos por hifens
+	id_name="${id_name//./-}"
+	# Substituir /asteristico por hifens
+	id_name="${id_name//\/\*/--}"
+	description="${description//\/\*/--}"
+
+# xdebug "$name\n$id_name"
+
+	if result=$(jq -r --arg id_name "$id_name" --arg lang "$lang" '.[$id_name].summary[$lang]' "$FILE_DESCRIPTION_JSON") && [[ "$result" != "null" ]]; then
+#	if result=$(big-jq '-S' "$FILE_DESCRIPTION_JSON" "$id_name.summary.$lang") && [[ "$result" != "null" ]]; then
+		#	xdebug "OK: seek: $name \nresult: $result"
+		echo "$result"
 		return 0
 	fi
+	#	xdebug "NEG: seek: $name \nresult: $result"
 
 	summary="$description"
 	if ((traducao_online)); then
-		case "${lang_without_utf8^^}" in
-		EN_US)
-			;;
+		case "${lang^^}" in
+		EN_US) ;;
 		PT_BR)
-			if summary="$(big-sqlite -q --json -Q $pkg | jq -r '.Summary')" && [[ -z "$summary" ]]; then
-				if ((traducao_online)); then
-					if summary_online=$(trans -no-auto -b :"${lang_without_utf8/_/-}" "$description") && [[ -n "$summary_online" ]]; then
-						summary=$summary_online
-						PKG_TRANSLATE_DESC+=([$pkg]="$summary_online")
-						retval=0
-					fi
-				fi
-			else
-				PKG_TRANSLATE_DESC+=([$pkg]="$summary")
-				retval=0
+			if summary=$(trans -no-auto -b :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+				summary="$description"
+				retval=1
 			fi
 			;;
 		*)
-			if ((traducao_online)); then
-				if summary_online=$(trans -no-auto -b :"${lang_without_utf8/_/-}" "$description") && [[ -n "$summary_online" ]]; then
-					summary=$summary_online
-					PKG_TRANSLATE_DESC+=([$pkg]="$summary_online")
-					retval=0
-				fi
+			if summary=$(trans -no-auto -b :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+				retval=1
 			fi
 			;;
 		esac
 	fi
+	if ! ((retval)); then #OK
+		sudo big-jq '-C' "$FILE_DESCRIPTION_JSON" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
+	fi
 	echo "$summary"
 	return "$retval"
 }
+export -f sh_translate_desc
 
 function sh_seek_flatpak_parallel_filter() {
 	local package="$1"
@@ -331,7 +434,7 @@ function sh_search_snap() {
 		summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
 		PKG_DESC="$summary"
 
-#xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
+		#xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
 
 		#Melhora a ordem de exibição dos pacotes, funciona em conjunto com o css que irá reordenar
 		#de acordo com o id da div, que aqui é representado pela variavel $PKG_ORDER
@@ -515,20 +618,20 @@ function sh_search_aur_category {
 		elif [[ $line =~ ^Version ]]; then
 			version="${line#Version*: }"
 		elif [[ $line =~ ^Description ]]; then
-#			description="${line#Description*: }"
-#			summaryfile="description/$pkg/$lang_without_utf8/summary"
-#			#			[[ -e "$summaryfile" ]] && description=$(<"$summaryfile")
-#			if summary="$(big-sqlite -q --json -Q $pkg | jq -r '.Summary')" && [[ -n "$summary" ]]; then
-#				description="$summary"
-#			fi
+			#			description="${line#Description*: }"
+			#			summaryfile="description/$pkg/$lang_without_utf8/summary"
+			#			#			[[ -e "$summaryfile" ]] && description=$(<"$summaryfile")
+			#			if summary="$(big-sqlite -q --json -Q $pkg | jq -r '.Summary')" && [[ -n "$summary" ]]; then
+			#				description="$summary"
+			#			fi
 
 			description="${line#Description*: }"
 			summary="$description"
 			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
 			description="$summary"
 		fi
-	done < <(LC_ALL=C paru -Sia $search --limit 60 --sortby popularity --topdown)
-	#	done < <(LANGUAGE=C yay -Sia $search --topdown)
+	done < <(LC_ALL=C paru -Sia $search --limit 60 --sortby popularity --topdown 2>/dev/null)
+#	done < <(LANGUAGE=C yay -Sia $search --topdown)
 
 	if ((count)); then
 		echo "$count" >"$TMP_FOLDER/aur_number.html"
@@ -553,7 +656,7 @@ function sh_search_aur {
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
-#	lang_without_utf8=$(sh_get_lang_without_utf8)
+	#	lang_without_utf8=$(sh_get_lang_without_utf8)
 	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
@@ -652,7 +755,7 @@ function sh_search_category_appstream_pamac() {
 	[[ -e "$TMP_FOLDER/appstream_build.html" ]] && rm -f "$TMP_FOLDER/appstream_build.html"
 	[[ -e "$TMP_FOLDER/appstream_number.html" ]] && rm -f "$TMP_FOLDER/appstream_number.html"
 
-#	lang_without_utf8=$(sh_get_lang_without_utf8)
+	#	lang_without_utf8=$(sh_get_lang_without_utf8)
 	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
@@ -720,20 +823,14 @@ function sh_search_category_appstream_pamac() {
 			sh_find_icon() {
 				local pkgicon="$1"
 				find_icon=$(find \
-					icons/\
-					/var/lib/flatpak/appstream/flathub/x86_64/active/icons/64x64/\
-					/usr/share/app-info/icons/archlinux-arch-community/64x64/\
-					/usr/share/app-info/icons/archlinux-arch-ex/\
-					-type f\
-					-iname "*$pkgicon*"\
-					-print\
-					-quit)
+					icons/ /var/lib/flatpak/appstream/ -type f -iname "*$pkgicon*" \
+					-print -quit)
 				echo $find_icon
 			}
 
 			if [[ -e "icons/$pkgicon.png" ]]; then
 				icon="<img class=\"icon\" src=\"icons/$pkgicon.png\">"
-			elif find_icon=$(sh_find_icon "${pkgicon//-*}") && [[ -e "$find_icon" ]]; then
+			elif find_icon=$(sh_find_icon "${pkgicon//-*/}") && [[ -e "$find_icon" ]]; then
 				icon="<img class=\"icon\" src=\"$find_icon\">"
 			else
 				icon="<div class=avatar_appstream>${pkgicon:0:3}</div>"
@@ -850,7 +947,7 @@ function sh_update_cache_snap {
 		processamento_em_paralelo=1
 	fi
 
-	echo "Aguarde, criando necessários arquivos e 'paths'"
+	echo "Criando necessários arquivos e 'paths'"
 	[[ -e "$file_to_save_cache" ]] && rm -f "$file_to_save_cache"
 	[[ -e "$file_to_save_cache_filtered" ]] && rm -f "$file_to_save_cache_filtered"
 	[[ -d "$path_snap_list_files" ]] && rm -R "$path_snap_list_files"
@@ -863,11 +960,11 @@ function sh_update_cache_snap {
 	# jq -r '._embedded."clickindex:package"[]| select( .package_name == "wps-2019-snap" )' $folder_to_save_files*
 
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $number_of_pages
-	echo "Aguarde, baixando header: $SITE"
+	echo "Baixando header: $SITE"
 	#	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
 	number_of_pages="$(curl --silent --compressed --insecure --url "$SITE" | jq -r '._links.last' | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
 	echo "Numero de páginas a serem processadas: $number_of_pages"
-	echo "Aguarde o inicio dos downloads"
+	echo "Iniciando downloads..."
 
 	if ((processamento_em_paralelo)); then
 		if ((number_of_pages)); then
@@ -901,7 +998,7 @@ function sh_update_cache_snap {
 				#				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache" &
 				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >>"$file_to_save_cache"
 			done
-			echo "Aguarde o processamento do jq"
+			echo "Processando jq"
 			#			wait
 			echo "Filtrando o resultado com grep"
 			grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
@@ -924,7 +1021,7 @@ function sh_update_cache_flatpak {
 		processamento_em_paralelo=1
 	fi
 
-	echo "Aguarde, criando e removendo necessários arquivos e 'paths'"
+	echo "Criando e removendo necessários arquivos e 'paths'"
 	[[ -e "$CACHE_FILE" ]] && rm -f "$CACHE_FILE"
 
 	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
