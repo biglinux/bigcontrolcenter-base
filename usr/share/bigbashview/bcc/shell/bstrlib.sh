@@ -40,8 +40,8 @@ LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
 export TMP_FOLDER="/tmp/bigstore-$USER"
-#export FILE_DESCRIPTION_JSON="$HOME_FOLDER/description.json"
-export FILE_DESCRIPTION_JSON="/usr/share/bigbashview/bcc/apps/big-store/json/summary.json"
+export FILE_SUMMARY_JSON="/usr/share/bigbashview/bcc/apps/big-store/json/summary.json"
+export FILE_SUMMARY_JSON_CUSTOM="$HOME_FOLDER/summary-custom.json"
 unset GREP_OPTIONS
 #Translation
 export TEXTDOMAINDIR="/usr/share/locale"
@@ -70,7 +70,7 @@ function sh_flatpak_installed_list {
 }
 
 # ter 03 out 2023 02:41:00 -04
-function sh_write_json_description_sh {
+function sh_write_json_summary_sh {
 	local name="$1"
 	local version="$2"
 	local status="$3"
@@ -80,13 +80,13 @@ function sh_write_json_description_sh {
 	local tmp="$TMP_FOLDER/tmp.json"
 
 	# Verifique se o arquivo JSON existe e, se não, crie-o com um objeto vazio
-	if [ ! -f $FILE_DESCRIPTION_JSON ]; then
-		echo '{}' >$FILE_DESCRIPTION_JSON
+	if [ ! -f $FILE_SUMMARY_JSON ]; then
+		echo '{}' >$FILE_SUMMARY_JSON
 	fi
 	echo '{}' >$tmp
 
 	# Verifique se o objeto já existe no JSON
-	if jq --arg name "$name" 'has($name)' $FILE_DESCRIPTION_JSON | grep -q 'true'; then
+	if jq --arg name "$name" 'has($name)' $FILE_SUMMARY_JSON | grep -q 'true'; then
 		# O objeto já existe, então atualize-o
 		jq --arg name "$name" \
 			--arg version "$version" \
@@ -100,7 +100,7 @@ function sh_write_json_description_sh {
                "size": $size,
                "status": $status,
                "description": (.description + { ($lang): $description })
-            }' $FILE_DESCRIPTION_JSON >$tmp
+            }' $FILE_SUMMARY_JSON >$tmp
 	else
 		# O objeto não existe, então crie-o
 		new_obj="{
@@ -112,56 +112,101 @@ function sh_write_json_description_sh {
                 \"$lang\": \"$description\"
             }
         }"
-		jq --argjson new_obj "$new_obj" '. += { ($new_obj.name): $new_obj }' $FILE_DESCRIPTION_JSON >$tmp
+		jq --argjson new_obj "$new_obj" '. += { ($new_obj.name): $new_obj }' $FILE_SUMMARY_JSON >$tmp
 	fi
 
 	# Mova o arquivo temporário de volta para o arquivo original
-	mv $tmp $FILE_DESCRIPTION_JSON
+	mv $tmp $FILE_SUMMARY_JSON
 }
-export -f sh_write_json_description_sh
+export -f sh_write_json_summary_sh
 
 # qua 04 out 2023 01:46:36 -04
-function sh_write_json_description_go {
+function sh_write_json_summary_go {
 	local name="$1"
 	local version="$2"
 	local status="$3"
 	local size="$4"
 	local description="$5"
 	local lang="$6"
-	jason-v7 "$FILE_DESCRIPTION_JSON" "$name" "$version" "$status" "$size" "$description" "$lang"
-}
 
-# ter 03 out 2023 02:41:00 -04
-function sh_seek_json_description {
+	# Transformar em minúscula
+	id_name="${name,,}"
+	# Substituir espaços por hifens
+	id_name="${id_name// /-}"
+	# Substituir pontos por hifens
+	id_name="${id_name//./-}"
+	# Substituir /asteristico por hifens
+	id_name="${id_name//\/\*/--}"
+	description="${description//\/\*/--}"
+	big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
+}
+export -f sh_write_json_summary_go
+
+# sex 06 out 2023 21:28:47 -04
+function sh_write_json_summary_jq {
 	local name="$1"
 	local version="$2"
 	local status="$3"
 	local size="$4"
 	local description="$5"
 	local lang="$6"
+
+	# Transformar em minúscula
+	id_name="${name,,}"
+	# Substituir espaços por hifens
+	id_name="${id_name// /-}"
+	# Substituir pontos por hifens
+	id_name="${id_name//./-}"
+	# Substituir /asteristico por hifens
+	id_name="${id_name//\/\*/--}"
+	description="${description//\/\*/--}"
+
+	jq \
+		--arg name "$id_name" \
+		--arg lang "$lang" \
+		--arg newDescription "$description" \
+		'.[$id_name].summary[$lang] = $newDescription' "$FILE_SUMMARY_JSON_CUSTOM" > tmp.json
+
+	mv tmp.json "$FILE_SUMMARY_JSON_CUSTOM"
+}
+export -f sh_write_json_summary_jq
+
+# sex 06 out 2023 21:28:47 -04
+function sh_seek_json_summary_jq {
+	local jsonFile="$1"
+	local id_name="$2"
+	local lang="$3"
 	local result
-	local retval=0
+	local retval=1
 
 	# Verifique se o arquivo JSON existe e, se não, crie-o com um objeto vazio
-	if [ ! -f $FILE_DESCRIPTION_JSON ]; then
-		echo '{}' >$FILE_DESCRIPTION_JSON
+	if [ ! -f $jsonFile ]; then
+		echo '{}' >$jsonFile
 	fi
 
-	result=$(jq -r --arg name "$name" --arg lang "$lang" '.[$name].summary[$lang]' "$FILE_DESCRIPTION_JSON")
-	if [[ "$result" == "null" || -z "$result" ]]; then
-		#        result="Descrição não encontrada"
-		#        jq --arg name "$name" --arg lang "$lang" --arg newDescription "$result" \
-		#            '.[$name].description[$lang] = $newDescription' "$FILE_DESCRIPTION_JSON" > tmp.json
-		#        mv tmp.json "$FILE_DESCRIPTION_JSON"
-		#		sh_seek_json_description "$name" "$version" "$status" "$size" "$description" "$lang"
-		#		sh_write_json_description "$name" "$version" "$status" "$size" "$description" "$lang"
-		#		echo "$result"
-		retval=1
+	if result=$(jq -r --arg id_name "$id_name" --arg lang "$lang" '.[$id_name].summary[$lang]' "$jsonFile") && [[ "$result" != "null" ]]; then
+		retval=0
 	fi
 	echo "$result"
 	return $retval
 }
-export -f sh_seek_json_description
+export -f sh_seek_json_summary_jq
+
+# sex 06 out 2023 21:28:47 -04
+function sh_seek_json_summary_go {
+	local jsonFile="$1"
+	local id_name="$2"
+	local lang="$3"
+	local result
+	local retval=1
+
+	if result=$(big-jq '-S' "$jsonFile" "$id_name.summary.$lang") && [[ "$result" != "null" ]]; then
+		retval=0
+	fi
+	echo "$result"
+	return $retval
+}
+export -f sh_seek_json_summary_go
 
 # seg 02 out 2023 03:39:10 -04
 function sh_translate_desc {
@@ -170,7 +215,7 @@ function sh_translate_desc {
 	local traducao_online="$3"
 	local description="$4"
 	local summary
-	local retval=0
+	local updated=0
 	local result
 
 	# Transformar em minúscula
@@ -183,38 +228,49 @@ function sh_translate_desc {
 	id_name="${id_name//\/\*/--}"
 	description="${description//\/\*/--}"
 
-# xdebug "$name\n$id_name"
-
-	if result=$(jq -r --arg id_name "$id_name" --arg lang "$lang" '.[$id_name].summary[$lang]' "$FILE_DESCRIPTION_JSON") && [[ "$result" != "null" ]]; then
-#	if result=$(big-jq '-S' "$FILE_DESCRIPTION_JSON" "$id_name.summary.$lang") && [[ "$result" != "null" ]]; then
-		#	xdebug "OK: seek: $name \nresult: $result"
-		echo "$result"
-		return 0
-	fi
-	#	xdebug "NEG: seek: $name \nresult: $result"
-
 	summary="$description"
 	if ((traducao_online)); then
 		case "${lang^^}" in
 		EN_US) ;;
 		PT_BR)
+			if ! result=$(sh_seek_json_summary_go "$FILE_SUMMARY_JSON" "$id_name" "$lang"); then
+				if result=$(sh_seek_json_summary_go "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$lang"); then
+					echo "$result"
+					return 0
+				fi
+			else
+				echo "$result"
+				return 0
+			fi
+
 			if summary=$(trans -no-auto -b :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
 				summary="$description"
-				retval=1
+				updated=0
+			else
+				updated=1
 			fi
 			;;
 		*)
+			if result=$(sh_seek_json_summary_go "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$lang"); then
+				echo "$result"
+				return 0
+			fi
+
 			if summary=$(trans -no-auto -b :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
-				retval=1
+				summary="$description"
+				updated=0
+			else
+				updated=1
 			fi
 			;;
 		esac
 	fi
-	if ! ((retval)); then #OK
-		sudo big-jq '-C' "$FILE_DESCRIPTION_JSON" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
+
+	if ((updated)); then #OK
+		big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
 	fi
 	echo "$summary"
-	return "$retval"
+	return "$((!updated))"
 }
 export -f sh_translate_desc
 
