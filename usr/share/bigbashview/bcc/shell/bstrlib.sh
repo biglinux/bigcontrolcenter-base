@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/09/25
+#  Altered: 2023/10/08
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230925"
+_VERSION_="1.0.0-20231008"
 LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
@@ -243,7 +243,7 @@ function sh_translate_desc {
 				return 0
 			fi
 
-			if summary=$(trans -no-auto -b :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+			if summary=$(trans -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
 				summary="$description"
 				updated=0
 			else
@@ -256,7 +256,7 @@ function sh_translate_desc {
 				return 0
 			fi
 
-			if summary=$(trans -no-auto -b :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+			if summary=$(trans  -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
 				summary="$description"
 				updated=0
 			else
