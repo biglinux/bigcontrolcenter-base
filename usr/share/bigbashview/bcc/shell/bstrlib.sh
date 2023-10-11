@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/10/10
+#  Altered: 2023/10/11
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20231010"
+_VERSION_="1.0.0-20231011"
 LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
@@ -803,6 +803,7 @@ function sh_search_category_appstream_pamac() {
 	local cmd
 	local regex=""
 	local traducao_online
+	local LIMITE=60
 
 	[[ -e "$TMP_FOLDER/category_aur.txt" ]] && rm -f "$TMP_FOLDER/category_aur.txt"
 	[[ -e "$TMP_FOLDER/appstream.html" ]] && rm -f "$TMP_FOLDER/appstream.html"
@@ -816,7 +817,11 @@ function sh_search_category_appstream_pamac() {
 		if [[ -n "$regex" ]]; then
 			regex+="|"
 		fi
-		regex+="($pacote$)"
+		if ((appstream_search_category)); then
+			regex+="($pacote$)"
+		else
+			regex+="($pacote)"
+		fi
 	done
 
 	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
@@ -902,6 +907,9 @@ function sh_search_category_appstream_pamac() {
 				echo "$button</a></div></div>"
 			} >>"$TMP_FOLDER/appstream_build.html"
 			((++count))
+			if (( count >= LIMITE )); then
+				break
+			fi
 		else
 			continue
 		fi
