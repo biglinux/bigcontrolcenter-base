@@ -118,11 +118,11 @@ function sh_get_locale {
 export -f sh_get_locale
 
 function sh_get_code_lang {
-	LangFilter="${LANG%%.*}"
-	LangFilterLowercase="${LangFilter,,}"
-	LangClean="${LangFilterLowercase%%_*}"
-	LangCountry="${LangFilterLowercase#*_}"
-	LangFilterLowercaseModified="${LangFilterLowercase//_/-}"
+	local LangFilter="${LANG%%.*}"
+	local LangFilterLowercase="${LangFilter,,}"
+	local LangClean="${LangFilterLowercase%%_*}"
+	local LangCountry="${LangFilterLowercase#*_}"
+	local LangFilterLowercaseModified="${LangFilterLowercase//_/-}"
 	echo "$LangFilterLowercaseModified"
 }
 export -f sh_get_code_lang
@@ -138,11 +138,11 @@ function sh_get_lang_without_utf8 {
 export -f sh_get_lang_without_utf8
 
 function sh_get_code_language {
-	LangFilter="${LANGUAGE%%.*}"
-	LangFilterLowercase="${LangFilter,,}"
-	LangClean="${LangFilterLowercase%%_*}"
-	LangCountry="${LangFilterLowercase#*_}"
-	LangFilterLowercaseModified="${LangFilterLowercase//_/-}"
+	local LangFilter="${LANGUAGE%%.*}"
+	local LangFilterLowercase="${LangFilter,,}"
+	local LangClean="${LangFilterLowercase%%_*}"
+	local LangCountry="${LangFilterLowercase#*_}"
+	local LangFilterLowercaseModified="${LangFilterLowercase//_/-}"
 	echo "$LangFilterLowercaseModified"
 }
 export -f sh_get_code_language
