@@ -67,6 +67,7 @@ type PackageInfoSearch struct {
 	Version     string `json:"version"`
 	Size        string `json:"size"`
 	Status      string `json:"status"`
+	Repo  		string `json:"Repo"`
 	Description string `json:"description"`
 }
 
@@ -292,7 +293,8 @@ func ProcessOutputSearch(input, xcmd string) {
 	lines := strings.Split(input, "\n")
 
 	// Processa cada linha da entrada
-	for _, line := range lines {
+	for index, line := range lines {
+println(index,line)
 		// Verifica se a linha começa com 2 espaços iniciais (indica descrição)
 		if strings.HasPrefix(line, "  ") && IsName == true {
 			line = strings.TrimSpace(line)
@@ -303,6 +305,7 @@ func ProcessOutputSearch(input, xcmd string) {
 		} else if IsName == false {
 			// Divide a linha em campos e verifica se há pelo menos 2 campos (nome e versão)
 			fields := strings.Fields(line)
+
 			if len(fields) >= 1 {
 				currentPackage.Name = fields[0]
 				currentPackage.Version = fields[1]
@@ -327,7 +330,14 @@ func ProcessOutputSearch(input, xcmd string) {
 					}
 				case "pamac":
 					if len(fields) >= 3 {
-						currentPackage.Status = fields[2]
+						if strings.EqualFold(fields[2], "[Instalado]") || strings.EqualFold(fields[2], "[Installed]") {
+							currentPackage.Status = fields[2]
+						} else {
+							currentPackage.Repo = fields[2]
+						}
+					}
+					if len(fields) >= 4 {
+						currentPackage.Repo = fields[3]
 					}
 				default:
 					if len(fields) >= 3 {
