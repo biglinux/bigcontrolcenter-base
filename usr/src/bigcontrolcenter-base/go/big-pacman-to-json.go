@@ -293,8 +293,7 @@ func ProcessOutputSearch(input, xcmd string) {
 	lines := strings.Split(input, "\n")
 
 	// Processa cada linha da entrada
-	for index, line := range lines {
-println(index,line)
+	for _, line := range lines {
 		// Verifica se a linha começa com 2 espaços iniciais (indica descrição)
 		if strings.HasPrefix(line, "  ") && IsName == true {
 			line = strings.TrimSpace(line)
