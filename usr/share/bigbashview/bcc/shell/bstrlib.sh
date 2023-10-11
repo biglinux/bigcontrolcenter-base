@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/10/08
+#  Altered: 2023/10/10
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20231008"
+_VERSION_="1.0.0-20231010"
 LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
@@ -63,11 +63,6 @@ declare -gA PKG_FLATPAK
 declare -gA PKG_TRANSLATE_DESC
 export PKG_TRANSLATE_DESC
 
-function sh_flatpak_installed_list {
-	# Le os pacotes instalados em flatpak
-	local FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
-	echo "$FLATPAK_INSTALLED_LIST"
-}
 
 # ter 03 out 2023 02:41:00 -04
 function sh_write_json_summary_sh {
@@ -120,6 +115,7 @@ function sh_write_json_summary_sh {
 }
 export -f sh_write_json_summary_sh
 
+
 # qua 04 out 2023 01:46:36 -04
 function sh_write_json_summary_go {
 	local name="$1"
@@ -141,6 +137,7 @@ function sh_write_json_summary_go {
 	big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
 }
 export -f sh_write_json_summary_go
+
 
 # sex 06 out 2023 21:28:47 -04
 function sh_write_json_summary_jq {
@@ -171,6 +168,7 @@ function sh_write_json_summary_jq {
 }
 export -f sh_write_json_summary_jq
 
+
 # sex 06 out 2023 21:28:47 -04
 function sh_seek_json_summary_jq {
 	local jsonFile="$1"
@@ -192,6 +190,7 @@ function sh_seek_json_summary_jq {
 }
 export -f sh_seek_json_summary_jq
 
+
 # sex 06 out 2023 21:28:47 -04
 function sh_seek_json_summary_go {
 	local jsonFile="$1"
@@ -208,16 +207,19 @@ function sh_seek_json_summary_go {
 }
 export -f sh_seek_json_summary_go
 
+
 # seg 02 out 2023 03:39:10 -04
 function sh_translate_desc {
 	local name="$1"
-	local lang="$2"
-	local traducao_online="$3"
-	local description="$4"
-	local summary
+	local traducao_online="$2"
+	local description="$3"
 	local updated=0
+	local summary
 	local result
+	local lang
 
+	lang=$(sh_get_language_without_utf8)
+	[[ -z "$lang" ]] &&	lang=$(sh_get_lang_without_utf8)
 	# Transformar em minúscula
 	id_name="${name,,}"
 	# Substituir espaços por hifens
@@ -256,7 +258,7 @@ function sh_translate_desc {
 				return 0
 			fi
 
-			if summary=$(trans  -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+			if summary=$(trans -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
 				summary="$description"
 				updated=0
 			else
@@ -274,6 +276,7 @@ function sh_translate_desc {
 }
 export -f sh_translate_desc
 
+
 function sh_seek_flatpak_parallel_filter() {
 	local package="$1"
 	local myarray
@@ -290,7 +293,7 @@ function sh_seek_flatpak_parallel_filter() {
 	local pkg="${PKG_FLATPAK[PKG_ID]}"
 	local description="${PKG_FLATPAK[PKG_DESC]}"
 	local summary="$description"
-	summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+	summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
 	PKG_FLATPAK[PKG_DESC]="$summary"
 
 	# Seleciona o arquivo xml para filtrar os dados
@@ -314,17 +317,23 @@ function sh_seek_flatpak_parallel_filter() {
 	fi
 }
 
+
+function sh_flatpak_installed_list {
+	# Le os pacotes instalados em flatpak
+	local FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
+	echo "$FLATPAK_INSTALLED_LIST"
+}
+
+
 function sh_search_flatpak() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
-	local lang_without_utf8
 	local traducao_online
 
 	[[ -e "$TMP_FOLDER/flatpak_number.html" ]] && rm -f "$TMP_FOLDER/flatpak_number.html"
 	[[ -e "$TMP_FOLDER/flatpak.html" ]] && rm -f "$TMP_FOLDER/flatpak.html"
 	[[ -e "$TMP_FOLDER/flatpak_build.html" ]] && rm -f "$TMP_FOLDER/flatpak_build.html"
 
-	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	# Le os pacotes instalados em flatpak
@@ -455,17 +464,16 @@ function sh_search_flatpak() {
 }
 export -f sh_search_flatpak
 
+
 function sh_search_snap() {
 	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
-	local lang_without_utf8
 	local traducao_online
 
 	[[ -e "$TMP_FOLDER/snap.html" ]] && rm -f "$TMP_FOLDER/snap.html"
 	[[ -e "$TMP_FOLDER/snap_number.html" ]] && rm -f "$TMP_FOLDER/snap_number.html"
 	[[ -e "$TMP_FOLDER/snap_build.html" ]] && rm -f "$TMP_FOLDER/snap_build.html"
 
-	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	# Lê os pacotes instalados em snap
@@ -487,7 +495,7 @@ function sh_search_snap() {
 		pkg="$PKG_NAME"
 		description="$PKG_DESC"
 		summary="$description"
-		summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+		summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
 		PKG_DESC="$summary"
 
 		#xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
@@ -613,6 +621,7 @@ function sh_search_snap() {
 }
 export -f sh_search_snap
 
+
 function sh_search_aur_category {
 	local search="$*"
 	local pkg=""
@@ -624,14 +633,12 @@ function sh_search_aur_category {
 	local count=0
 	local icon=""
 	local line
-	local lang_without_utf8
 	local traducao_online
 
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
-	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	while IFS= read -r line; do
@@ -674,16 +681,9 @@ function sh_search_aur_category {
 		elif [[ $line =~ ^Version ]]; then
 			version="${line#Version*: }"
 		elif [[ $line =~ ^Description ]]; then
-			#			description="${line#Description*: }"
-			#			summaryfile="description/$pkg/$lang_without_utf8/summary"
-			#			#			[[ -e "$summaryfile" ]] && description=$(<"$summaryfile")
-			#			if summary="$(big-sqlite -q --json -Q $pkg | jq -r '.Summary')" && [[ -n "$summary" ]]; then
-			#				description="$summary"
-			#			fi
-
 			description="${line#Description*: }"
 			summary="$description"
-			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
 			description="$summary"
 		fi
 	done < <(LC_ALL=C paru -Sia $search --limit 60 --sortby popularity --topdown 2>/dev/null)
@@ -700,20 +700,18 @@ function sh_search_aur_category {
 }
 export -f sh_search_aur_category
 
+
 function sh_search_aur {
 	local search="$*"
 	local n=1
 	local count=0
 	local cmd
-	local lang_without_utf8
 	local traducao_online
 
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
-	#	lang_without_utf8=$(sh_get_lang_without_utf8)
-	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	#cmd="$(LC_ALL=C paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)"
@@ -768,7 +766,7 @@ function sh_search_aur {
 			fi
 
 			summary="$description"
-			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
 
 			{
 				echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=$pkg\">"
@@ -797,12 +795,12 @@ function sh_search_aur {
 }
 export -f sh_search_aur
 
+
 function sh_search_category_appstream_pamac() {
 	local search="$*"
 	local n=1
 	local count=0
 	local cmd
-	local lang_without_utf8
 	local regex=""
 	local traducao_online
 
@@ -811,8 +809,6 @@ function sh_search_category_appstream_pamac() {
 	[[ -e "$TMP_FOLDER/appstream_build.html" ]] && rm -f "$TMP_FOLDER/appstream_build.html"
 	[[ -e "$TMP_FOLDER/appstream_number.html" ]] && rm -f "$TMP_FOLDER/appstream_number.html"
 
-	#	lang_without_utf8=$(sh_get_lang_without_utf8)
-	lang_without_utf8="${LANGUAGE%%.*}"
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 
 	# Loop para concatenar os nomes dos pacotes à regex
@@ -893,7 +889,7 @@ function sh_search_category_appstream_pamac() {
 			fi
 
 			summary="$description"
-			summary=$(sh_translate_desc "$pkg" "$lang_without_utf8" "$traducao_online" "$description")
+			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
 
 			{
 				echo "<a onclick=\"disableBody();\" href=\"view_appstream.sh.htm?pkg_name=$pkg\">"
@@ -922,10 +918,12 @@ function sh_search_category_appstream_pamac() {
 }
 export -f sh_search_category_appstream_pamac
 
+
 function sh_reinstall_allpkg {
 	pacman -Sy --noconfirm - < <(pacman -Qnq)
 }
 export -f sh_reinstall_allpkg
+
 
 function sh_pkg_pacman_install_date {
 	#	grep "^Install Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
@@ -939,10 +937,12 @@ function sh_pkg_pacman_install_date {
 }
 export -f sh_pkg_pacman_install_date
 
+
 function sh_pkg_pacman_install_reason {
 	grep "^Install Reason " "$TMP_FOLDER/pacman_pkg_cache.txt" | cut -f2 -d:
 }
 export -f sh_pkg_pacman_install_reason
+
 
 function search_appstream_pamac {
 	[[ -e "$TMP_FOLDER/appstream_build.html" ]] && rm -f "$TMP_FOLDER/appstream_build.html"
@@ -952,11 +952,13 @@ function search_appstream_pamac {
 	mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
 }
 
+
 #qua 23 ago 2023 22:44:29 -04
 function sh_pkg_pacman_version {
 	grep "^Version " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2-10 -d: | awk 'NF'
 }
 export -f sh_pkg_pacman_version
+
 
 function sh_count_snap_list {
 	local snap_count=$(snap list | wc -l)
@@ -965,16 +967,19 @@ function sh_count_snap_list {
 }
 export -f sh_count_snap_list
 
+
 function sh_count_snap_cache_lines {
 	wc -l <"$HOME_FOLDER/snap.cache"
 }
 export -f sh_count_snap_cache_lines
+
 
 function sh_SO_installation_date {
 	#	ls -lct /etc | tail -1 | awk '{print $6, $7, $8}')
 	expac --timefmt='%Y-%m-%d %T' '%l\t%n' | sort | head -n 1
 }
 export -f sh_SO_installation_date
+
 
 function sh_pkg_pacman_build_date {
 	#	grep "^Build Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
@@ -987,6 +992,7 @@ function sh_pkg_pacman_build_date {
 	fi
 }
 export -f sh_pkg_pacman_build_date
+
 
 function sh_update_cache_snap {
 	local processamento_em_paralelo="$1"
@@ -1065,6 +1071,7 @@ function sh_update_cache_snap {
 }
 export -f sh_update_cache_snap
 
+
 function sh_update_cache_flatpak {
 	local processamento_em_paralelo="$1"
 	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
@@ -1122,6 +1129,7 @@ function sh_update_cache_flatpak {
 }
 export -f sh_update_cache_flatpak
 
+
 function sh_update_cache_complete {
 	[[ ! -d "$HOME_FOLDER" ]] && mkdir -p "$HOME_FOLDER"
 	[[ -e "/usr/lib/libpamac-flatpak.so" ]] && sh_update_cache_flatpak "$@"
@@ -1129,11 +1137,13 @@ function sh_update_cache_complete {
 }
 export -f sh_update_cache_complete
 
+
 function sh_run_pacman_mirror {
 	pacman-mirrors --geoip
 	pacman -Syy
 }
 export -f sh_run_pacman_mirror
+
 
 function sh_snap_clean {
 	if [ "$(snap get system refresh.retain)" != "2" ]; then
@@ -1152,11 +1162,13 @@ function sh_snap_clean {
 }
 export -f sh_snap_clean
 
+
 function sh_package_is_installed {
 	pacman -Q $1 >/dev/null 2>&-
 	return $?
 }
 export -f sh_package_is_installed
+
 
 function sh_enable_snapd_and_apparmor() {
 	echo "Verificando o status do serviço apparmor..."
@@ -1201,6 +1213,7 @@ function sh_enable_snapd_and_apparmor() {
 }
 export -f sh_enable_snapd_and_apparmor
 
+
 function sh_run_pamac_remove {
 	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
 	pamac-installer --remove "$@" $packages_to_remove &
@@ -1224,6 +1237,7 @@ function sh_run_pamac_remove {
 	wait
 }
 export -f sh_run_pamac_remove
+
 
 function sh_run_pamac_installer {
 	local action="$1"
@@ -1263,11 +1277,13 @@ function sh_run_pamac_installer {
 }
 export -f sh_run_pamac_installer
 
+
 function sh_run_pamac_mirror {
 	pacman-mirrors --geoip
 	pacman -Syy
 }
 export -f sh_run_pamac_mirror
+
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_version {
@@ -1278,17 +1294,20 @@ function sh_pkg_flatpak_version {
 }
 export -f sh_pkg_flatpak_version
 
+
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
 	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_verify
 
+
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_update {
 	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f6 -d"|"
 }
 export -f sh_pkg_flatpak_update
+
 
 #qua 23 ago 2023 19:40:41 -04
 function sh_load_main {
@@ -1320,11 +1339,13 @@ function sh_load_main {
 }
 export -f sh_load_main
 
+
 # qua 23 ago 2023 20:37:16 -04
 function sh_this_package_update {
 	pacman -Qu "$1" 2>/dev/null | awk '{print $NF}'
 }
 export -f sh_this_package_update
+
 
 function sh_main {
 	local execute_app="$1"
