@@ -27,8 +27,6 @@ depends=('bash'
     'xorg-xwininfo'
     'xorg-xrandr'
     'xorg-xprop' 		# xprop
-    'xsetprop' 			# xsetprop
-    'xtermset'
     'wmctrl' 			# wmctrl
     'yay'
     'yad'
@@ -39,8 +37,8 @@ depends=('bash'
     'procps-ng' 		# pipof, pgrep
     'pacman'
     'pacman-mirrors'
-    'mhwd'
     )
+depends_x86_64=('mhwd' 'xsetprop' 'xtermset')
 source=("git+${url}.git")
 md5sums=('SKIP')
 if [ -e "${pkgname}.install" ];then
