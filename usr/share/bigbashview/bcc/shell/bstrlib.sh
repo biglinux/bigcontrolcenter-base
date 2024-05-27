@@ -63,7 +63,6 @@ declare -gA PKG_FLATPAK
 declare -gA PKG_TRANSLATE_DESC
 export PKG_TRANSLATE_DESC
 
-
 # ter 03 out 2023 02:41:00 -04
 function sh_write_json_summary_sh {
 	local name="$1"
@@ -72,6 +71,7 @@ function sh_write_json_summary_sh {
 	local size="$4"
 	local description="$5"
 	local lang="$6"
+	local icon="$7"
 	local tmp="$TMP_FOLDER/tmp.json"
 
 	# Verifique se o arquivo JSON existe e, se não, crie-o com um objeto vazio
@@ -88,12 +88,14 @@ function sh_write_json_summary_sh {
 			--arg size "$size" \
 			--arg status "$status" \
 			--arg lang "$lang" \
+			--arg icon "$icon" \
 			--arg description "$description" \
 			'.[$name] |= {
                "name": $name,
                "version": $version,
                "size": $size,
                "status": $status,
+               "icon": $icon,
                "description": (.description + { ($lang): $description })
             }' $FILE_SUMMARY_JSON >$tmp
 	else
@@ -103,6 +105,7 @@ function sh_write_json_summary_sh {
             \"version\": \"$version\",
             \"size\": \"$size\",
             \"status\": \"$status\",
+            \"icon\": \"$icon\",
             \"description\": {
                 \"$lang\": \"$description\"
             }
@@ -115,7 +118,6 @@ function sh_write_json_summary_sh {
 }
 export -f sh_write_json_summary_sh
 
-
 # qua 04 out 2023 01:46:36 -04
 function sh_write_json_summary_go {
 	local name="$1"
@@ -124,6 +126,7 @@ function sh_write_json_summary_go {
 	local size="$4"
 	local description="$5"
 	local lang="$6"
+	local icon="$7"
 
 	# Transformar em minúscula
 	id_name="${name,,}"
@@ -134,10 +137,9 @@ function sh_write_json_summary_go {
 	# Substituir /asteristico por hifens
 	id_name="${id_name//\/\*/--}"
 	description="${description//\/\*/--}"
-	big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
+	big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang" "$icon"
 }
 export -f sh_write_json_summary_go
-
 
 # sex 06 out 2023 21:28:47 -04
 function sh_write_json_summary_jq {
@@ -147,6 +149,7 @@ function sh_write_json_summary_jq {
 	local size="$4"
 	local description="$5"
 	local lang="$6"
+	local icon="$7"
 
 	# Transformar em minúscula
 	id_name="${name,,}"
@@ -162,12 +165,11 @@ function sh_write_json_summary_jq {
 		--arg name "$id_name" \
 		--arg lang "$lang" \
 		--arg newDescription "$description" \
-		'.[$id_name].summary[$lang] = $newDescription' "$FILE_SUMMARY_JSON_CUSTOM" > tmp.json
+		'.[$id_name].summary[$lang] = $newDescription' "$FILE_SUMMARY_JSON_CUSTOM" >tmp.json
 
 	mv tmp.json "$FILE_SUMMARY_JSON_CUSTOM"
 }
 export -f sh_write_json_summary_jq
-
 
 # sex 06 out 2023 21:28:47 -04
 function sh_seek_json_summary_jq {
@@ -190,6 +192,40 @@ function sh_seek_json_summary_jq {
 }
 export -f sh_seek_json_summary_jq
 
+# qua 11 out 2023 13:24:51 -04
+function sh_seek_json_icon_jq {
+	local jsonFile="$1"
+	local id_name="$2"
+	local result
+	local retval=1
+
+	# Verifique se o arquivo JSON existe e, se não, crie-o com um objeto vazio
+	if [ ! -f $jsonFile ]; then
+		echo '{}' >$jsonFile
+	fi
+
+	if result=$(jq -r --arg id_name "$id_name" --arg lang "$lang" '.[$id_name].icon' "$jsonFile") && [[ "$result" != "null" ]]; then
+		retval=0
+	fi
+	echo "$result"
+	return $retval
+}
+export -f sh_seek_json_icon_jq
+
+# qua 11 out 2023 13:24:51 -04
+function sh_seek_json_icon_go {
+	local jsonFile="$1"
+	local id_name="$2"
+	local result
+	local retval=1
+
+	if result=$(big-jq '-S' "$jsonFile" "$id_name.icon") && [[ "$result" != "null" ]]; then
+		retval=0
+	fi
+	echo "$result"
+	return $retval
+}
+export -f sh_seek_json_icon_go
 
 # sex 06 out 2023 21:28:47 -04
 function sh_seek_json_summary_go {
@@ -207,19 +243,8 @@ function sh_seek_json_summary_go {
 }
 export -f sh_seek_json_summary_go
 
-
-# seg 02 out 2023 03:39:10 -04
-function sh_translate_desc {
+function sh_change_pkg_id {
 	local name="$1"
-	local traducao_online="$2"
-	local description="$3"
-	local updated=0
-	local summary
-	local result
-	local lang
-
-	lang=$(sh_get_language_without_utf8)
-	[[ -z "$lang" ]] &&	lang=$(sh_get_lang_without_utf8)
 	# Transformar em minúscula
 	id_name="${name,,}"
 	# Substituir espaços por hifens
@@ -228,9 +253,28 @@ function sh_translate_desc {
 	id_name="${id_name//./-}"
 	# Substituir /asteristico por hifens
 	id_name="${id_name//\/\*/--}"
-	description="${description//\/\*/--}"
 
+	echo "$id_name"
+}
+
+# seg 02 out 2023 03:39:10 -04
+function sh_translate_desc {
+	local name="$1"
+	local traducao_online="$2"
+	local description="$3"
+	local icon="$4"
+	local updated=0
+	local summary
+	local result
+	local lang
+	local id_name
+
+	lang=$(sh_get_language_without_utf8)
+	[[ -z "$lang" ]] && lang=$(sh_get_lang_without_utf8)
+	id_name=$(sh_change_pkg_id "$name")
+	description="${description//\/\*/--}"
 	summary="$description"
+
 	if ((traducao_online)); then
 		case "${lang^^}" in
 		EN_US) ;;
@@ -269,17 +313,17 @@ function sh_translate_desc {
 	fi
 
 	if ((updated)); then #OK
-		big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang"
+		big-jq '-C' "$FILE_SUMMARY_JSON_CUSTOM" "$id_name" "$name" "$version" "$status" "$size" "$summary" "$lang" "$icon"
 	fi
 	echo "$summary"
 	return "$((!updated))"
 }
 export -f sh_translate_desc
 
-
 function sh_seek_flatpak_parallel_filter() {
 	local package="$1"
 	local myarray
+	local icon
 
 	mapfile -t -d"|" myarray <<<"$package"
 	PKG_FLATPAK[PKG_NAME]="${myarray[0]}"
@@ -293,8 +337,6 @@ function sh_seek_flatpak_parallel_filter() {
 	local pkg="${PKG_FLATPAK[PKG_ID]}"
 	local description="${PKG_FLATPAK[PKG_DESC]}"
 	local summary="$description"
-	summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
-	PKG_FLATPAK[PKG_DESC]="$summary"
 
 	# Seleciona o arquivo xml para filtrar os dados
 	PKG_FLATPAK[PKG_XML_APPSTREAM]="/var/lib/flatpak/appstream/${PKG_FLATPAK[PKG_REMOTE]}/x86_64/active/appstream.xml"
@@ -303,20 +345,37 @@ function sh_seek_flatpak_parallel_filter() {
 	fi
 
 	# Search icon
-	PKG_FLATPAK[PKG_ICON]="$(find /var/lib/flatpak/appstream/ -type f -iname "${PKG_FLATPAK[PKG_ID]}.png" -print -quit)"
+	#	PKG_FLATPAK[PKG_ICON]="$(find /var/lib/flatpak/appstream/ -type f -iname "${PKG_FLATPAK[PKG_ID]}.png" -print -quit)"
+	#	PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/64x64/${PKG_FLATPAK[PKG_ID]}.png"
+	#	if ! test -e "PKG_FLATPAK[PKG_ICON]}"; then
+	#		PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128/${PKG_FLATPAK[PKG_ID]}.png"
+	#		if ! test -e "PKG_FLATPAK[PKG_ICON]}"; then
+	#			PKG_FLATPAK[PKG_ICON]=""
+	#		fi
+	#	fi
+	#
+	#	# If not found try another way
+	#	if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
+	#		# If cached icon not found, try online
+	#		PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+	#
+	#		# If online icon not found, try another way
+	#		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
+	#			PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}.desktop\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+	#		fi
+	#	fi
 
-	# If not found try another way
-	if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
-		# If cached icon not found, try online
-		PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
-
-		# If online icon not found, try another way
-		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
-			PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}.desktop\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
+	summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")
+	icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
+	PKG_FLATPAK[PKG_DESC]="$summary"
+	PKG_FLATPAK[PKG_ICON]="$icon"
+	if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+		PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128/${PKG_FLATPAK[PKG_ID]}.png"
+		if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+			PKG_FLATPAK[PKG_ICON]=""
 		fi
 	fi
 }
-
 
 function sh_flatpak_installed_list {
 	# Le os pacotes instalados em flatpak
@@ -324,9 +383,7 @@ function sh_flatpak_installed_list {
 	echo "$FLATPAK_INSTALLED_LIST"
 }
 
-
-function sh_search_flatpak() {
-	# Le o parametro passado via terminal e cria a variavel $search
+function sh_search_flatpakOLD() {
 	local search="$*"
 	local traducao_online
 
@@ -344,7 +401,7 @@ function sh_search_flatpak() {
 	#	xdebug "$search"
 
 	# Inicia uma função para possibilitar o uso em modo assíncrono
-	function flatpak_parallel_filter() {
+	function flatpak_parallel_filterOLD() {
 		local package="$1"
 
 		sh_seek_flatpak_parallel_filter "$package"
@@ -436,7 +493,6 @@ function sh_search_flatpak() {
 	local LIMITE=60
 
 	for i in ${search[@]}; do
-		#xdebug "$i"
 		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
 			#xdebug "$result"
 			while IFS= read -r line; do
@@ -462,8 +518,194 @@ function sh_search_flatpak() {
 		cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
 	fi
 }
-export -f sh_search_flatpak
+export -f sh_search_flatpakOLD
 
+function sh_search_flatpak() {
+	local search="$*"
+	local traducao_online
+
+	[[ -e "$TMP_FOLDER/flatpak_number.html" ]] && rm -f "$TMP_FOLDER/flatpak_number.html"
+	[[ -e "$TMP_FOLDER/flatpak.html" ]] && rm -f "$TMP_FOLDER/flatpak.html"
+	[[ -e "$TMP_FOLDER/flatpak_build.html" ]] && rm -f "$TMP_FOLDER/flatpak_build.html"
+
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+
+	# Le os pacotes instalados em flatpak
+	FLATPAK_INSTALLED_LIST=$(sh_flatpak_installed_list)
+
+	#	xdebug "$0[$LINENO]: $search"
+	#	xdebug "$FLATPAK_INSTALLED_LIST"
+	#	xdebug "$search"
+
+	# Inicia uma função para possibilitar o uso em modo assíncrono
+	function flatpak_parallel_filter() {
+		local package="$1"
+		local myarray
+		local icon
+		local id_name
+
+		id_name="$(sh_change_pkg_id "$package")"
+
+		#		PKG_FLATPAK[PKG_NAME]="$(big-jq '-S' "$cacheFile" "$id_name.name")"
+		#		PKG_FLATPAK[PKG_DESC]="$(big-jq '-S' "$cacheFile" "$id_name.description")"
+		#		PKG_FLATPAK[PKG_ID]="$(big-jq '-S' "$cacheFile" "$id_name.id_name")"
+		#		PKG_FLATPAK[PKG_VERSION]="$(big-jq '-S' "$cacheFile" "$id_name.version")"
+		#		PKG_FLATPAK[PKG_STABLE]="$(big-jq '-S' "$cacheFile" "$id_name.branch")"
+		#		PKG_FLATPAK[PKG_REMOTE]="$(big-jq '-S' "$cacheFile" "$id_name.remotes")"
+		#		PKG_FLATPAK[PKG_UPDATE]=""
+		#		PKG_FLATPAK[PKG_ICON]="$(big-jq '-S' "$cacheFile" "$id_name.icon")"
+		#
+#		mapfile -t -d'|' myarray < <(jq --arg id_name "$id_name" -r 'to_entries[] | select(.key | test("(?i).*" + $id_name + ".*")) | "\(.value.name)|\(.value.description)|\(.value.id_name)|\(.value.version)|\(.value.branch)|\(.value.remotes)|\(.value.icon)"' "$cacheFile")
+#		mapfile -t -d'|' myarray < <(jq --arg id_name "$id_name" -r 'to_entries[] | select(.key | test($id_name)) | "\(.value.name)|\(.value.description)|\(.value.id_name)|\(.value.version)|\(.value.branch)|\(.value.remotes)|\(.value.icon)"' "$cacheFile")
+#		result=$(jq --arg id_name "$id_name" -r 'to_entries[] | select(.key | test("(?i).*" + $id_name + ".*")) | "\(.key | gsub("[|]";""))|\(.value.name | gsub("[|]";""))|\(.value.description | gsub("[|]";""))|\(.value.id_name | gsub("[|]";""))|\(.value.version | gsub("[|]";""))|\(.value.branch | gsub("[|]";""))|\(.value.remotes | gsub("[|]";""))|\(.value.icon | gsub("[|]";""))"' "$cacheFile")
+		result=$(jq --arg id_name "$id_name" -r 'to_entries[] | select(.key | test($id_name)) | "\(.value.name)|\(.value.description)|\(.value.id_name)|\(.value.version)|\(.value.branch)|\(.value.remotes)|\(.value.icon)"' "$cacheFile")
+		if [ -z "$result" ]; then
+			return
+		fi
+	    mapfile -t -d'|' myarray <<< "$result"
+		PKG_FLATPAK[PKG_NAME]="${myarray[0]}"
+		PKG_FLATPAK[PKG_DESC]="${myarray[1]}"
+		PKG_FLATPAK[PKG_ID]="${myarray[2]}"
+		PKG_FLATPAK[PKG_VERSION]="${myarray[3]}"
+		PKG_FLATPAK[PKG_STABLE]="${myarray[4]}"
+		PKG_FLATPAK[PKG_REMOTE]="${myarray[5]}"
+		PKG_FLATPAK[PKG_ICON]="${myarray[6]}"
+		PKG_FLATPAK[PKG_UPDATE]=""
+
+		local pkg="${PKG_FLATPAK[PKG_ID]}"
+		local description="${PKG_FLATPAK[PKG_DESC]}"
+		local summary="$description"
+
+		# Seleciona o arquivo xml para filtrar os dados
+		PKG_FLATPAK[PKG_XML_APPSTREAM]="/var/lib/flatpak/appstream/${PKG_FLATPAK[PKG_REMOTE]}/x86_64/active/appstream.xml"
+		if [[ -z "${PKG_FLATPAK[PKG_VERSION]}" ]]; then
+			PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
+		fi
+
+		summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")
+		icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
+		PKG_FLATPAK[PKG_DESC]="$summary"
+		PKG_FLATPAK[PKG_ICON]="$icon"
+		if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+			PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/64x64/${PKG_FLATPAK[PKG_ID]}.png"
+			if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+				PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128/${PKG_FLATPAK[PKG_ID]}.png"
+				if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+					PKG_FLATPAK[PKG_ICON]=""
+				fi
+			fi
+		fi
+
+		# Improve order of packages
+		PKG_NAME_CLEAN="${search% *}"
+
+		# Verify if package are installed
+		if [[ "$FLATPAK_INSTALLED_LIST" == *"|${PKG_FLATPAK[PKG_ID]}|"* ]]; then
+			if [ -n "$(tr -d '\n' <<<"${PKG_FLATPAK[PKG_UPDATE]}")" ]; then
+				PKG_FLATPAK[PKG_INSTALLED]=$"Atualizar"
+				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_upgradable"
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
+			else
+				PKG_FLATPAK[PKG_INSTALLED]=$"Remover"
+				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_installed"
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
+			fi
+		else
+			PKG_FLATPAK[PKG_INSTALLED]=$"Instalar"
+			PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_not_installed"
+
+			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP2"
+			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP3"
+			else
+				PKG_FLATPAK[PKG_ORDER]="FlatpakP4"
+			fi
+		fi
+
+		# If all fail, use generic icon
+		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${PKG_FLATPAK[PKG_ICON]}")" ]]; then
+			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_NAME]}">
+				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
+				<div class="showapp">
+				<div id="flatpak_icon">
+				<div class="icon_middle">
+				<div class="icon_middle">
+				<div class="avatar_flatpak">
+				${PKG_FLATPAK[PKG_NAME]:0:3}
+				</div></div></div>
+				<div id="flatpak_name">
+				${PKG_FLATPAK[PKG_NAME]}
+				<div id="version">
+				${PKG_FLATPAK[PKG_VERSION]}
+				</div></div></div>
+				<div id="box_flatpak_desc">
+				<div id="flatpak_desc">
+				${PKG_FLATPAK[PKG_DESC]}
+				</div></div>
+				<div id="${PKG_FLATPAK[DIV_FLATPAK_INSTALLED]}">
+				${PKG_FLATPAK[PKG_INSTALLED]}
+				</div></a></div></div>
+			EOF
+		else
+			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_ID]}">
+				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
+				<div class="showapp">
+				<div id="flatpak_icon">
+				<div class="icon_middle">
+				<img class="icon" loading="lazy" src="${PKG_FLATPAK[PKG_ICON]}">
+				</div>
+				<div id="flatpak_name">
+				${PKG_FLATPAK[PKG_NAME]}
+				<div id="version">
+				${PKG_FLATPAK[PKG_VERSION]}
+				</div></div></div>
+				<div id="box_flatpak_desc">
+				<div id="flatpak_desc">
+				${PKG_FLATPAK[PKG_DESC]}
+				</div></div>
+				<div id="${PKG_FLATPAK[DIV_FLATPAK_INSTALLED]}">
+				${PKG_FLATPAK[PKG_INSTALLED]}
+				</div></a></div></div>
+			EOF
+		fi
+	}
+
+	if [[ -z "$resultFilter_checkbox" ]]; then
+		cacheFile="$flatpak_cache_file"
+	else
+		cacheFile="$flatpak_cache_filtered_file"
+	fi
+
+	local COUNT=0
+	local LIMITE=60
+
+	for i in ${search[*]}; do
+		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
+			flatpak_parallel_filter "$i" &
+			((++COUNT))
+		fi
+		if [ "$COUNT" = "$LIMITE" ]; then
+			break
+		fi
+	done
+
+	# Aguarda todos os resultados antes de exibir para o usuário
+	wait
+
+	if ((COUNT)); then
+		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
+		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
+			<script>\$(document).ready(function() {\$("#box_flatpak").show();});</script>
+			<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
+		EOF
+		cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
+	fi
+}
+export -f sh_search_flatpak
 
 function sh_search_snap() {
 	# Le o parametro passado via terminal e cria a variavel $search
@@ -621,7 +863,6 @@ function sh_search_snap() {
 }
 export -f sh_search_snap
 
-
 function sh_search_aur_category {
 	local search="$*"
 	local pkg=""
@@ -687,7 +928,7 @@ function sh_search_aur_category {
 			description="$summary"
 		fi
 	done < <(LC_ALL=C paru -Sia $search --limit 60 --sortby popularity --topdown 2>/dev/null)
-#	done < <(LANGUAGE=C yay -Sia $search --topdown)
+	#	done < <(LANGUAGE=C yay -Sia $search --topdown)
 
 	if ((count)); then
 		echo "$count" >"$TMP_FOLDER/aur_number.html"
@@ -699,7 +940,6 @@ function sh_search_aur_category {
 	fi
 }
 export -f sh_search_aur_category
-
 
 function sh_search_aur {
 	local search="$*"
@@ -794,7 +1034,6 @@ function sh_search_aur {
 	fi
 }
 export -f sh_search_aur
-
 
 function sh_search_category_appstream_pamac() {
 	local search="$*"
@@ -907,7 +1146,7 @@ function sh_search_category_appstream_pamac() {
 				echo "$button</a></div></div>"
 			} >>"$TMP_FOLDER/appstream_build.html"
 			((++count))
-			if (( count >= LIMITE )); then
+			if ((count >= LIMITE)); then
 				break
 			fi
 		else
@@ -926,12 +1165,10 @@ function sh_search_category_appstream_pamac() {
 }
 export -f sh_search_category_appstream_pamac
 
-
 function sh_reinstall_allpkg {
 	pacman -Sy --noconfirm - < <(pacman -Qnq)
 }
 export -f sh_reinstall_allpkg
-
 
 function sh_pkg_pacman_install_date {
 	#	grep "^Install Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
@@ -945,12 +1182,10 @@ function sh_pkg_pacman_install_date {
 }
 export -f sh_pkg_pacman_install_date
 
-
 function sh_pkg_pacman_install_reason {
 	grep "^Install Reason " "$TMP_FOLDER/pacman_pkg_cache.txt" | cut -f2 -d:
 }
 export -f sh_pkg_pacman_install_reason
-
 
 function search_appstream_pamac {
 	[[ -e "$TMP_FOLDER/appstream_build.html" ]] && rm -f "$TMP_FOLDER/appstream_build.html"
@@ -960,13 +1195,11 @@ function search_appstream_pamac {
 	mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
 }
 
-
 #qua 23 ago 2023 22:44:29 -04
 function sh_pkg_pacman_version {
 	grep "^Version " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2-10 -d: | awk 'NF'
 }
 export -f sh_pkg_pacman_version
-
 
 function sh_count_snap_list {
 	local snap_count=$(snap list | wc -l)
@@ -975,19 +1208,16 @@ function sh_count_snap_list {
 }
 export -f sh_count_snap_list
 
-
 function sh_count_snap_cache_lines {
 	wc -l <"$HOME_FOLDER/snap.cache"
 }
 export -f sh_count_snap_cache_lines
-
 
 function sh_SO_installation_date {
 	#	ls -lct /etc | tail -1 | awk '{print $6, $7, $8}')
 	expac --timefmt='%Y-%m-%d %T' '%l\t%n' | sort | head -n 1
 }
 export -f sh_SO_installation_date
-
 
 function sh_pkg_pacman_build_date {
 	#	grep "^Build Date " "${TMP_FOLDER}/pacman_pkg_cache.txt" | cut -f2 -d:
@@ -1000,7 +1230,6 @@ function sh_pkg_pacman_build_date {
 	fi
 }
 export -f sh_pkg_pacman_build_date
-
 
 function sh_update_cache_snap {
 	local processamento_em_paralelo="$1"
@@ -1079,8 +1308,7 @@ function sh_update_cache_snap {
 }
 export -f sh_update_cache_snap
 
-
-function sh_update_cache_flatpak {
+function sh_update_cache_flatpakOLD {
 	local processamento_em_paralelo="$1"
 	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
 	local CACHE_FILE="$HOME_FOLDER/flatpak.cache"
@@ -1135,8 +1363,44 @@ function sh_update_cache_flatpak {
 	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
 	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 }
-export -f sh_update_cache_flatpak
+export -f sh_update_cache_flatpakOLD
 
+# qua 11 out 2023 14:19:05 -04
+function sh_update_cache_flatpak {
+	local processamento_em_paralelo="$1"
+	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
+
+	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
+		processamento_em_paralelo=0
+	else
+		processamento_em_paralelo=1
+	fi
+
+	echo "Criando e removendo necessários arquivos e 'paths'"
+	[[ -e "$flatpak_cache_file" ]] && rm -f "$flatpak_cache_file"
+
+	if ((processamento_em_paralelo)); then
+		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
+		big-pacman-to-json flatpak search --arch x86_64 "" >$flatpak_cache_file
+		wait
+		LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 50% "sed -i 's/|{}.*$/&update|/' '$flatpak_cache_filtered_file'"
+		wait
+	else
+		echo "Reparando banco de dados Flatpak"
+		flatpak repair
+		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
+		big-pacman-to-json flatpak search --arch x86_64 "" | tee -a $flatpak_cache_file
+		for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
+			sed -i "s/|${i}.*/&update|/" "$flatpak_cache_file"
+		done
+	fi
+
+	echo "Realizando filtragem de pacotes Flatpak"
+	grep -Fwf "$LIST_FILE" "$flatpak_cache_file" >"$flatpak_cache_filtered_file"
+	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
+	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
+}
+export -f sh_update_cache_flatpak
 
 function sh_update_cache_complete {
 	[[ ! -d "$HOME_FOLDER" ]] && mkdir -p "$HOME_FOLDER"
@@ -1145,13 +1409,11 @@ function sh_update_cache_complete {
 }
 export -f sh_update_cache_complete
 
-
 function sh_run_pacman_mirror {
 	pacman-mirrors --geoip
 	pacman -Syy
 }
 export -f sh_run_pacman_mirror
-
 
 function sh_snap_clean {
 	if [ "$(snap get system refresh.retain)" != "2" ]; then
@@ -1170,13 +1432,11 @@ function sh_snap_clean {
 }
 export -f sh_snap_clean
 
-
 function sh_package_is_installed {
 	pacman -Q $1 >/dev/null 2>&-
 	return $?
 }
 export -f sh_package_is_installed
-
 
 function sh_enable_snapd_and_apparmor() {
 	echo "Verificando o status do serviço apparmor..."
@@ -1221,7 +1481,6 @@ function sh_enable_snapd_and_apparmor() {
 }
 export -f sh_enable_snapd_and_apparmor
 
-
 function sh_run_pamac_remove {
 	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
 	pamac-installer --remove "$@" $packages_to_remove &
@@ -1245,7 +1504,6 @@ function sh_run_pamac_remove {
 	wait
 }
 export -f sh_run_pamac_remove
-
 
 function sh_run_pamac_installer {
 	local action="$1"
@@ -1285,13 +1543,11 @@ function sh_run_pamac_installer {
 }
 export -f sh_run_pamac_installer
 
-
 function sh_run_pamac_mirror {
 	pacman-mirrors --geoip
 	pacman -Syy
 }
 export -f sh_run_pamac_mirror
-
 
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_version {
@@ -1302,20 +1558,17 @@ function sh_pkg_flatpak_version {
 }
 export -f sh_pkg_flatpak_version
 
-
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_verify {
 	echo "$1" >"$HOME_FOLDER/flatpak-verification-fault"
 }
 export -f sh_pkg_flatpak_verify
 
-
 # qua 23 ago 2023 19:20:09 -04
 function sh_pkg_flatpak_update {
 	grep -i "$1|" "$HOME_FOLDER/flatpak.cache" | cut -f6 -d"|"
 }
 export -f sh_pkg_flatpak_update
-
 
 #qua 23 ago 2023 19:40:41 -04
 function sh_load_main {
@@ -1347,13 +1600,11 @@ function sh_load_main {
 }
 export -f sh_load_main
 
-
 # qua 23 ago 2023 20:37:16 -04
 function sh_this_package_update {
 	pacman -Qu "$1" 2>/dev/null | awk '{print $NF}'
 }
 export -f sh_this_package_update
-
 
 function sh_main {
 	local execute_app="$1"

@@ -694,6 +694,7 @@ function sh_install_terminal {
 			TIni.Set "$INI_FILE_BIG_STORE" "nativo" "nativo_atualizado" '1'
 			TIni.Set "$INI_FILE_BIG_STORE" "nativo" "nativo_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 			;;
+		"update_pamac") env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --force-refresh --download-only --no-confirm;;
 		"update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman-mirrors --geoip ;;
 		"update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
 		"force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
