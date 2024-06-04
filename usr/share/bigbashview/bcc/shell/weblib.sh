@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/03
+#  Altered: 2024/06/04
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240603"
+_VERSION_="1.0.0-20240604"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -66,13 +66,14 @@ export reset=$(tput sgr0)
 export Amsg=(
 	[error_open]=$(gettext $"Outra instância do Gerenciador de WebApps já está em execução.") # Mensagem de erro para instância já em execução
 	[error_access_dir]=$(gettext $"Erro ao acessar o diretório:")                             # Mensagem de erro para falha ao acessar diretório
+	[error_browser]=$(gettext $"O browser configurado como padrão em $INI_FILE_WEBAPPS não está instalado ou tem um erro de configuração.\nClique em fechar para definir para o padrão do BigLinux e continuar!")
 )
-
-export aBrowserIdNative=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable')
-export aBrowserImgNative=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi')
-export aBrowserTitleNative=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI')
-export aBrowserCompatibleNative=('1' '1' '1' '1' '1' '1' '1' '1' '1')
-export aBrowserPathNative=('/usr/lib/brave-browser/brave'
+export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
+export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
+export aBrowserTitle=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI' 'BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)')
+export aBrowserCompatible=('1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '0' '1' '1' '1')
+export aBrowserPath=(
+	'/usr/lib/brave-browser/brave'
 	'/opt/brave-bin/brave'
 	'/opt/google/chrome/google-chrome'
 	'/usr/lib/chromium/chromium'
@@ -81,8 +82,7 @@ export aBrowserPathNative=('/usr/lib/brave-browser/brave'
 	'/usr/bin/falkon'
 	'/usr/lib/librewolf/librewolf'
 	'/opt/vivaldi/vivaldi'
-)
-export aBrowserPathFlatPak=('/var/lib/flatpak/exports/bin/com.brave.Browser'
+	'/var/lib/flatpak/exports/bin/com.brave.Browser'
 	'/var/lib/flatpak/exports/bin/com.google.Chrome'
 	'/var/lib/flatpak/exports/bin/org.chromium.Chromium'
 	'/var/lib/flatpak/exports/bin/com.microsoft.Edge'
@@ -91,9 +91,6 @@ export aBrowserPathFlatPak=('/var/lib/flatpak/exports/bin/com.brave.Browser'
 	'/var/lib/flatpak/exports/bin/io.gitlab.librewolf-community'
 	'/var/lib/flatpak/exports/bin/com.github.Eloston.UngoogledChromium'
 )
-export aBrowserIdFlatPak=('com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
-export aBroserTitleFlatPak=('BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)')
-export aBrowserCompatibleFlatPak=('1' '1' '1' '1' '0' '1' '1' '1')
 
 #######################################################################################################################
 
@@ -165,10 +162,11 @@ function sh_webapp_change_browser() {
 	local CHANGED=0
 	local -i nDesktop_Files_Found
 
-	mapfile -t DESKTOP_FILES < <(find "$HOME"/.local/share/applications -iname '*-webapp-biglinux.desktop')
+	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname '*-webapp-biglinux.desktop')
 	nDesktop_Files_Found="${#DESKTOP_FILES[@]}"
 
 	if ((nDesktop_Files_Found)); then
+		sh_webapp_write_new_browser "$new_browser"
 		echo "$new_browser" >"$HOME_FOLDER"/BROWSER
 		return
 	fi
@@ -218,6 +216,8 @@ function sh_webapp_change_browser() {
 		update-desktop-database -q "$HOME"/.local/share/applications
 		nohup kbuildsycoca5 &>/dev/null &
 	fi
+
+	sh_webapp_write_new_browser "$new_browser"
 	echo "$new_browser" >"$HOME_FOLDER"/BROWSER
 	return
 }
@@ -295,31 +295,80 @@ function sh_webapp_check_browserOLD() {
 
 #######################################################################################################################
 
-function sh_webapp_check_browser() {
+function sh_webapp_write_new_browser() {
+	local new_browser="$1"
 	local default_browser= # Define o navegador padrão
 	local compatible=1     # Flag para indicar se navegador é compatível
+	local cpath
 	local id
-	local img
+	local icon
 	local data_bin
 	local title
-	local cpath
+	local browser
+	local native
+	local flatpak
 	local nc=0
 
-	for cpath in "${aBrowserPathNative[@]}"; do
-		if [[ -e $cpath ]]; then
-			default_browser="${aBrowserIdNative[nc]}"
-			id="${aBrowserIdNative[nc]}"
-			img="${aBrowserImgNative[nc]}"
-			data_bin="${aBrowserIdNative[nc]}"
-			title="${aBrowserTitleNative[nc]^^}"
-			compatible="${aBrowserCompatibleNative[nc]}"
+	for browser in "${aBrowserId[@]}"; do
+		if [[ "$browser" = "$new_browser" ]]; then
+			cpath="${aBrowserPath[nc]}"
+			default_browser="${aBrowserId[nc]}"
+			id="${aBrowserId[nc]}"
+			icon="${aBrowserIcon[nc]}"
+			data_bin="${aBrowserId[nc]}"
+			title="${aBrowserTitle[nc]^^}"
+			compatible="${aBrowserCompatible[nc]}"
+			[[ "$cpath" =~ '/flatpak/' ]] && {
+				flatpak=1
+				native=0
+			} || {
+				flatpak=0
+				native=1
+			}
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "path" "$cpath"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "name" "$default_browser"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "id" "$id"
-			TIni.Set "$INI_FILE_WEBAPPS" "browser" "img" "$img"
+			TIni.Set "$INI_FILE_WEBAPPS" "browser" "icon" "$icon"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "data_bin" "$data_bin"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "title" "$title"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "compatible" "$compatible"
+			TIni.Set "$INI_FILE_WEBAPPS" "browser" "native" "$native"
+			TIni.Set "$INI_FILE_WEBAPPS" "browser" "flatpak" "$flatpak"
+			break
+		fi
+		((++nc))
+	done
+}
+export -f sh_webapp_write_new_browser
+
+#######################################################################################################################
+function sh_webapp_verify_browser() {
+	local default_browser="$1"
+	local browser
+
+	for browser in "${aBrowserId[@]}"; do
+		if [[ "$browser" = "$default_browser" ]]; then
+			return 0
+		fi
+	done
+	return 1
+}
+export -f sh_webapp_verify_browser
+
+#######################################################################################################################
+
+function sh_webapp_check_browser() {
+	local default_browser # Define o navegador padrão
+	local compatible      # Flag para indicar se navegador é compatível
+	local cpath
+	local nc=0
+
+	for cpath in "${aBrowserPath[@]}"; do
+		if [[ -e "$cpath" ]]; then
+			default_browser="${aBrowserId[nc]}"
+			compatible="${aBrowserCompatible[nc]}"
+			# Atualiza a configuração do navegador
+			sh_webapp_write_new_browser "$default_browser"
 			break
 		fi
 		((++nc))
@@ -343,12 +392,6 @@ function sh_webapp_check_browser() {
 			--window-icon="$WEBAPPS_PATH/icons/webapp.svg"
 		exit 1
 	fi
-
-	# Atualiza a configuração do navegador se necessário
-	[[ "$(<~/.bigwebapps/BROWSER)" = "brave-browser" ]] && default_browser='brave'
-
-	# Salva o navegador padrão no arquivo de configuração
-	echo "$default_browser" >"$HOME_FOLDER"/BROWSER
 }
 # Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_check_browser
