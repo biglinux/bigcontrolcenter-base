@@ -6,9 +6,9 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2023/09/25
+#  Altered: 2024/06/06
 #
-#  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
+#  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
 #                2022-2023, Rafael Ruscher <rruscher@gmail.com>
 #  All rights reserved.
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230925"
+_VERSION_="1.0.0-20240606"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -746,6 +746,11 @@ function sh_pkexec {
 	pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY KDE_SESSION_VERSION=5 KDE_FULL_SESSION=true ${1+"$@"}
 }
 export -f sh_pkexec
+
+function sh_get_desktop_session() {
+	echo "$XDG_SESSION_TYPE"
+}
+export -f sh_get_desktop_session
 
 function sh_main {
 	local execute_app="$1"
