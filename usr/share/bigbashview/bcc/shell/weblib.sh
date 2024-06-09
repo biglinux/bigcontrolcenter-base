@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/04
+#  Altered: 2024/06/08
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240604"
+_VERSION_="1.0.0-20240608"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -1090,6 +1090,8 @@ function sh_webapp-install() {
 			gio set "$FILE_LINK" -t string metadata::trust "true"
 		fi
 	fi
+
+	ln -sf "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
 
 	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
 	nohup kbuildsycoca5 &>/dev/null &
