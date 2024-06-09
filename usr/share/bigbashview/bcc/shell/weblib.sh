@@ -1091,7 +1091,8 @@ function sh_webapp-install() {
 		fi
 	fi
 
-	ln -sf "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+#	ln -sf "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+	mv -f "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
 
 	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
 	nohup kbuildsycoca5 &>/dev/null &
