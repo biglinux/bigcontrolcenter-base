@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/09
+#  Altered: 2024/06/10
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240609"
+_VERSION_="1.0.0-20240610"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -932,11 +932,11 @@ function sh_webapp-install() {
 		EOF
 		chmod +x "$LINK_APP"
 
-		if [ "$shortcut" = "on" ]; then
-			ln -s "$LINK_APP" "$FILE_LINK"
-			chmod 755 "$FILE_LINK"
-			gio set "$FILE_LINK" -t string metadata::trust "true"
-		fi
+#		if [ "$shortcut" = "on" ]; then
+#			ln -s "$LINK_APP" "$FILE_LINK"
+#			chmod 755 "$FILE_LINK"
+#			gio set "$FILE_LINK" -t string metadata::trust "true"
+#		fi
 
 	elif grep -q 'org.gnome.Epiphany' <<<"$browser"; then
 		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
@@ -985,11 +985,11 @@ function sh_webapp-install() {
 		chmod +x "$EPI_DIR_FILEDESK"
 		ln -s "$EPI_DIR_FILEDESK" "$EPI_LINK"
 
-		if [ "$shortcut" = "on" ]; then
-			ln -s "$EPI_DIR_FILEDESK" "$EPI_DESKTOP_LINK"
-			chmod 755 "$EPI_DESKTOP_LINK"
-			gio set "$EPI_DESKTOP_LINK" -t string metadata::trust "true"
-		fi
+#		if [ "$shortcut" = "on" ]; then
+#			ln -s "$EPI_DIR_FILEDESK" "$EPI_DESKTOP_LINK"
+#			chmod 755 "$EPI_DESKTOP_LINK"
+#			gio set "$EPI_DESKTOP_LINK" -t string metadata::trust "true"
+#		fi
 
 	elif grep -q 'falkon' <<<"$browser"; then
 		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
@@ -1021,11 +1021,11 @@ function sh_webapp-install() {
 		EOF
 		chmod +x "$LINK_APP"
 
-		if [ "$shortcut" = "on" ]; then
-			ln -s "$LINK_APP" "$FILE_LINK"
-			chmod 755 "$FILE_LINK"
-			gio set "$FILE_LINK" -t string metadata::trust "true"
-		fi
+#		if [ "$shortcut" = "on" ]; then
+#			ln -s "$LINK_APP" "$FILE_LINK"
+#			chmod 755 "$FILE_LINK"
+#			gio set "$FILE_LINK" -t string metadata::trust "true"
+#		fi
 
 	else
 		case $browser in
@@ -1084,17 +1084,25 @@ function sh_webapp-install() {
 		EOF
 		chmod +x "$LINK_APP"
 
-		if [ "$shortcut" = "on" ]; then
-			ln -s "$LINK_APP" "$FILE_LINK"
-			chmod 755 "$FILE_LINK"
-			gio set "$FILE_LINK" -t string metadata::trust "true"
-		fi
+#		if [ "$shortcut" = "on" ]; then
+#			ln -s "$LINK_APP" "$FILE_LINK"
+#			chmod 755 "$FILE_LINK"
+#			gio set "$FILE_LINK" -t string metadata::trust "true"
+#		fi
 	fi
 
 	if [[ -z "$CLASS" ]]; then
-		mv -f "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	else
-		mv -f "${LINK_APP}" "${HOME_LOCAL}/share/applications/${CLASS}.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}.desktop"
+		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILES}"
+	fi
+
+	if [ "$shortcut" = "on" ]; then
+		ln -sf "$NEW_DESKTOP_FILE" "$FILE_LINK"
+		chmod 755 "$FILE_LINK"
+		gio set "$FILE_LINK" -t string metadata::trust "true"
 	fi
 
 	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
