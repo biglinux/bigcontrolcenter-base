@@ -415,7 +415,7 @@ function sh_webapp_change_icon() {
 			--width=900 \
 			--height=600 \
 			--window-icon="$WEBAPPS_PATH/icons/webapp.svg" \
-			--mime-filter=$"Arquivos de Imagem""|image/bmp image/jpeg image/png image/x-icon"
+			--mime-filter=$"Arquivos de Imagem""|image/bmp image/jpeg image/png image/svg+xml image/x-icon"
 	)
 
 	if [[ "$?" -eq "$cancel" ]] || [[ -z "$file_icon" ]]; then
