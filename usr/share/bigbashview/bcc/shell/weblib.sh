@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/08
+#  Altered: 2024/06/09
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240608"
+_VERSION_="1.0.0-20240609"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -901,6 +901,7 @@ function sh_webapp-install() {
 		fi
 
 		DESKBIN="$HOME_LOCAL/bin/$NAME"
+		CLASS="$browser_name-webapp-$_NAMEDESK"
 		cat >"$DESKBIN" <<-EOF
 			#!/usr/bin/env bash
 
@@ -912,8 +913,7 @@ function sh_webapp-install() {
 			    cp -a /usr/share/bigbashview/bcc/apps/biglinux-webapps/profile/userChrome.css "\$FOLDER/chrome"
 			    cp -a /usr/share/bigbashview/bcc/apps/biglinux-webapps/profile/user.js "\$FOLDER"
 			fi
-
-			MOZ_DISABLE_GMP_SANDBOX=1 MOZ_DISABLE_CONTENT_SANDBOX=1 \\
+			MOZ_APP_REMOTINGNAME="\$CLASS" \\
 			XAPP_FORCE_GTKWINDOW_ICON=$ICON_FILE \\
 			$browser --class="\$CLASS" --profile "\$FOLDER" --no-remote --new-instance "$urldesk" &
 		EOF
@@ -926,7 +926,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$DESKBIN
-			Icon=$ICON_FILE
+			Icon=$NAME_FILE
 			Categories=$category;
 			X-KDE-StartupNotify=true
 		EOF
@@ -1016,7 +1016,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$browser $urldesk
-			Icon=$ICON_FILE
+			Icon=$NAME_FILE
 			Categories=$category;
 		EOF
 		chmod +x "$LINK_APP"
@@ -1078,7 +1078,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$browser --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk
-			Icon=$ICON_FILE
+			Icon=$NAME_FILE
 			Categories=$category;
 			StartupWMClass=$CUT_HTTP
 		EOF
@@ -1091,8 +1091,11 @@ function sh_webapp-install() {
 		fi
 	fi
 
-#	ln -sf "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
-	mv -f "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+	if [[ -z "$CLASS" ]]; then
+		mv -f "${LINK_APP}" "${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+	else
+		mv -f "${LINK_APP}" "${HOME_LOCAL}/share/applications/${CLASS}.desktop"
+	fi
 
 	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
 	nohup kbuildsycoca5 &>/dev/null &
