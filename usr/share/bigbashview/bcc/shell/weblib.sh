@@ -930,7 +930,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$DESKBIN
-			Icon=$NAME_FILE
+			Icon=${NAME_FILE/.png/}
 			Categories=$category;
 			X-KDE-StartupNotify=true
 		EOF
@@ -980,7 +980,7 @@ function sh_webapp-install() {
 			Terminal=false
 			Type=Application
 			Categories=$category;
-			Icon=$EPI_FILE_ICON
+			Icon=${EPI_FILE_ICON/.png/}
 			StartupWMClass=$namedesk
 			X-Purism-FormFactor=Workstation;Mobile;
 			X-Flatpak=org.gnome.Epiphany
@@ -1020,7 +1020,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$browser $urldesk
-			Icon=$NAME_FILE
+			Icon=${NAME_FILE/.png/}
 			Categories=$category;
 		EOF
 		chmod +x "$LINK_APP"
@@ -1078,10 +1078,10 @@ function sh_webapp-install() {
 		_session="$(sh_get_desktop_session)"
 		case "${_session^^}" in
 		X11)
-			line_exec="$browser --class=$CUT_HTTP --profile-directory=Default --app=$urldesk --user-data-dir=$USER_DATA_DIR"
+			line_exec="$browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
 	  	   ;;
 		WAYLAND)
-			line_exec="$browser --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk --user-data-dir=$USER_DATA_DIR"
+			line_exec="$browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
 			;;
 		esac
 
@@ -1092,7 +1092,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$line_exec
-			Icon=$NAME_FILE
+			Icon=${NAME_FILE/.png/}
 			Categories=$category;
 			StartupWMClass=$CUT_HTTP
 		EOF
