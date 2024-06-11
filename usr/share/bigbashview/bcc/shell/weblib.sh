@@ -43,6 +43,7 @@ export HOME_FOLDER="$HOME/.bigwebapps"
 export HOME_LOCAL="$HOME/.local"
 export TMP_FOLDER="/tmp/bigwebapps-$USER"
 export INI_FILE_WEBAPPS="$HOME_FOLDER/bigwebapps.ini"
+export USER_DATA_DIR="$HOME/.cache/.bigwebapps"
 
 # Configurações de tradução
 export TEXTDOMAINDIR="/usr/share/locale" # Define o diretório de domínios de texto para traduções
@@ -127,7 +128,8 @@ function sh_webapp_check_dirs {
 	[[ -d "$TMP_FOLDER" ]] || mkdir -p "$TMP_FOLDER"
 	[[ -d "$HOME_LOCAL"/share/icons ]] || mkdir -p "$HOME_LOCAL"/share/icons
 	[[ -d "$HOME_LOCAL"/share/applications ]] || mkdir -p "$HOME_LOCAL"/share/applications
-	[[ -d "$HOME_LOCAL"/bin ]] || mkdir "$HOME_LOCAL"/bin
+	[[ -d "$HOME_LOCAL"/bin ]] || mkdir -p "$HOME_LOCAL"/bin
+	[[ -d "$USER_DATA_DIR" ]] || mkdir -p "$USER_DATA_DIR"
 }
 # Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_check_dirs
@@ -1076,10 +1078,10 @@ function sh_webapp-install() {
 		_session="$(sh_get_desktop_session)"
 		case "${_session^^}" in
 		X11)
-			line_exec="$browser --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
+			line_exec="$browser --class=$CUT_HTTP --profile-directory=Default --app=$urldesk --user-data-dir=$USER_DATA_DIR"
 	  	   ;;
 		WAYLAND)
-			line_exec="$browser --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
+			line_exec="$browser --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk --user-data-dir=$USER_DATA_DIR"
 			;;
 		esac
 
