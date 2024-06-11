@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/10
+#  Altered: 2024/06/11
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240610"
+_VERSION_="1.0.0-20240611"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -868,6 +868,8 @@ export -f sh_webapp-remove
 #######################################################################################################################
 
 function sh_webapp-install() {
+	local line_exec
+	local _session
 	_NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
 	USER_DESKTOP=$(xdg-user-dir DESKTOP)
 	LINK_APP="$HOME_LOCAL/share/applications/$_NAMEDESK-$RANDOM-webapp-biglinux-custom.desktop"
@@ -955,9 +957,9 @@ function sh_webapp-install() {
 		EPI_FILEDESK="org.gnome.Epiphany.WebApp_$NAME-webapp-biglinux-custom.desktop"
 		EPI_DIR_FILEDESK="$DIR_PORTAL_APP/$EPI_FILEDESK"
 		EPI_FILE_ICON="$DIR_PORTAL_ICON/${EPI_FILEDESK/.desktop/}.png"
-
 		EPI_LINK="$HOME_LOCAL"/share/applications/"$EPI_FILEDESK"
 		EPI_DESKTOP_LINK="$USER_DESKTOP/$EPI_FILEDESK"
+
 		mkdir -p "$FOLDER_DATA"
 		true >"$FOLDER_DATA/.app"
 		echo -n 37 >"$FOLDER_DATA/.migrated"
@@ -1071,13 +1073,23 @@ function sh_webapp-install() {
 
 		CUT_HTTP=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
 
+		_session="$(sh_get_desktop_session)"
+		case "${_session^^}" in
+		X11)
+			line_exec="$browser --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
+	  	   ;;
+		WAYLAND)
+			line_exec="$browser --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
+			;;
+		esac
+
 		cat >"$LINK_APP" <<-EOF
 			[Desktop Entry]
 			Version=1.0
 			Terminal=false
 			Type=Application
 			Name=$namedesk
-			Exec=$browser --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk
+			Exec=$line_exec
 			Icon=$NAME_FILE
 			Categories=$category;
 			StartupWMClass=$CUT_HTTP
