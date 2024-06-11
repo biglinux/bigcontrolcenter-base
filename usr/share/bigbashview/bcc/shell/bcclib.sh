@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2024/06/06
+#  Altered: 2024/06/11
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240606"
+_VERSION_="1.0.0-20240611"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -443,7 +443,7 @@ function sh_get_wm {
 				-e wayhouse \
 				-e westeros \
 				-e westford \
-				-e weston)
+				-e weston 2>/dev/null)
 		fi
 
 	elif [[ $DISPLAY && $os != "Mac OS X" && $os != "macOS" && $os != FreeMiNT ]]; then
@@ -458,7 +458,7 @@ function sh_get_wm {
 			-e "[m]onsterwm" \
 			-e "[t]inywm" \
 			-e "[x]11fs" \
-			-e "[x]monad")
+			-e "[x]monad" 2>/dev/null)
 
 		[[ -z $wm ]] && type -p xprop &>/dev/null && {
 			id=$(xprop -root -notype _NET_SUPPORTING_WM_CHECK)
