@@ -1116,10 +1116,10 @@ function sh_webapp-install() {
 	fi
 
 	if [[ -z "$CLASS" ]]; then
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}-webapp-biglinux-custom__-Default.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	else
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}-webapp-biglinux-custom.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}.desktop"
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILES}"
 	fi
 
