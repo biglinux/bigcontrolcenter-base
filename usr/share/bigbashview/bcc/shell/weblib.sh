@@ -66,12 +66,11 @@ export pink=$(tput setaf 129)
 export reset=$(tput sgr0)
 
 # Mensagens de erro traduzidas
-export Amsg=(
-	[error_open]=$(gettext $"Outra instância do Gerenciador de WebApps já está em execução.") # Mensagem de erro para instância já em execução
-	[error_access_dir]=$(gettext $"Erro ao acessar o diretório:")                             # Mensagem de erro para falha ao acessar diretório
-	[error_browser]=$(gettext $"O browser configurado como padrão em $INI_FILE_WEBAPPS não está instalado ou tem um erro de configuração.\nClique em fechar para definir para o padrão do BigLinux e continuar!")
-	[error_browser_not_installed]=$(gettext $"O navegador definido para abrir os WebApps não está instalado! \nTente alterar o navegador no Gerenciador de WebApps!\n")
-
+declare -A Amsg=(
+	[error_instance]=$(gettext "Outra instância do Gerenciador de WebApps já está em execução.")
+	[error_access_dir]=$(gettext "Erro ao acessar o diretório:")
+	[error_browser]=$(gettext "O browser configurado como padrão em $INI_FILE_WEBAPPS não está instalado ou tem um erro de configuração.\nClique em fechar para definir para o padrão do BigLinux e continuar!")
+	[error_browser_not_installed]=$(gettext "O navegador definido para abrir os WebApps não está instalado! \nTente alterar o navegador no Gerenciador de WebApps!\n")
 )
 export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
 export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
@@ -147,8 +146,8 @@ function sh_check_webapp_is_running() {
 	local PID
 
 	if PID=$(pidof webapp-manager-biglinux) && [[ -n "$PID" ]]; then
-		#       notify-send -u critical --icon=big-store --app-name "$0" "$TITLE" "${Amsg[error_open]}" --expire-time=2000
-		#       kdialog --title "$TITLE" --icon warning --msgbox "${Amsg[error_open]}"
+		#       notify-send -u critical --icon=big-store --app-name "$0" "$TITLE" "${Amsg[error_instance]}" --expire-time=2000
+		#       kdialog --title "$TITLE" --icon warning --msgbox "${Amsg[error_instance]}"
 		yad --title "$TITLE" \
 			--image-on-top \
 			--form \
@@ -157,7 +156,7 @@ function sh_check_webapp_is_running() {
 			--on-top \
 			--center \
 			--image=webapp \
-			--text "${Amsg[error_open]}\nPID: $PID" \
+			--text "${Amsg[error_instance]}\nPID: $PID" \
 			--window-icon="$WEBAPPS_PATH/icons/webapp.svg" \
 			--button="OK":0
 		exit 1
