@@ -626,39 +626,6 @@ export -f sh_webapp_restore
 
 #######################################################################################################################
 
-function sh_webapp_enable-disable() {
-	local app="$1"
-	local browser="$2"
-	local app_fullname="$HOME_LOCAL/share/applications/$app"
-
-	case "$browser" in
-	firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
-		if [[ ! -e "$app_fullname" ]]; then
-			cp "$WEBAPPS_PATH/assets/$browser/desk/$app" "$HOME_LOCAL"/share/applications
-			cp "$WEBAPPS_PATH/assets/$browser/bin/${app%%.*}-$browser" "$HOME_LOCAL"/bin
-		else
-			rm "$app_fullname"
-		fi
-		;;
-
-	*)
-		if [[ ! -e "$app_fullname" ]]; then
-			cp "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL"/share/applications
-		else
-			rm "$app_fullname"
-		fi
-		;;
-	esac
-
-	update-desktop-database -q "$HOME_LOCAL"/share/applications
-	nohup kbuildsycoca5 &>/dev/null &
-	exit
-}
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
-export -f sh_webapp_enable-disable
-
-#######################################################################################################################
-
 function sh_webapp-edit() {
 	CHANGE=false
 	EDIT=false
@@ -757,16 +724,51 @@ export -f sh_webapp-edit
 
 #######################################################################################################################
 
+function sh_webapp_enable-disable() {
+	local app="$1"
+	local browser="$2"
+	local app_fullname="$HOME_LOCAL/share/applications/$app"
+	local FILE_WAYLAND="$app_fullname"
+
+	FILE_WAYLAND="${FILE_WAYLAND/.desktop/}"
+	FILE_WAYLAND+="__-Default.desktop"
+
+	case "$browser" in
+	firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
+		if [[ ! -e "$app_fullname" ]]; then
+			cp -f "$WEBAPPS_PATH/assets/$browser/desk/$app" "$HOME_LOCAL/share/applications/"
+			cp -f "$WEBAPPS_PATH/assets/$browser/bin/${app%%.*}-$browser" "$HOME_LOCAL/bin/"
+		else
+			rm -f "$app_fullname"
+		fi
+		;;
+
+	*)
+		if [[ ! -e "$app_fullname" ]]; then
+			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/"
+		else
+			rm -f "$app_fullname"
+		fi
+		;;
+	esac
+
+	update-desktop-database -q "$HOME_LOCAL"/share/applications
+	nohup kbuildsycoca5 &>/dev/null &
+	exit
+}
+# Exporta a função para que ela possa ser usada em subshells e scripts chamados
+export -f sh_webapp_enable-disable
+
+#######################################################################################################################
+
 function sh_webapp-launch() {
 	local app="$1"
-	local FILE="$HOME_LOCAL"/share/applications/"$app"
+	local FILE="$HOME_LOCAL/share/applications/$app"
 	local EXEC
-	local LINK_TO_WAYLAND="$FILE"
+	local FILE_WAYLAND
 
-  	LINK_TO_WAYLAND="${LINK_TO_WAYLAND/.desktop/}"
-  	LINK_TO_WAYLAND+="__-Default.desktop"
-
-	ln -sf $FILE $LINK_TO_WAYLAND
+  	FILE_WAYLAND="${FILE/.desktop/}"
+  	FILE_WAYLAND+="__-Default.desktop"
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
@@ -1709,3 +1711,16 @@ function sh_webapp-info() {
 export -f sh_webapp-info
 
 #######################################################################################################################
+
+function sh_webapp-change_desktop_name_to_wayland() {
+	local file
+	local FILE_WAYLAND
+
+	for file in "$WEBAPPS_PATH"/webapps/*.desktop; do
+	   FILE_WAYLAND="${file/.desktop/}"
+	   FILE_WAYLAND+="__-Default.desktop"
+	   mv $file $WEBAPPS_PATH/webapps/$FILE_WAYLAND
+	done
+}
+export -f sh_webapp-change_desktop_name_to_wayland
+
