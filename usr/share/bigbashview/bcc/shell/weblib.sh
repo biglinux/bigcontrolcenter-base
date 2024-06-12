@@ -761,6 +761,12 @@ function sh_webapp-launch() {
 	local app="$1"
 	local FILE="$HOME_LOCAL"/share/applications/"$app"
 	local EXEC
+	local LINK_TO_WAYLAND="$FILE"
+
+  	LINK_TO_WAYLAND="${LINK_TO_WAYLAND/.desktop/}"
+  	LINK_TO_WAYLAND+="__-Default.desktop"
+
+	ln -sf $FILE $LINK_TO_WAYLAND
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
