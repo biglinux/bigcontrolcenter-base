@@ -123,6 +123,9 @@ export -f yadmsg
 #######################################################################################################################
 
 function sh_webapp_check_dirs {
+	local customDirs="$*"
+	local dir
+
 	# Verifica se o diretórios de trabalho existem; se não, cria
 	[[ -d "$HOME_FOLDER" ]] || mkdir -p "$HOME_FOLDER"
 	[[ -d "$TMP_FOLDER" ]] || mkdir -p "$TMP_FOLDER"
@@ -130,6 +133,10 @@ function sh_webapp_check_dirs {
 	[[ -d "$HOME_LOCAL"/share/applications ]] || mkdir -p "$HOME_LOCAL"/share/applications
 	[[ -d "$HOME_LOCAL"/bin ]] || mkdir -p "$HOME_LOCAL"/bin
 	[[ -d "$USER_DATA_DIR" ]] || mkdir -p "$USER_DATA_DIR"
+
+	for dir in "${customDirs[@]}"; do
+		[[ -d "$dir" ]] || mkdir -p "$dir"
+	done
 }
 # Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_check_dirs
