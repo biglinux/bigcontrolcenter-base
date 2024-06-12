@@ -134,6 +134,7 @@ function sh_webapp_check_dirs {
 	[[ -d "$USER_DATA_DIR" ]] || mkdir -p "$USER_DATA_DIR"
 
 	for dir in "${customDirs[@]}"; do
+		[[ -z "$dir" ]] && continue
 		[[ -d "$dir" ]] || mkdir -p "$dir"
 	done
 }
@@ -1126,7 +1127,7 @@ function sh_webapp-install() {
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	else
 		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}.desktop"
-		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILES}"
+		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	fi
 
 	if [ "$shortcut" = "on" ]; then
@@ -1727,7 +1728,7 @@ function sh_webapp-change_desktop_name_to_wayland() {
 	for file in "$WEBAPPS_PATH"/webapps/*.desktop; do
 	   FILE_WAYLAND="${file/.desktop/}"
 	   FILE_WAYLAND+="__-Default.desktop"
-	   mv $file $WEBAPPS_PATH/webapps/$FILE_WAYLAND
+	   mv "$file" "$WEBAPPS_PATH/webapps/$FILE_WAYLAND"
 	done
 }
 export -f sh_webapp-change_desktop_name_to_wayland
