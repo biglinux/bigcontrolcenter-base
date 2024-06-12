@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/11
+#  Altered: 2024/06/12
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240611"
+_VERSION_="1.0.0-20240612"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -1086,10 +1086,12 @@ function sh_webapp-install() {
 		_session="$(sh_get_desktop_session)"
 		case "${_session^^}" in
 		X11)
-			line_exec="$browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
+#			line_exec="PATH=/usr/local/bin:/usr/bin $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
+			line_exec="/usr/bin/biglinux-webapp $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
 	  	   ;;
 		WAYLAND)
-			line_exec="$browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
+#			line_exec="PATH=/usr/local/bin:/usr/bin $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
+			line_exec="/usr/bin/biglinux-webapp $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
 			;;
 		esac
 
@@ -1114,10 +1116,10 @@ function sh_webapp-install() {
 	fi
 
 	if [[ -z "$CLASS" ]]; then
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}-webapp-biglinux-custom__-Default.desktop"
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	else
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}-webapp-biglinux-custom.desktop"
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILES}"
 	fi
 
