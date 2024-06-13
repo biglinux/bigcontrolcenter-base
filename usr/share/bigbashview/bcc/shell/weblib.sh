@@ -174,15 +174,26 @@ function sh_webapp_change_browser() {
 	local DESKTOP_FILES
 	local CHANGED=0
 	local -i nDesktop_Files_Found
+	local filename
+	local f
+	local new_file
 
-	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname '*-webapp-biglinux.desktop')
+	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname '*-Default.desktop')
 	nDesktop_Files_Found="${#DESKTOP_FILES[@]}"
 
-	if ((nDesktop_Files_Found)); then
+	if ! ((nDesktop_Files_Found)); then
 		sh_webapp_write_new_browser "$new_browser"
-		echo "$new_browser" >"$HOME_FOLDER"/BROWSER
 		return
 	fi
+
+	for f in "${DESKTOP_FILES[@]}"; do
+		if [[ "$f" =~ "$old_browser" ]]; then
+#			xdebug "$f - ${BASH_REMATCH[0]}"
+			new_file="${f/$old_browser/$new_browser}"
+#			xdebug "$new_file"
+			mv -f "$f" "$new_file"
+		fi
+	done
 
 	function ChromeToFirefox() {
 		for w in "${DESKTOP_FILES[@]}"; do
@@ -734,9 +745,12 @@ export -f sh_webapp-edit
 function sh_webapp_enable-disable() {
 	local app="$1"
 	local browser="$2"
-	local app_fullname="$HOME_LOCAL/share/applications/$app"
+	local app_fullname="$HOME_LOCAL/share/applications/$browser-$app"
 	local FILE_WAYLAND="$app_fullname"
+	local class
 
+#	class=$(TIni.Get "$WEBAPPS_PATH/webapps/$app" "Desktop Entry" "StartupWMClass")
+#	new_app="$browser-${class}__-Default.desktop"
 	FILE_WAYLAND="${FILE_WAYLAND/.desktop/}"
 	FILE_WAYLAND+="__-Default.desktop"
 
@@ -752,7 +766,9 @@ function sh_webapp_enable-disable() {
 
 	*)
 		if [[ ! -e "$app_fullname" ]]; then
-			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/"
+#			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/$new_app"
+#			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/$app"
+			cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
 		else
 			rm -f "$app_fullname"
 		fi
@@ -770,7 +786,8 @@ export -f sh_webapp_enable-disable
 
 function sh_webapp-launch() {
 	local app="$1"
-	local FILE="$HOME_LOCAL/share/applications/$app"
+	local browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "id")
+	local FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
 	local EXEC
 	local FILE_WAYLAND
 
@@ -781,7 +798,7 @@ function sh_webapp-launch() {
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
 		"${EXEC}"
 	else
-		gtk-launch "$app"
+		gtk-launch "$browser_default-$app"
 	fi
 }
 # Exporta a função para que ela possa ser usada em subshells e scripts chamados
