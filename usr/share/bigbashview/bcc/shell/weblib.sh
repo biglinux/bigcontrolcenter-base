@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/12
+#  Altered: 2024/06/13
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240612"
+_VERSION_="1.0.0-20240613"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -759,16 +759,18 @@ function sh_webapp_enable-disable() {
 		if [[ ! -e "$app_fullname" ]]; then
 			cp -f "$WEBAPPS_PATH/assets/$browser/desk/$app" "$HOME_LOCAL/share/applications/"
 			cp -f "$WEBAPPS_PATH/assets/$browser/bin/${app%%.*}-$browser" "$HOME_LOCAL/bin/"
+			TIni.Set "$app_fullname" "Desktop Entry" "MimeType" "text/html;text/xml;application/xhtml_xml;"
+			TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser"
 		else
 			rm -f "$app_fullname"
 		fi
 		;;
-
 	*)
 		if [[ ! -e "$app_fullname" ]]; then
-#			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/$new_app"
 #			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/$app"
 			cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
+			TIni.Set "$app_fullname" "Desktop Entry" "MimeType" "text/html;text/xml;application/xhtml_xml;"
+			TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser"
 		else
 			rm -f "$app_fullname"
 		fi
@@ -914,6 +916,7 @@ function sh_webapp-install() {
 	BASENAME_ICON="${icondesk##*/}"
 	NAME_FILE="${BASENAME_ICON// /-}"
 	ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
+	local browser_name="$browser"
 
 	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
 		browser_name="$browser"
@@ -964,6 +967,8 @@ function sh_webapp-install() {
 			Exec=$DESKBIN
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
+			MimeType=text/html;text/xml;application/xhtml_xml;
+			X-WebApp-Browser=$browser_name
 			X-KDE-StartupNotify=true
 		EOF
 		chmod +x "$LINK_APP"
@@ -1012,8 +1017,10 @@ function sh_webapp-install() {
 			Terminal=false
 			Type=Application
 			Categories=$category;
+			MimeType=text/html;text/xml;application/xhtml_xml;
 			Icon=${EPI_FILE_ICON/.png/}
 			StartupWMClass=$namedesk
+			X-WebApp-Browser=$browser_name
 			X-Purism-FormFactor=Workstation;Mobile;
 			X-Flatpak=org.gnome.Epiphany
 		EOF
@@ -1054,6 +1061,8 @@ function sh_webapp-install() {
 			Exec=$browser $urldesk
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
+			MimeType=text/html;text/xml;application/xhtml_xml;
+			X-WebApp-Browser=$browser_name
 		EOF
 		chmod +x "$LINK_APP"
 
@@ -1110,12 +1119,10 @@ function sh_webapp-install() {
 		_session="$(sh_get_desktop_session)"
 		case "${_session^^}" in
 		X11)
-#			line_exec="PATH=/usr/local/bin:/usr/bin $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
-			line_exec="/usr/bin/biglinux-webapp $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
+			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
 	  	   ;;
 		WAYLAND)
-#			line_exec="PATH=/usr/local/bin:/usr/bin $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
-			line_exec="/usr/bin/biglinux-webapp $browser --user-data-dir=$USER_DATA_DIR --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
+			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
 			;;
 		esac
 
@@ -1128,7 +1135,9 @@ function sh_webapp-install() {
 			Exec=$line_exec
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
+			MimeType=text/html;text/xml;application/xhtml_xml;
 			StartupWMClass=$CUT_HTTP
+			X-WebApp-Browser=$browser_name
 		EOF
 		chmod +x "$LINK_APP"
 
