@@ -969,6 +969,7 @@ function sh_webapp-install() {
 			Categories=$category;
 			MimeType=text/html;text/xml;application/xhtml_xml;
 			X-WebApp-Browser=$browser_name
+			Custom=Custom
 			X-KDE-StartupNotify=true
 		EOF
 		chmod +x "$LINK_APP"
@@ -1021,6 +1022,7 @@ function sh_webapp-install() {
 			Icon=${EPI_FILE_ICON/.png/}
 			StartupWMClass=$namedesk
 			X-WebApp-Browser=$browser_name
+			Custom=Custom
 			X-Purism-FormFactor=Workstation;Mobile;
 			X-Flatpak=org.gnome.Epiphany
 		EOF
@@ -1063,6 +1065,7 @@ function sh_webapp-install() {
 			Categories=$category;
 			MimeType=text/html;text/xml;application/xhtml_xml;
 			X-WebApp-Browser=$browser_name
+			Custom=Custom
 		EOF
 		chmod +x "$LINK_APP"
 
@@ -1138,6 +1141,7 @@ function sh_webapp-install() {
 			MimeType=text/html;text/xml;application/xhtml_xml;
 			StartupWMClass=$CUT_HTTP
 			X-WebApp-Browser=$browser_name
+			Custom=Custom
 		EOF
 		chmod +x "$LINK_APP"
 
