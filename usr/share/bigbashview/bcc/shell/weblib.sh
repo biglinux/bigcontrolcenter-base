@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/13
+#  Altered: 2024/06/14
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240613"
+_VERSION_="1.0.0-20240614"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -74,6 +74,7 @@ declare -A Amsg=(
 )
 export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
 export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
+export aBrowserShortName=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
 export aBrowserTitle=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI' 'BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)')
 export aBrowserCompatible=('1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '0' '1' '1' '1')
 export aBrowserPath=(
@@ -171,6 +172,7 @@ export -f sh_check_webapp_is_running
 function sh_webapp_change_browser() {
 	local old_browser="$1"
 	local new_browser="$2"
+	local short_new_browser="$2"
 	local DESKTOP_FILES
 	local CHANGED=0
 	local -i nDesktop_Files_Found
@@ -186,12 +188,13 @@ function sh_webapp_change_browser() {
 		return
 	fi
 
+	[[ "$new_browser" = 'google-chrome-stable' ]] && short_new_browser='chrome'
+
 	for f in "${DESKTOP_FILES[@]}"; do
 		if [[ "$f" =~ "$old_browser" ]]; then
-#			xdebug "$f - ${BASH_REMATCH[0]}"
-			new_file="${f/$old_browser/$new_browser}"
-#			xdebug "$new_file"
+			new_file="${f/$old_browser/$short_new_browser}"
 			mv -f "$f" "$new_file"
+			CHANGED=1
 		fi
 	done
 
@@ -242,9 +245,7 @@ function sh_webapp_change_browser() {
 	fi
 
 	sh_webapp_write_new_browser "$new_browser"
-	return
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_change_browser
 
 #######################################################################################################################
@@ -330,12 +331,14 @@ function sh_webapp_write_new_browser() {
 	local browser
 	local native
 	local flatpak
+	local short_name
 	local nc=0
 
 	for browser in "${aBrowserId[@]}"; do
 		if [[ "$browser" = "$new_browser" ]]; then
 			cpath="${aBrowserPath[nc]}"
 			default_browser="${aBrowserId[nc]}"
+			short_name="${aBrowserShortName[nc]}"
 			id="${aBrowserId[nc]}"
 			icon="${aBrowserIcon[nc]}"
 			data_bin="${aBrowserId[nc]}"
@@ -350,6 +353,7 @@ function sh_webapp_write_new_browser() {
 			fi
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "path" "$cpath"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "name" "$default_browser"
+			TIni.Set "$INI_FILE_WEBAPPS" "browser" "short_name" "$short_name"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "id" "$id"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "icon" "$icon"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "data_bin" "$data_bin"
@@ -788,13 +792,17 @@ export -f sh_webapp_enable-disable
 
 function sh_webapp-launch() {
 	local app="$1"
-	local browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "id")
-	local FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
+	local browser_default
+	local FILE
 	local EXEC
 	local FILE_WAYLAND
 
+	browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
+	FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
   	FILE_WAYLAND="${FILE/.desktop/}"
   	FILE_WAYLAND+="__-Default.desktop"
+
+xdebug "$app\n$browser_default"
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
@@ -916,10 +924,11 @@ function sh_webapp-install() {
 	BASENAME_ICON="${icondesk##*/}"
 	NAME_FILE="${BASENAME_ICON// /-}"
 	ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
-	local browser_name="$browser"
+	local short_browser_name="$browser"
 
+	[[ "$browser" = 'google-chrome-stable' ]] && short_browser_name='chrome'
 	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
-		browser_name="$browser"
+		short_browser_name="$browser"
 
 		if ! grep -qiE '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
 			urldesk="https://$urldesk"
@@ -940,12 +949,12 @@ function sh_webapp-install() {
 		fi
 
 		DESKBIN="$HOME_LOCAL/bin/$NAME"
-		CLASS="$browser_name-webapp-$_NAMEDESK"
+		CLASS="$short_browser_name-webapp-$_NAMEDESK"
 		cat >"$DESKBIN" <<-EOF
 			#!/usr/bin/env bash
 
 			FOLDER=$DIR_PROF
-			CLASS="$browser_name-webapp-$_NAMEDESK"
+			CLASS="$short_browser_name-webapp-$_NAMEDESK"
 
 			if [ ! -d "\$FOLDER" ];then
 			    mkdir -p "\$FOLDER/chrome"
@@ -968,7 +977,8 @@ function sh_webapp-install() {
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
 			MimeType=text/html;text/xml;application/xhtml_xml;
-			X-WebApp-Browser=$browser_name
+			X-WebApp-Browser=$browser
+			X-WebApp-URL=$urldesk
 			Custom=Custom
 			X-KDE-StartupNotify=true
 		EOF
@@ -1021,7 +1031,8 @@ function sh_webapp-install() {
 			MimeType=text/html;text/xml;application/xhtml_xml;
 			Icon=${EPI_FILE_ICON/.png/}
 			StartupWMClass=$namedesk
-			X-WebApp-Browser=$browser_name
+			X-WebApp-Browser=$browser
+			X-WebApp-URL=$urldesk
 			Custom=Custom
 			X-Purism-FormFactor=Workstation;Mobile;
 			X-Flatpak=org.gnome.Epiphany
@@ -1064,7 +1075,8 @@ function sh_webapp-install() {
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
 			MimeType=text/html;text/xml;application/xhtml_xml;
-			X-WebApp-Browser=$browser_name
+			X-WebApp-Browser=$browser
+			X-WebApp-URL=$urldesk
 			Custom=Custom
 		EOF
 		chmod +x "$LINK_APP"
@@ -1108,7 +1120,7 @@ function sh_webapp-install() {
 		fi
 
 		if [ "$newperfil" = "on" ]; then
-			browser="$browser --user-data-dir=$DIR_PROF --no-first-run"
+			browser="$short_browser_name --user-data-dir=$DIR_PROF --no-first-run"
 		fi
 
 		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
@@ -1140,7 +1152,8 @@ function sh_webapp-install() {
 			Categories=$category;
 			MimeType=text/html;text/xml;application/xhtml_xml;
 			StartupWMClass=$CUT_HTTP
-			X-WebApp-Browser=$browser_name
+			X-WebApp-Browser=$browser
+			X-WebApp-URL=$urldesk
 			Custom=Custom
 		EOF
 		chmod +x "$LINK_APP"
@@ -1153,7 +1166,7 @@ function sh_webapp-install() {
 	fi
 
 	if [[ -z "$CLASS" ]]; then
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${browser}-${CUT_HTTP}__-Default.desktop"
+		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CUT_HTTP}__-Default.desktop"
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	else
 		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}.desktop"
