@@ -1042,38 +1042,38 @@ function sh_webapp-install() {
 #			gio set "$EPI_DESKTOP_LINK" -t string metadata::trust "true"
 #		fi
 
-	elif grep -q 'falkon' <<<"$browser"; then
-		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-			urldesk="https://$urldesk"
-		fi
-
-		if [ "$newperfil" = "on" ]; then
-			mkdir -p "$HOME"/.config/falkon/profiles/"$NAME"
-			browser="$browser -p $NAME -ro"
-		else
-			browser="$browser -ro"
-		fi
-
-		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
-			cp "$icondesk" "$ICON_FILE"
-		else
-			mv "$icondesk" "$ICON_FILE"
-		fi
-
-		cat >"$LINK_APP" <<-EOF
-			[Desktop Entry]
-			Version=1.0
-			Terminal=false
-			Type=Application
-			Name=$namedesk
-			Exec=$browser $urldesk
-			Icon=${NAME_FILE/.png/}
-			Categories=$category;
-			X-WebApp-Browser=$browser
-			X-WebApp-URL=$urldesk
-			Custom=Custom
-		EOF
-		chmod +x "$LINK_APP"
+#	elif grep -q 'falkon' <<<"$browser"; then
+#		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
+#			urldesk="https://$urldesk"
+#		fi
+#
+#		if [ "$newperfil" = "on" ]; then
+#			mkdir -p "$HOME"/.config/falkon/profiles/"$NAME"
+#			browser="$browser -p $NAME -ro"
+#		else
+#			browser="$browser -ro"
+#		fi
+#
+#		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
+#			cp "$icondesk" "$ICON_FILE"
+#		else
+#			mv "$icondesk" "$ICON_FILE"
+#		fi
+#
+#		cat >"$LINK_APP" <<-EOF
+#			[Desktop Entry]
+#			Version=1.0
+#			Terminal=false
+#			Type=Application
+#			Name=$namedesk
+#			Exec=$browser $urldesk
+#			Icon=${NAME_FILE/.png/}
+#			Categories=$category;
+#			X-WebApp-Browser=$browser
+#			X-WebApp-URL=$urldesk
+#			Custom=Custom
+#		EOF
+#		chmod +x "$LINK_APP"
 
 #		if [ "$shortcut" = "on" ]; then
 #			ln -s "$LINK_APP" "$FILE_LINK"
