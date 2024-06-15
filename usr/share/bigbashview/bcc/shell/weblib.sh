@@ -74,7 +74,7 @@ declare -A Amsg=(
 )
 export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
 export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
-export aBrowserShortName=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
+export aBrowserShortName=('brave' 'brave' 'chrome' 'chrome' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
 export aBrowserTitle=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI' 'BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)')
 export aBrowserCompatible=('1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '0' '1' '1' '1')
 export aBrowserPath=(
@@ -188,12 +188,13 @@ function sh_webapp_change_browser() {
 		return
 	fi
 
-	[[ "$new_browser" = 'google-chrome-stable' ]] && short_new_browser='chrome'
+	[[ "$new_browser" = 'google-chrome-stable' || "$new_browser" = 'chromium' ]] && short_new_browser='chrome'
 
 	for f in "${DESKTOP_FILES[@]}"; do
 		if [[ "$f" =~ "$old_browser" ]]; then
 			new_file="${f/$old_browser/$short_new_browser}"
 			mv -f "$f" "$new_file"
+#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$new_browser"
 			CHANGED=1
 		fi
 	done
@@ -748,33 +749,31 @@ export -f sh_webapp-edit
 
 function sh_webapp_enable-disable() {
 	local app="$1"
-	local browser="$2"
-	local app_fullname="$HOME_LOCAL/share/applications/$browser-$app"
-	local FILE_WAYLAND="$app_fullname"
-	local class
+	local browser_short_name="$2"
+	local browser_default
+	local app_fullname
+	local FILE_WAYLAND
 
-#	class=$(TIni.Get "$WEBAPPS_PATH/webapps/$app" "Desktop Entry" "StartupWMClass")
-#	new_app="$browser-${class}__-Default.desktop"
+	browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "id")
+	app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$app"
+	FILE_WAYLAND="$app_fullname"
 	FILE_WAYLAND="${FILE_WAYLAND/.desktop/}"
 	FILE_WAYLAND+="__-Default.desktop"
 
-	case "$browser" in
+	case "$browser_default" in
 	firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
 		if [[ ! -e "$app_fullname" ]]; then
-			cp -f "$WEBAPPS_PATH/assets/$browser/desk/$app" "$HOME_LOCAL/share/applications/"
-			cp -f "$WEBAPPS_PATH/assets/$browser/bin/${app%%.*}-$browser" "$HOME_LOCAL/bin/"
-			TIni.Set "$app_fullname" "Desktop Entry" "MimeType" "text/html;text/xml;application/xhtml_xml;"
-			TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser"
+			cp -f "$WEBAPPS_PATH/assets/$browser_default/desk/$app" "$HOME_LOCAL/share/applications/"
+			cp -f "$WEBAPPS_PATH/assets/$browser_default/bin/${app%%.*}-$browser_default" "$HOME_LOCAL/bin/"
+#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
 		else
 			rm -f "$app_fullname"
 		fi
 		;;
 	*)
 		if [[ ! -e "$app_fullname" ]]; then
-#			cp -f "$WEBAPPS_PATH/webapps/$app" "$HOME_LOCAL/share/applications/$app"
 			cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
-			TIni.Set "$app_fullname" "Desktop Entry" "MimeType" "text/html;text/xml;application/xhtml_xml;"
-			TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser"
+#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
 		else
 			rm -f "$app_fullname"
 		fi
@@ -785,7 +784,6 @@ function sh_webapp_enable-disable() {
 	nohup kbuildsycoca5 &>/dev/null &
 	exit
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_enable-disable
 
 #######################################################################################################################
@@ -801,8 +799,6 @@ function sh_webapp-launch() {
 	FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
   	FILE_WAYLAND="${FILE/.desktop/}"
   	FILE_WAYLAND+="__-Default.desktop"
-
-xdebug "$app\n$browser_default"
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
@@ -927,6 +923,7 @@ function sh_webapp-install() {
 	local short_browser_name="$browser"
 
 	[[ "$browser" = 'google-chrome-stable' ]] && short_browser_name='chrome'
+	[[ "$browser" = 'vivaldi-stable' ]] && short_browser_name='vivaldi'
 	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
 		short_browser_name="$browser"
 
@@ -976,7 +973,6 @@ function sh_webapp-install() {
 			Exec=$DESKBIN
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
-			MimeType=text/html;text/xml;application/xhtml_xml;
 			X-WebApp-Browser=$browser
 			X-WebApp-URL=$urldesk
 			Custom=Custom
@@ -1028,7 +1024,6 @@ function sh_webapp-install() {
 			Terminal=false
 			Type=Application
 			Categories=$category;
-			MimeType=text/html;text/xml;application/xhtml_xml;
 			Icon=${EPI_FILE_ICON/.png/}
 			StartupWMClass=$namedesk
 			X-WebApp-Browser=$browser
@@ -1074,7 +1069,6 @@ function sh_webapp-install() {
 			Exec=$browser $urldesk
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
-			MimeType=text/html;text/xml;application/xhtml_xml;
 			X-WebApp-Browser=$browser
 			X-WebApp-URL=$urldesk
 			Custom=Custom
@@ -1150,7 +1144,6 @@ function sh_webapp-install() {
 			Exec=$line_exec
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
-			MimeType=text/html;text/xml;application/xhtml_xml;
 			StartupWMClass=$CUT_HTTP
 			X-WebApp-Browser=$browser
 			X-WebApp-URL=$urldesk
