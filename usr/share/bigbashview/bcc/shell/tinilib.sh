@@ -92,11 +92,53 @@ export -f TIni.Set
 
 function TIni.Sanitize() {
 	local ini_file="$1"
+	local tempfile1
+	local tempfile2
 
-#	sed -i 's/^[ \t]*//;s/[ \t]*$//' "$ini_file"
-#	sed -i -e '/./,$!d' -e 's/^[ \t]*//;s/[ \t]*$//' "$ini_file"
+	# Criar arquivos temporários
+	tempfile1=$(mktemp)
+	tempfile2=$(mktemp)
+
+	# Remover linhas em branco do arquivo original
+	sed '/^$/d' "$ini_file" > "$tempfile1"
+
+	# Consolidar seções usando awk e salvar no segundo arquivo temporário
+	awk '
+	BEGIN {
+	    section = ""
+	}
+	{
+	    if ($0 ~ /^\[.*\]$/) {
+	        section = $0
+	    } else if (section != "") {
+	        sections[section] = sections[section] "\n" $0
+	    }
+	}
+	END {
+    for (section in sections) {
+        print section sections[section] "\n"
+    }
+	}
+	' "$tempfile1" > "$tempfile2"
+
+	sed '/^\s*$/d' "$tempfile2" > "$ini_file"
+
+	# colocar uma linha em branco entre as sessoes e remover a primeira linha em branco
+	sed -i -e '/^\[/s/\[/\n&/' -e '1{/^[[:space:]]*$/d}' "$ini_file"
+	sed -i -e '1{/^[[:space:]]*$/d}' "$ini_file"
+
+	# marcar como executável
+	chmod +x "$ini_file"
+
+	# Remover arquivos temporários
+	rm "$tempfile1" "$tempfile2"
+}
+export -f TIni.Sanitize
+
+function TIni.Clean() {
+	local ini_file="$1"
+
 	sed -i -e '/./,$!d' -e 's/[ \t]*=[ \t]*/=/' "$ini_file"
-
 #	awk -F'=' '{
 #		gsub(/^[ \t]+|[ \t]+$/, "", $1);
 #		gsub(/^[ \t]+|[ \t]+$/, "", $2);
@@ -104,7 +146,7 @@ function TIni.Sanitize() {
 #	}' "$ini_file" | tee "$ini_file"
 
 }
-export -f TIni.Sanitize
+export -f TIni.Clean
 
 # Função para atualizar o valor de uma chave em uma seção no arquivo INI
 function TIni.UpdateValue {
