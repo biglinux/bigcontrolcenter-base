@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/14
+#  Altered: 2024/06/15
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240614"
+_VERSION_="1.0.0-20240615"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -69,7 +69,7 @@ export reset=$(tput sgr0)
 declare -A Amsg=(
 	[error_instance]=$(gettext "Outra instância do Gerenciador de WebApps já está em execução.")
 	[error_access_dir]=$(gettext "Erro ao acessar o diretório:")
-	[error_browser]=$(gettext "O browser configurado como padrão em $INI_FILE_WEBAPPS não está instalado ou tem um erro de configuração.\nClique em fechar para definir para o padrão do BigLinux e continuar!")
+	[error_browser]=$(gettext "O browser configurado como padrão em $INI_FILE_WEBAPPS não está instalado ou tem erro de configuração.\nClique em fechar para definir para o padrão do BigLinux e continuar!")
 	[error_browser_not_installed]=$(gettext "O navegador definido para abrir os WebApps não está instalado! \nTente alterar o navegador no Gerenciador de WebApps!\n")
 )
 export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
@@ -188,13 +188,17 @@ function sh_webapp_change_browser() {
 		return
 	fi
 
-	[[ "$new_browser" = 'google-chrome-stable' || "$new_browser" = 'chromium' ]] && short_new_browser='chrome'
+	case "$new_browser" in
+	google-chrome-stable) short_new_browser='chrome' ;;
+	chromium) short_new_browser='chrome' ;;
+	vivaldi-stable) short_new_browser='vivaldi' ;;
+	esac
 
 	for f in "${DESKTOP_FILES[@]}"; do
 		if [[ "$f" =~ "$old_browser" ]]; then
 			new_file="${f/$old_browser/$short_new_browser}"
 			mv -f "$f" "$new_file"
-#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$new_browser"
+			#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$new_browser"
 			CHANGED=1
 		fi
 	done
@@ -420,8 +424,8 @@ function sh_webapp_check_browser() {
 			--window-icon="$WEBAPPS_PATH/icons/webapp.svg"
 		exit 1
 	fi
+	echo "$default_browser"
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_check_browser
 
 #######################################################################################################################
@@ -765,7 +769,7 @@ function sh_webapp_enable-disable() {
 		if [[ ! -e "$app_fullname" ]]; then
 			cp -f "$WEBAPPS_PATH/assets/$browser_default/desk/$app" "$HOME_LOCAL/share/applications/"
 			cp -f "$WEBAPPS_PATH/assets/$browser_default/bin/${app%%.*}-$browser_default" "$HOME_LOCAL/bin/"
-#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
+			#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
 		else
 			rm -f "$app_fullname"
 		fi
@@ -773,7 +777,7 @@ function sh_webapp_enable-disable() {
 	*)
 		if [[ ! -e "$app_fullname" ]]; then
 			cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
-#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
+			#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
 		else
 			rm -f "$app_fullname"
 		fi
@@ -797,8 +801,8 @@ function sh_webapp-launch() {
 
 	browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
-  	FILE_WAYLAND="${FILE/.desktop/}"
-  	FILE_WAYLAND+="__-Default.desktop"
+	FILE_WAYLAND="${FILE/.desktop/}"
+	FILE_WAYLAND+="__-Default.desktop"
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
@@ -862,47 +866,72 @@ export -f sh_webapp-remove-all
 
 #######################################################################################################################
 
+function desktop.get() {
+	local file="$1"
+	local section="$2"
+	local chave="$3"
+	local in_section=0
+
+	awk -v section="$section" -v chave="$chave" -F'=' '
+    /^\[.*\]$/ {
+        in_section = ($0 == "[" section "]") ? 1 : 0
+    }
+    in_section && $1 ~ chave {
+        gsub(/^ +| +$/, "", $2); # Remove leading/trailing spaces
+        print $2
+        exit
+    }
+    ' "$file"
+}
+
+#######################################################################################################################
+
 function sh_webapp-remove() {
-	ICONDESK=$(awk -F'=' '/Icon/{print $2}' "$filedesk")
-	LINK=$(xdg-user-dir DESKTOP)/"${filedesk##*/}"
+	# Definição das variáveis locais
+	local parameters="$*"
+	local icon_path
+	local desktop_link
+	local portal_app_dir
+	local portal_desk_file
 
-	#if grep -q '..no.first.run' "$filedesk";then
-	#    DATA_DIR=$(awk '/Exec/{sub(/--user-data-dir=/,"");print $2}' "$filedesk")
-	#    [ -d "$DATA_DIR" ] && rm -r "$DATA_DIR"
-	#fi
+	# Obtém o caminho do ícone do arquivo .desktop
+	icon_path=$(desktop.get "$filedesk" 'Desktop Entry' 'Icon')
 
+	# Cria o caminho para o link na área de trabalho
+	desktop_link=$(xdg-user-dir DESKTOP)/"${filedesk##*/}"
+
+	# Verifica se o arquivo .desktop contém a entrada de perfil
 	if grep -q '..profile=' "$filedesk"; then
-		#EPI_DATA=$(awk '/Exec/{sub(/--profile=/,"");print $3}' "$filedesk")
-		DIR_PORTAL_APP="$HOME_LOCAL"/share/xdg-desktop-portal/applications
-		DIR_PORTAL_FILEDESK="$DIR_PORTAL_APP/${filedesk##*/}"
-		[ -e "$DIR_PORTAL_FILEDESK" ] && rm "$DIR_PORTAL_FILEDESK"
-		#rm -r "$EPI_DATA"
+		# Define o diretório para as aplicações do portal
+		portal_app_dir="$HOME_LOCAL/share/xdg-desktop-portal/applications"
+		# Define o caminho completo do arquivo .desktop no portal
+		portal_desk_file="$portal_app_dir/${filedesk##*/}"
+
+		# Remove o arquivo .desktop do portal, se existir
+		[[ -e "$portal_desk_file" ]] && rm "$portal_desk_file"
 	fi
 
-	#if grep -q '.local.bin' "$filedesk";then
-	#    DESKBIN="$HOME_LOCAL"/bin/$(sed -n '/^Exec/s/.*\/\([^\/]*\)$/\1/p' "$filedesk")
-	#    DATA_FOLDER=$(sed -n '/^FOLDER/s/.*=\([^\n]*\).*/\1/p' "$DESKBIN")
-	#    rm "$DESKBIN"
-	#    rm -r "$DATA_FOLDER"
-	#fi
-
-	if [ -L "$LINK" ] || [ -e "$LINK" ]; then
-		unlink "$LINK"
+	# Remove o link na área de trabalho, se existir
+	if [[ -L "$desktop_link" ]] || [[ -e "$desktop_link" ]]; then
+		unlink "$desktop_link"
 	fi
 
-	#if [ -n "$(grep 'falkon' "$filedesk")" ];then
-	#    folder=$(awk '/Exec=/{print $3}' "$filedesk")
-	#    rm -r ${HOME}/.config/falkon/profiles/${folder}
-	#fi
+	# Remove o ícone associado, se existir
+	[[ -e "$icon_path" ]] && rm "$icon_path"
 
-	[ -e "$ICONDESK" ] && rm "$ICONDESK"
+	# Remove o arquivo .desktop original
 	rm "$filedesk"
 
-	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
+	# Atualiza a base de dados dos arquivos .desktop
+	nohup update-desktop-database -q "$HOME_LOCAL/share/applications" &
+
+	# Atualiza o cache do KDE, se aplicável
 	nohup kbuildsycoca5 &>/dev/null &
+
 	exit
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
+
+# Exporta a função para que possa ser utilizada em subshells
 export -f sh_webapp-remove
 
 #######################################################################################################################
@@ -922,8 +951,12 @@ function sh_webapp-install() {
 	ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
 	local short_browser_name="$browser"
 
-	[[ "$browser" = 'google-chrome-stable' ]] && short_browser_name='chrome'
-	[[ "$browser" = 'vivaldi-stable' ]] && short_browser_name='vivaldi'
+	case "$browser" in
+	google-chrome-stable) short_browser_name='chrome' ;;
+	chromium) short_browser_name='chrome' ;;
+	vivaldi-stable) short_browser_name='vivaldi' ;;
+	esac
+
 	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
 		short_browser_name="$browser"
 
@@ -970,7 +1003,7 @@ function sh_webapp-install() {
 			Terminal=false
 			Type=Application
 			Name=$namedesk
-			Exec=$DESKBIN
+			Exec=$DESKBIN $browser
 			Icon=${NAME_FILE/.png/}
 			Categories=$category;
 			X-WebApp-Browser=$browser
@@ -980,11 +1013,11 @@ function sh_webapp-install() {
 		EOF
 		chmod +x "$LINK_APP"
 
-#		if [ "$shortcut" = "on" ]; then
-#			ln -s "$LINK_APP" "$FILE_LINK"
-#			chmod 755 "$FILE_LINK"
-#			gio set "$FILE_LINK" -t string metadata::trust "true"
-#		fi
+		#		if [ "$shortcut" = "on" ]; then
+		#			ln -s "$LINK_APP" "$FILE_LINK"
+		#			chmod 755 "$FILE_LINK"
+		#			gio set "$FILE_LINK" -t string metadata::trust "true"
+		#		fi
 
 	elif grep -q 'org.gnome.Epiphany' <<<"$browser"; then
 		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
@@ -1036,50 +1069,50 @@ function sh_webapp-install() {
 		chmod +x "$EPI_DIR_FILEDESK"
 		ln -s "$EPI_DIR_FILEDESK" "$EPI_LINK"
 
-#		if [ "$shortcut" = "on" ]; then
-#			ln -s "$EPI_DIR_FILEDESK" "$EPI_DESKTOP_LINK"
-#			chmod 755 "$EPI_DESKTOP_LINK"
-#			gio set "$EPI_DESKTOP_LINK" -t string metadata::trust "true"
-#		fi
+		#		if [ "$shortcut" = "on" ]; then
+		#			ln -s "$EPI_DIR_FILEDESK" "$EPI_DESKTOP_LINK"
+		#			chmod 755 "$EPI_DESKTOP_LINK"
+		#			gio set "$EPI_DESKTOP_LINK" -t string metadata::trust "true"
+		#		fi
 
-#	elif grep -q 'falkon' <<<"$browser"; then
-#		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-#			urldesk="https://$urldesk"
-#		fi
-#
-#		if [ "$newperfil" = "on" ]; then
-#			mkdir -p "$HOME"/.config/falkon/profiles/"$NAME"
-#			browser="$browser -p $NAME -ro"
-#		else
-#			browser="$browser -ro"
-#		fi
-#
-#		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
-#			cp "$icondesk" "$ICON_FILE"
-#		else
-#			mv "$icondesk" "$ICON_FILE"
-#		fi
-#
-#		cat >"$LINK_APP" <<-EOF
-#			[Desktop Entry]
-#			Version=1.0
-#			Terminal=false
-#			Type=Application
-#			Name=$namedesk
-#			Exec=$browser $urldesk
-#			Icon=${NAME_FILE/.png/}
-#			Categories=$category;
-#			X-WebApp-Browser=$browser
-#			X-WebApp-URL=$urldesk
-#			Custom=Custom
-#		EOF
-#		chmod +x "$LINK_APP"
+		#	elif grep -q 'falkon' <<<"$browser"; then
+		#		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
+		#			urldesk="https://$urldesk"
+		#		fi
+		#
+		#		if [ "$newperfil" = "on" ]; then
+		#			mkdir -p "$HOME"/.config/falkon/profiles/"$NAME"
+		#			browser="$browser -p $NAME -ro"
+		#		else
+		#			browser="$browser -ro"
+		#		fi
+		#
+		#		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
+		#			cp "$icondesk" "$ICON_FILE"
+		#		else
+		#			mv "$icondesk" "$ICON_FILE"
+		#		fi
+		#
+		#		cat >"$LINK_APP" <<-EOF
+		#			[Desktop Entry]
+		#			Version=1.0
+		#			Terminal=false
+		#			Type=Application
+		#			Name=$namedesk
+		#			Exec=$browser $urldesk
+		#			Icon=${NAME_FILE/.png/}
+		#			Categories=$category;
+		#			X-WebApp-Browser=$browser
+		#			X-WebApp-URL=$urldesk
+		#			Custom=Custom
+		#		EOF
+		#		chmod +x "$LINK_APP"
 
-#		if [ "$shortcut" = "on" ]; then
-#			ln -s "$LINK_APP" "$FILE_LINK"
-#			chmod 755 "$FILE_LINK"
-#			gio set "$FILE_LINK" -t string metadata::trust "true"
-#		fi
+		#		if [ "$shortcut" = "on" ]; then
+		#			ln -s "$LINK_APP" "$FILE_LINK"
+		#			chmod 755 "$FILE_LINK"
+		#			gio set "$FILE_LINK" -t string metadata::trust "true"
+		#		fi
 
 	else
 		case $browser in
@@ -1128,10 +1161,10 @@ function sh_webapp-install() {
 		_session="$(sh_get_desktop_session)"
 		case "${_session^^}" in
 		X11)
-			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP --profile-directory=Default --app=$urldesk"
-	  	   ;;
+			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP --profile-directory=Default --app=$urldesk $browser"
+			;;
 		WAYLAND)
-			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk"
+			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk $browser"
 			;;
 		esac
 
@@ -1151,11 +1184,11 @@ function sh_webapp-install() {
 		EOF
 		chmod +x "$LINK_APP"
 
-#		if [ "$shortcut" = "on" ]; then
-#			ln -s "$LINK_APP" "$FILE_LINK"
-#			chmod 755 "$FILE_LINK"
-#			gio set "$FILE_LINK" -t string metadata::trust "true"
-#		fi
+		#		if [ "$shortcut" = "on" ]; then
+		#			ln -s "$LINK_APP" "$FILE_LINK"
+		#			chmod 755 "$FILE_LINK"
+		#			gio set "$FILE_LINK" -t string metadata::trust "true"
+		#		fi
 	fi
 
 	if [[ -z "$CLASS" ]]; then
@@ -1166,10 +1199,11 @@ function sh_webapp-install() {
 		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
 	fi
 
-	if [ "$shortcut" = "on" ]; then
-		ln -sf "$NEW_DESKTOP_FILE" "$FILE_LINK"
-		chmod 755 "$FILE_LINK"
-		gio set "$FILE_LINK" -t string metadata::trust "true"
+	if [[ "$shortcut" = "on" ]]; then
+		file_link="${NEW_DESKTOP_FILE##*/}"
+		ln -sf "$NEW_DESKTOP_FILE" "$USER_DESKTOP/$file_link"
+		chmod 755 "$file_link"
+		gio set "$file_link" -t string metadata::trust "true"
 	fi
 
 	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
@@ -1179,7 +1213,6 @@ function sh_webapp-install() {
 	rm -rf /tmp/.bigwebicons
 	exit
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp-install
 
 #######################################################################################################################
@@ -1762,10 +1795,9 @@ function sh_webapp-change_desktop_name_to_wayland() {
 	local FILE_WAYLAND
 
 	for file in "$WEBAPPS_PATH"/webapps/*.desktop; do
-	   FILE_WAYLAND="${file/.desktop/}"
-	   FILE_WAYLAND+="__-Default.desktop"
-	   mv "$file" "$WEBAPPS_PATH/webapps/$FILE_WAYLAND"
+		FILE_WAYLAND="${file/.desktop/}"
+		FILE_WAYLAND+="__-Default.desktop"
+		mv "$file" "$WEBAPPS_PATH/webapps/$FILE_WAYLAND"
 	done
 }
 export -f sh_webapp-change_desktop_name_to_wayland
-
