@@ -188,66 +188,25 @@ function sh_webapp_change_browser() {
 		return
 	fi
 
-	case "$new_browser" in
-	google-chrome-stable) short_new_browser='chrome' ;;
-	chromium) short_new_browser='chrome' ;;
-	vivaldi-stable) short_new_browser='vivaldi' ;;
-	esac
-
-	for f in "${DESKTOP_FILES[@]}"; do
-		if [[ "$f" =~ "$old_browser" ]]; then
-			new_file="${f/$old_browser/$short_new_browser}"
-			mv -f "$f" "$new_file"
-			#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$new_browser"
-			CHANGED=1
-		fi
-	done
-
-	function ChromeToFirefox() {
-		for w in "${DESKTOP_FILES[@]}"; do
-			filename="${w##*/}"
-			cp -f "$WEBAPPS_PATH/assets/$old_browser/bin/${filename%%.*}-$old_browser" "$HOME_LOCAL"/bin
-			cp -f "$WEBAPPS_PATH/assets/$old_browser/desk/$filename" "$HOME_LOCAL"/share/applications
-		done
-	}
-
-	function FirefoxToChrome() {
-		for w in "${DESKTOP_FILES[@]}"; do
-			cp -f "$WEBAPPS_PATH/webapps/${w##*/}" "$HOME_LOCAL"/share/applications
-		done
-	}
-
-	case "$old_browser" in
-	firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
-		case "$new_browser" in
-		firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
-			ChromeToFirefox "$new_browser"
-			CHANGED=1
-			;;
-
-		*)
-			FirefoxToChrome
-			CHANGED=1
-			;;
-		esac
-		;;
-
-	*)
-		case "$new_browser" in
-		firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
-			ChromeToFirefox "$new_browser"
-			CHANGED=1
-			;;
-
-		*) : ;;
-		esac
-		;;
-	esac
-
-	if ((CHANGED)); then
-		update-desktop-database -q "$HOME_LOCAL"/share/applications
-		nohup kbuildsycoca5 &>/dev/null &
-	fi
+#	case "$new_browser" in
+#	google-chrome-stable) short_new_browser='chrome' ;;
+#	chromium) short_new_browser='chrome' ;;
+#	vivaldi-stable) short_new_browser='vivaldi' ;;
+#	esac
+#
+#	for f in "${DESKTOP_FILES[@]}"; do
+#		if [[ "$f" =~ "$old_browser" ]]; then
+#			new_file="${f/$old_browser/$short_new_browser}"
+#			mv -f "$f" "$new_file"
+#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$new_browser"
+#			CHANGED=1
+#		fi
+#	done
+#
+#	if ((CHANGED)); then
+#		update-desktop-database -q "$HOME_LOCAL"/share/applications
+#		nohup kbuildsycoca5 &>/dev/null &
+#	fi
 
 	sh_webapp_write_new_browser "$new_browser"
 }
@@ -378,7 +337,8 @@ function sh_webapp_verify_browser() {
 	local default_browser="$1"
 	local browser
 
-	for browser in "${aBrowserId[@]}"; do
+#	for browser in "${aBrowserId[@]}"; do
+	for browser in "${aBrowserShortName[@]}"; do
 		if [[ "$browser" = "$default_browser" ]]; then
 			return 0
 		fi
@@ -781,23 +741,22 @@ export -f sh_webapp_enable-disable
 function sh_webapp-launch() {
 	local parameters="$*"
 	local app="$1"
-	local browser_default
+	local browser_default="$2"
 	local FILE
 	local EXEC
 	local FILE_WAYLAND
 
-	browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
+	if [[ -z "$browser_default" ]]; then
+		browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
+	fi
 	FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
-
-	#xdebug "1-$parameters\n2-$app\n3-$FILE\n4-$browser_default"
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
-#		xdebug $EXEC
 		"${EXEC}"
-	else
-		gtk-launch "$browser_default-$app"
+		return
 	fi
+	gtk-launch "$browser_default-$app"
 }
 export -f sh_webapp-launch
 
