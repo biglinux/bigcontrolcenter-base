@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/15
+#  Altered: 2024/06/16
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_WEBLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240615"
+_VERSION_="1.0.0-20240616"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -756,33 +756,19 @@ function sh_webapp_enable-disable() {
 	local browser_short_name="$2"
 	local browser_default
 	local app_fullname
-	local FILE_WAYLAND
 
 	browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "id")
 	app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$app"
-	FILE_WAYLAND="$app_fullname"
-	FILE_WAYLAND="${FILE_WAYLAND/.desktop/}"
-	FILE_WAYLAND+="__-Default.desktop"
 
-	case "$browser_default" in
-	firefox | org.mozilla.firefox | librewolf | io.gitlab.librewolf-community)
-		if [[ ! -e "$app_fullname" ]]; then
-			cp -f "$WEBAPPS_PATH/assets/$browser_default/desk/$app" "$HOME_LOCAL/share/applications/"
-			cp -f "$WEBAPPS_PATH/assets/$browser_default/bin/${app%%.*}-$browser_default" "$HOME_LOCAL/bin/"
-			#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
-		else
-			rm -f "$app_fullname"
-		fi
-		;;
-	*)
-		if [[ ! -e "$app_fullname" ]]; then
-			cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
-			#			TIni.Set "$app_fullname" 'Desktop Entry' 'X-WebApp-Browser' "$browser_default"
-		else
-			rm -f "$app_fullname"
-		fi
-		;;
-	esac
+	if [[ ! -e "$app_fullname" ]]; then
+		cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
+		line_exec=$(TIni.Get "$app_fullname" "Desktop Entry" "Exec")
+		line_exec+=" $browser_default"
+		TIni.Set "$app_fullname" "Desktop Entry" "Exec" "$line_exec"
+		echo "X-WebApp-Browser=$browser_default" >> "$app_fullname"
+	else
+		rm -f "$app_fullname"
+	fi
 
 	update-desktop-database -q "$HOME_LOCAL"/share/applications
 	nohup kbuildsycoca5 &>/dev/null &
@@ -793,6 +779,7 @@ export -f sh_webapp_enable-disable
 #######################################################################################################################
 
 function sh_webapp-launch() {
+	local parameters="$*"
 	local app="$1"
 	local browser_default
 	local FILE
@@ -801,17 +788,17 @@ function sh_webapp-launch() {
 
 	browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
-	FILE_WAYLAND="${FILE/.desktop/}"
-	FILE_WAYLAND+="__-Default.desktop"
+
+	#xdebug "1-$parameters\n2-$app\n3-$FILE\n4-$browser_default"
 
 	if grep -q '.local.bin' "$FILE"; then
 		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
+#		xdebug $EXEC
 		"${EXEC}"
 	else
 		gtk-launch "$browser_default-$app"
 	fi
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp-launch
 
 #######################################################################################################################

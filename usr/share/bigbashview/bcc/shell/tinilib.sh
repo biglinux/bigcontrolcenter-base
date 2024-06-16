@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2023/09/27
-#  Altered: 2023/09/28
+#  Altered: 2024/06/16
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_TINILIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20230925"
+_VERSION_="1.0.0-20240616"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -85,9 +85,26 @@ function TIni.Set {
 		echo "$key_name=$value" >>"$config_file"
 	done
 #	TIni.AlignAllSections "$config_file"
-	big-tini-pretty -q "$config_file"
+#	big-tini-pretty -q "$config_file"
+	TIni.Sanitize "$config_file"
 }
 export -f TIni.Set
+
+function TIni.Sanitize() {
+	local ini_file="$1"
+
+#	sed -i 's/^[ \t]*//;s/[ \t]*$//' "$ini_file"
+#	sed -i -e '/./,$!d' -e 's/^[ \t]*//;s/[ \t]*$//' "$ini_file"
+	sed -i -e '/./,$!d' -e 's/[ \t]*=[ \t]*/=/' "$ini_file"
+
+#	awk -F'=' '{
+#		gsub(/^[ \t]+|[ \t]+$/, "", $1);
+#		gsub(/^[ \t]+|[ \t]+$/, "", $2);
+#		print $1 "=" $2
+#	}' "$ini_file" | tee "$ini_file"
+
+}
+export -f TIni.Sanitize
 
 # Função para atualizar o valor de uma chave em uma seção no arquivo INI
 function TIni.UpdateValue {
