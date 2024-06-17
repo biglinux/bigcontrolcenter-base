@@ -800,27 +800,29 @@ export -f sh_webapp-remove
 function sh_webapp-install() {
 	local line_exec
 	local _session
+	local short_browser_name
+	local file_link
+
 	_NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
 	USER_DESKTOP=$(xdg-user-dir DESKTOP)
 	LINK_APP="$HOME_LOCAL/share/applications/$_NAMEDESK-$RANDOM-webapp-biglinux-custom.desktop"
 	BASENAME_APP="${LINK_APP##*/}"
 	NAME="${BASENAME_APP/-webapp-biglinux-custom.desktop/}"
 	DIR_PROF="$HOME_FOLDER/$NAME"
-	FILE_LINK="$USER_DESKTOP/$NAME-webapp-biglinux-custom.desktop"
+	file_link="$USER_DESKTOP/$NAME-webapp-biglinux-custom.desktop"
 	BASENAME_ICON="${icondesk##*/}"
 	NAME_FILE="${BASENAME_ICON// /-}"
 	ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
-	local short_browser_name="$browser"
 
 	case "$browser" in
-	google-chrome-stable) short_browser_name='chrome' ;;
-	chromium) short_browser_name='chrome' ;;
-	vivaldi-stable) short_browser_name='vivaldi' ;;
+		google-chrome-stable) short_browser_name='chrome' ;;
+		chromium) short_browser_name='chrome' ;;
+		vivaldi-stable) short_browser_name='vivaldi' ;;
+		*) short_browser_name="$browser" ;;
 	esac
 
-	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
-		short_browser_name="$browser"
-
+#	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
+	if grep -qiE 'gatinho|teeste' <<<"$browser"; then
 		if ! grep -qiE '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
 			urldesk="https://$urldesk"
 		fi
@@ -874,12 +876,6 @@ function sh_webapp-install() {
 		EOF
 		chmod +x "$LINK_APP"
 
-		#		if [ "$shortcut" = "on" ]; then
-		#			ln -s "$LINK_APP" "$FILE_LINK"
-		#			chmod 755 "$FILE_LINK"
-		#			gio set "$FILE_LINK" -t string metadata::trust "true"
-		#		fi
-
 	elif grep -q 'org.gnome.Epiphany' <<<"$browser"; then
 		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
 			urldesk="https://$urldesk"
@@ -930,12 +926,6 @@ function sh_webapp-install() {
 		chmod +x "$EPI_DIR_FILEDESK"
 		ln -s "$EPI_DIR_FILEDESK" "$EPI_LINK"
 
-		#		if [ "$shortcut" = "on" ]; then
-		#			ln -s "$EPI_DIR_FILEDESK" "$EPI_DESKTOP_LINK"
-		#			chmod 755 "$EPI_DESKTOP_LINK"
-		#			gio set "$EPI_DESKTOP_LINK" -t string metadata::trust "true"
-		#		fi
-
 		#	elif grep -q 'falkon' <<<"$browser"; then
 		#		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
 		#			urldesk="https://$urldesk"
@@ -968,12 +958,6 @@ function sh_webapp-install() {
 		#			Custom=Custom
 		#		EOF
 		#		chmod +x "$LINK_APP"
-
-		#		if [ "$shortcut" = "on" ]; then
-		#			ln -s "$LINK_APP" "$FILE_LINK"
-		#			chmod 755 "$FILE_LINK"
-		#			gio set "$FILE_LINK" -t string metadata::trust "true"
-		#		fi
 
 	else
 		case $browser in
@@ -1041,15 +1025,10 @@ function sh_webapp-install() {
 			StartupWMClass=$CUT_HTTP
 			X-WebApp-Browser=$browser
 			X-WebApp-URL=$urldesk
+			X-KDE-StartupNotify=true
 			Custom=Custom
 		EOF
 		chmod +x "$LINK_APP"
-
-		#		if [ "$shortcut" = "on" ]; then
-		#			ln -s "$LINK_APP" "$FILE_LINK"
-		#			chmod 755 "$FILE_LINK"
-		#			gio set "$FILE_LINK" -t string metadata::trust "true"
-		#		fi
 	fi
 
 	if [[ -z "$CLASS" ]]; then
