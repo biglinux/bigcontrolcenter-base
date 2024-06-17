@@ -746,6 +746,9 @@ function sh_webapp-launch() {
 	local EXEC
 	local FILE_WAYLAND
 
+xdebug "$app"
+
+
 	if [[ -z "$browser_default" ]]; then
 		browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	fi
@@ -829,6 +832,7 @@ function desktop.get() {
     }
     ' "$file"
 }
+export -f desktop.get
 
 #######################################################################################################################
 
