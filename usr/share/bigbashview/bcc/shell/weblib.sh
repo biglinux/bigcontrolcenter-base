@@ -214,75 +214,6 @@ export -f sh_webapp_change_browser
 
 #######################################################################################################################
 
-function sh_webapp_check_browserOLD() {
-	local default_browser= # Define o navegador padrão
-	local NOT_COMPATIBLE=0 # Flag para indicar se navegador é compatível
-
-	# Verifica a existência de navegadores instalados e define o navegador padrão
-	if [ -e /usr/lib/brave-browser/brave ] || [ -e /opt/brave-bin/brave ]; then
-		default_browser='brave'
-	elif [ -e /opt/google/chrome/google-chrome ]; then
-		default_browser='google-chrome-stable'
-	elif [ -e /usr/lib/chromium/chromium ]; then
-		default_browser='chromium'
-	elif [ -e /opt/microsoft/msedge/microsoft-edge ]; then
-		default_browser='microsoft-edge-stable'
-	elif [ -e /usr/lib/firefox/firefox ]; then
-		sh_webapp_change_browser 'brave' 'firefox'
-	elif [ -e /usr/lib/librewolf/librewolf ]; then
-		sh_webapp_change_browser 'brave' 'librewolf'
-	elif [ -e /usr/bin/falkon ]; then
-		default_browser='falkon'
-	elif [ -e /opt/vivaldi/vivaldi ]; then
-		default_browser='vivaldi-stable'
-
-	elif [ -e /var/lib/flatpak/exports/bin/com.brave.Browser ]; then
-		default_browser='com.brave.Browser'
-	elif [ -e /var/lib/flatpak/exports/bin/com.google.Chrome ]; then
-		default_browser='com.google.Chrome'
-	elif [ -e /var/lib/flatpak/exports/bin/org.chromium.Chromium ]; then
-		default_browser='org.chromium.Chromium'
-	elif [ -e /var/lib/flatpak/exports/bin/com.github.Eloston.UngoogledChromium ]; then
-		default_browser='com.github.Eloston.UngoogledChromium'
-	elif [ -e /var/lib/flatpak/exports/bin/com.microsoft.Edge ]; then
-		default_browser='com.microsoft.Edge'
-	elif [ -e /var/lib/flatpak/exports/bin/org.gnome.Epiphany ]; then
-		default_browser=
-		NOT_COMPATIBLE=1
-	elif [ -e /var/lib/flatpak/exports/bin/org.mozilla.firefox ]; then
-		sh_webapp_change_browser 'brave' 'org.mozilla.firefox'
-	elif [ -e /var/lib/flatpak/exports/bin/io.gitlab.librewolf-community ]; then
-		sh_webapp_change_browser 'brave' 'io.gitlab.librewolf-community'
-	fi
-
-	if ((NOT_COMPATIBLE)); then
-		# Exibe uma mensagem de erro se nenhum navegador compatível for encontrado
-		yad --image=emblem-warning \
-			--image-on-top \
-			--form \
-			--width=500 \
-			--height=100 \
-			--fixed \
-			--align=center \
-			--text="$(gettext $"Não existem navegadores compatíveis com WebApps instalados!")" \
-			--button="$(gettext $"Fechar")" \
-			--on-top \
-			--center \
-			--borders=20 \
-			--title="$TITLE" \
-			--window-icon="$WEBAPPS_PATH/icons/webapp.svg"
-		exit 1
-	fi
-
-	# Atualiza a configuração do navegador se necessário
-	[[ "$(<~/.bigwebapps/BROWSER)" = "brave-browser" ]] && default_browser='brave'
-
-	# Salva o navegador padrão no arquivo de configuração
-	echo "$default_browser" >"$HOME_FOLDER"/BROWSER
-}
-
-#######################################################################################################################
-
 function sh_webapp_write_new_browser() {
 	local new_browser="$1"
 	local default_browser= # Define o navegador padrão
@@ -746,9 +677,6 @@ function sh_webapp-launch() {
 	local EXEC
 	local FILE_WAYLAND
 
-xdebug "$app"
-
-
 	if [[ -z "$browser_default" ]]; then
 		browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	fi
@@ -772,11 +700,6 @@ function sh_webapp-remove-all() {
 		ICONDESK=$(awk -F'=' '/Icon/{print $2}' "$filedesk")
 		LINK=$(xdg-user-dir DESKTOP)/"${filedesk##*/}"
 
-		#if grep -q '..no.first.run' "$filedesk";then
-		#    DATA_DIR=$(awk '/Exec/{sub(/--user-data-dir=/,"");print $2}' "$filedesk")
-		#    [ -d "$DATA_DIR" ] && rm -r "$DATA_DIR"
-		#fi
-
 		if grep -q '..profile=' "$filedesk"; then
 			#EPI_DATA=$(awk '/Exec/{sub(/--profile=/,"");print $3}' "$filedesk")
 			DIR_PORTAL_APP="$HOME_LOCAL"/share/xdg-desktop-portal/applications
@@ -785,21 +708,9 @@ function sh_webapp-remove-all() {
 			#rm -r "$EPI_DATA"
 		fi
 
-		#if grep -q '.local.bin' "$filedesk";then
-		#    DESKBIN="$HOME_LOCAL"/bin/$(sed -n '/^Exec/s/.*\/\([^\/]*\)$/\1/p' "$filedesk")
-		#    DATA_FOLDER=$(sed -n '/^FOLDER/s/.*=\([^\n]*\).*/\1/p' "$DESKBIN")
-		#    rm "$DESKBIN"
-		#    rm -r "$DATA_FOLDER"
-		#fi
-
 		if [ -L "$LINK" ] || [ -e "$LINK" ]; then
 			unlink "$LINK"
 		fi
-
-		#if [ -n "$(grep 'falkon' "$filedesk")" ];then
-		#    folder=$(awk '/Exec=/{print $3}' "$filedesk")
-		#    rm -r ${HOME}/.config/falkon/profiles/${folder}
-		#fi
 
 		[ -e "$ICONDESK" ] && rm "$ICONDESK"
 		rm "$filedesk"
