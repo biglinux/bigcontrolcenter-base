@@ -324,6 +324,7 @@ export -f sh_webapp_check_browser
 function sh_webapp_change_icon() {
 	local file_icon
 	local new_file_icon
+	local base_file_icon
 	local SUBTITLE="$(gettext $"Selecione o arquivo de imagem")"
 	local cancel=1
 
@@ -344,9 +345,7 @@ function sh_webapp_change_icon() {
 
 	new_file_icon=$("$WEBAPPS_PATH"/resize_favicon.sh.py "$file_icon")
 	echo "$new_file_icon"
-	exit
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_change_icon
 
 #######################################################################################################################
@@ -532,7 +531,7 @@ function sh_webapp_restore() {
 
 			rm -r "$BKP_FOLDER"
 			update-desktop-database -q "$HOME_LOCAL"/share/applications
-			nohup kbuildsycoca5 &>/dev/null &
+			kbuildsycoca5 &>/dev/null &
 
 			printf 0
 			exit
@@ -625,8 +624,8 @@ function sh_webapp-edit() {
 	fi
 
 	if [ "$EDIT" = "true" ]; then
-		nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
-		nohup kbuildsycoca5 &>/dev/null &
+		update-desktop-database -q "$HOME_LOCAL"/share/applications &
+		kbuildsycoca5 &>/dev/null &
 		rm -f /tmp/*.png
 		printf '{ "return" : "0" }'
 		exit
@@ -662,7 +661,7 @@ function sh_webapp_enable-disable() {
 	fi
 
 	update-desktop-database -q "$HOME_LOCAL"/share/applications
-	nohup kbuildsycoca5 &>/dev/null &
+	kbuildsycoca5 &>/dev/null &
 	exit
 }
 export -f sh_webapp_enable-disable
@@ -716,8 +715,8 @@ function sh_webapp-remove-all() {
 		rm "$filedesk"
 	done
 
-	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
-	nohup kbuildsycoca5 &>/dev/null &
+	update-desktop-database -q "$HOME_LOCAL"/share/applications &
+	kbuildsycoca5 &>/dev/null &
 	printf 0
 	exit
 }
@@ -784,10 +783,10 @@ function sh_webapp-remove() {
 	rm "$filedesk"
 
 	# Atualiza a base de dados dos arquivos .desktop
-	nohup update-desktop-database -q "$HOME_LOCAL/share/applications" &
+	update-desktop-database -q "$HOME_LOCAL/share/applications" &
 
 	# Atualiza o cache do KDE, se aplicável
-	nohup kbuildsycoca5 &>/dev/null &
+	kbuildsycoca5 &>/dev/null &
 
 	exit
 }
@@ -802,6 +801,11 @@ function sh_webapp-install() {
 	local _session
 	local short_browser_name
 	local file_link
+
+	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
+	icondesk="${icondesk//$'\n'/}"
+	icondesk="${icondesk//$'\r'/}"
+	icondesk="${icondesk//$'\t'/}"
 
 	_NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
 	USER_DESKTOP=$(xdg-user-dir DESKTOP)
@@ -820,6 +824,8 @@ function sh_webapp-install() {
 		vivaldi-stable) short_browser_name='vivaldi' ;;
 		*) short_browser_name="$browser" ;;
 	esac
+
+	cp "$icondesk" "$ICON_FILE"
 
 #	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
 	if grep -qiE 'gatinho|teeste' <<<"$browser"; then
@@ -1013,6 +1019,7 @@ function sh_webapp-install() {
 			;;
 		esac
 
+#			Icon=${NAME_FILE/.png/}
 		cat >"$LINK_APP" <<-EOF
 			[Desktop Entry]
 			Version=1.0
@@ -1020,7 +1027,7 @@ function sh_webapp-install() {
 			Type=Application
 			Name=$namedesk
 			Exec=$line_exec
-			Icon=${NAME_FILE/.png/}
+			Icon=$NAME_FILE
 			Categories=$category;
 			StartupWMClass=$CUT_HTTP
 			X-WebApp-Browser=$browser
@@ -1042,12 +1049,12 @@ function sh_webapp-install() {
 	if [[ "$shortcut" = "on" ]]; then
 		file_link="${NEW_DESKTOP_FILE##*/}"
 		ln -sf "$NEW_DESKTOP_FILE" "$USER_DESKTOP/$file_link"
-		chmod 755 "$file_link"
-		gio set "$file_link" -t string metadata::trust "true"
+		chmod 755 "$USER_DESKTOP/$file_link"
+		gio set "$USER_DESKTOP/$file_link" -t string metadata::trust "true"
 	fi
 
-	nohup update-desktop-database -q "$HOME_LOCAL"/share/applications &
-	nohup kbuildsycoca5 &>/dev/null &
+	update-desktop-database -q "$HOME_LOCAL"/share/applications &
+	kbuildsycoca5 &>/dev/null &
 
 	rm -f /tmp/*.png
 	rm -rf /tmp/.bigwebicons
