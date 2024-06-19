@@ -170,6 +170,7 @@ function sh_webapp_index_sh_config() {
 	declare -g Nativo=$(gettext "Nativo")
 	declare -g Sobre=$(gettext "Sobre")
 	declare -g CUSTOMFILES
+	declare -g NATIVEFILES
 }
 export -f sh_webapp_index_sh_config
 
@@ -205,6 +206,8 @@ function sh_pre_process_custom_desktop_files() {
 	for custom in "${allfiles[@]}"; do
 		if IsCustom=$(desktop.get "$custom" "Desktop Entry" "Custom") && [[ -n "$IsCustom" ]]; then
 			CUSTOMFILES+=("$custom")
+		else
+			NATIVEFILES+=("$custom")
 		fi
 	done
 }
@@ -702,11 +705,14 @@ function sh_add_native_desktop_files() {
 	  		disabled="disabled"
 
 			# Verificar e definir ícone do navegador personalizado
-			for custom in "${CUSTOMFILES[@]}"; do
+#			for custom in "${NATIVEFILES[@]}"; do
+
+			mapfile -t NATIVEFILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
+			for custom in "${NATIVEFILES[@]}"; do
 				local browser_custom=$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")
 				[[ -e "$HOME_LOCAL/share/applications/$browser_custom-$webapp" ]] && {
-					browser_icon="$browser_custom"
 					browser_default="$browser_custom"
+					browser_icon="$browser_custom"
 					color="green"
 					checked="checked"
 					disabled=""
@@ -1207,13 +1213,6 @@ export -f sh_webapp-edit
 
 #######################################################################################################################
 
-function sh_webapp_enable-disable() {
-	local app="$1"
-	local browser_short_name="$2"
-	local app_fullname
-	local line_exec
-	local candidate
-
 	function sh_pre_process_enable_disable_desktop_files() {
 		local pattern="$1"
 		local patternfiles
@@ -1231,7 +1230,17 @@ function sh_webapp_enable-disable() {
 			fi
 		done
 		echo "$result"
+		return "$result"
 	}
+
+#######################################################################################################################
+
+function sh_webapp_enable-disable() {
+	local app="$1"
+	local browser_short_name="$2"
+	local app_fullname
+	local line_exec
+	local candidate
 
 	[[ -z "$browser_short_name" ]] && browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$app"
@@ -1244,6 +1253,7 @@ function sh_webapp_enable-disable() {
 		TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser_short_name"
 	fi
 
+	sh_pre_process_custom_desktop_files
 	update-desktop-database -q "$HOME_LOCAL"/share/applications
 	kbuildsycoca5 &>/dev/null &
 	exit
