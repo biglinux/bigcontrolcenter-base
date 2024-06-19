@@ -33,9 +33,14 @@
 
 [[ -n "$LIB_WEBLIB_SH" ]] && return
 LIB_WEBLIB_SH=1
+shopt -s extglob
 
 APP="${0##*/}"
+_DATE_ALTERED_="18/06/2024"
+_TIME_ALTERED_="22:08"
 _VERSION_="1.0.0-20240618"
+_WEBLIB_VERSION_="${_VERSION_} - ${_TIME_ALTERED_}"
+_UPDATED_="${_DATE_ALTERED_} - ${_TIME_ALTERED_}"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -823,26 +828,16 @@ export -f sh_webapp_change_icon
 
 function sh_webapp_backup() {
 	# Declaração de variáveis locais
+	local webapps_list
 	local subtitle_message="$(gettext $"Não existem WebApps instalados para backup!")"
 	local select_directory_title="$(gettext $"Selecione o diretório para salvar:")"
 	local backup_filename="backup-webapps_$(date +%Y-%m-%d).tar.gz"
-	local temp_backup_dir="$TMP_FOLDER/backup-webapps"
-	local temp_bin_dir="$temp_backup_dir/bin"
-	local temp_data_dir="$temp_backup_dir/data"
-	local temp_icons_dir="$temp_backup_dir/icons"
-	local temp_epiphany_dir="$temp_backup_dir/epiphany"
-	local temp_portal_dir="$temp_epiphany_dir/xdg-desktop-portal"
-	local temp_epiphany_data_dir="$temp_epiphany_dir/data"
-	local temp_desktop_dir="$temp_backup_dir/desktop"
-	local webapps_list
-	local save_directory
-	local app_data_folder
-	local app_data_folder_copy
-	local app_data_dir_copy
+	local BACKUP_DIR="$TMP_FOLDER/backup-webapps"
 	local temp_icon_file
-	local temp_bin_file
 	local -i num_desktop_files_found
 	local -i cancel_status=1
+	local backup_files
+	local save_directory
 
 	# Obtém a lista de arquivos .desktop dos WebApps instalados
 	mapfile -t webapps_list < <(find "$HOME_LOCAL"/share/applications -iname "*-Default.desktop")
@@ -864,7 +859,7 @@ function sh_webapp_backup() {
 			--center \
 			--borders=20 \
 			--window-icon="$WEBAPPS_PATH/icons/webapp.svg"
-		exit 1
+		return 1
 	fi
 
 	# Solicita ao usuário para selecionar o diretório de salvamento
@@ -884,84 +879,46 @@ function sh_webapp_backup() {
 	fi
 
 	# Processa cada WebApp encontrado
+	nDesktop_Files_Found=0
+	backup_files=()
 	for webapp_desktop_file in "${webapps_list[@]}"; do
-		# Verifica se o comando de execução contém '.local.bin'
-		if grep -q '.local.bin' "$webapp_desktop_file"; then
-			mkdir -p "$temp_bin_dir"
-			temp_bin_file=$(awk -F'=' '/^Exec/{print $2}' "$webapp_desktop_file")
-			cp -a "$temp_bin_file" "$temp_bin_dir"
-			app_data_folder=$(sed -n '/^FOLDER/s/.*=\([^\n]*\).*/\1/p' "$temp_bin_file")
-			if grep -q '.bigwebapps' <<<"$app_data_folder"; then
-				mkdir -p "$temp_data_dir"
-				cp -a "$app_data_folder" "$temp_data_dir"
-			else
-				app_data_folder_copy="$temp_backup_dir/flatpak/$(awk -F'/' '{print $6"/"$7}' <<<"$app_data_folder")"
-				mkdir -p "$app_data_folder_copy"
-				cp -a "$app_data_folder" "$app_data_folder_copy"
-			fi
-		fi
-
-		# Verifica se o comando de execução contém 'no.first.run'
-		if grep -q '..no.first.run' "$webapp_desktop_file"; then
-			app_data_dir=$(awk '/Exec/{sub(/--user-data-dir=/,"");print $2}' "$webapp_desktop_file")
-			if grep -q '.bigwebapps' <<<"$app_data_dir"; then
-				mkdir -p "$temp_data_dir"
-				cp -a "$app_data_dir" "$temp_data_dir"
-			else
-				app_data_dir_copy="$temp_backup_dir/flatpak/$(awk -F'/' '{print $6"/"$7}' <<<"$app_data_dir")"
-				mkdir -p "$app_data_dir_copy"
-				cp -a "$app_data_dir" "$app_data_dir_copy"
-			fi
-		fi
-
-		# Verifica se o comando de execução contém 'profile'
-		if grep -q '..profile=' "$webapp_desktop_file"; then
-			mkdir -p "$temp_portal_dir"
-			cp -a "$HOME_LOCAL"/share/xdg-desktop-portal/* "$temp_portal_dir"
-			epiphany_data_dir=$(awk '/Exec/{sub(/--profile=/,"");print $3}' "$webapp_desktop_file")
-			mkdir -p "$temp_epiphany_data_dir"
-			cp -a "$epiphany_data_dir" "$temp_epiphany_data_dir"
-		else
-			mkdir -p "$temp_icons_dir"
-			temp_icon_file=$(awk -F'=' '/^Icon/{print $2}' "$webapp_desktop_file")
-			cp -a "$temp_icon_file" "$temp_icons_dir"
-			cp -a "$webapp_desktop_file" "$temp_backup_dir"
-		fi
-
-		# Verifica se o arquivo é um link simbólico na área de trabalho do usuário
-		if [ -L "$(xdg-user-dir DESKTOP)/${webapp_desktop_file##*/}" ]; then
-			mkdir -p "$temp_desktop_dir"
-			cp -a "$(xdg-user-dir DESKTOP)/${webapp_desktop_file##*/}" "$temp_desktop_dir"
-		fi
+		temp_icon_file=$(desktop.get "$webapp_desktop_file" 'Desktop Entry', 'Icon')
+		backup_files+=("$webapp_desktop_file")
+		backup_files+=("$HOME_LOCAL/share/icons/$temp_icon_file")
+		backup_files+=("$(xdg-user-dir DESKTOP)/${webapp_desktop_file##*/}")
+		nDesktop_Files_Found+=1
 	done
 
-	# Cria o arquivo de backup
-	cd "$TMP_FOLDER" || return
-	tar -czf "${save_directory}/${backup_filename}" backup-webapps
+	if ((nDesktop_Files_Found)); then
+		rsync -qa --relative "${backup_files[@]}" "$BACKUP_DIR"
 
-	# Remove o diretório temporário
-	rm -r backup-webapps
+		# Cria o arquivo de backup
+		cd "$BACKUP_DIR/$HOME" || return 1
+		tar -I pigz --posix --xattrs -cf "${save_directory}/${backup_filename}" .
 
-	# Retorna o caminho do arquivo de backup criado
-	echo "${save_directory}/${backup_filename}"
-	exit
+		# Remove o diretório temporário
+		rm -r "$BACKUP_DIR"
+
+		# Retorna o caminho do arquivo de backup criado
+		echo "${save_directory}/${backup_filename}"
+		return 0
+	fi
+	return 1
 }
-
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_backup
 
 #######################################################################################################################
 
 function sh_webapp_restore() {
-	local SUBTITLE="$(gettext $"Selecionar o arquivo de backup para restaurar: ")"
+	local restore_subtitle="$(gettext $"Selecionar o arquivo de backup para restaurar: ")"
 	local BKP_FOLDER="$TMP_FOLDER/backup-webapps"
 	local FLATPAK_FOLDER_DATA="$HOME"/.var/app
 	local backup_file
 	local cancel=1
 
-	cd "$HOME_FOLDER" || return
+	cd "$HOME_FOLDER" || return 1
 	backup_file=$(
-		yad --title="$SUBTITLE" \
+		yad --title="$restore_subtitle" \
 			--file \
 			--window-icon="$WEBAPPS_PATH/icons/webapp.svg" \
 			--width=900 \
@@ -970,46 +927,20 @@ function sh_webapp_restore() {
 			--mime-filter=$"Backup WebApps""|application/gzip"
 	)
 	if [[ "$?" -eq "$cancel" ]] || [[ -z "$backup_file" ]]; then
-		exit
+		echo 1
+		return 1
 	fi
 
-	if tar -xzf "$backup_file" -C "$TMP_FOLDER"; then
-		if [[ -d "$BKP_FOLDER" ]]; then
-			cp -a "$BKP_FOLDER"/*.desktop "$HOME_LOCAL"/share/applications
-			cp -a "$BKP_FOLDER"/icons/* "$HOME_LOCAL"/share/icons
-
-			if [[ -d "$BKP_FOLDER"/bin ]]; then
-				cp -a "$BKP_FOLDER"/bin/* "$HOME_LOCAL"/bin
-			fi
-
-			if [[ -d "$BKP_FOLDER"/data ]]; then
-				cp -a "$BKP_FOLDER"/data/* "$HOME_FOLDER"
-			fi
-
-			if [[ -d "$BKP_FOLDER"/epiphany ]]; then
-				cp -a "$BKP_FOLDER"/epiphany/data "$FLATPAK_FOLDER_DATA"/org.gnome.Epiphany
-				cp -a "$BKP_FOLDER"/epiphany/xdg-desktop-portal "$HOME_LOCAL"/share
-				ln -sf "$HOME_LOCAL"/share/xdg-desktop-portal/applications/*.desktop "$HOME_LOCAL"/share/applications
-			fi
-
-			if [[ -d "$BKP_FOLDER"/flatpak ]]; then
-				cp -a "$BKP_FOLDER"/flatpak/* "$FLATPAK_FOLDER_DATA"
-			fi
-
-			if [[ -d "$BKP_FOLDER"/desktop ]]; then
-				cp -a "$BKP_FOLDER"/desktop/* "$(xdg-user-dir DESKTOP)"
-			fi
-
-			rm -r "$BKP_FOLDER"
-			update-desktop-database -q "$HOME_LOCAL"/share/applications
-			kbuildsycoca5 &>/dev/null &
-
-			printf 0
-			exit
-		fi
+	if tar -xf "$backup_file" -C "$HOME"; then
+		update-desktop-database -q "$HOME_LOCAL"/share/applications &
+		kbuildsycoca5 &>/dev/null &
+		echo 0
+		return 0
 	fi
+	echo 1
+	return 1
+
 }
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp_restore
 
 #######################################################################################################################
