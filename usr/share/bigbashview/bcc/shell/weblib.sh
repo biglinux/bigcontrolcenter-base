@@ -37,7 +37,7 @@ shopt -s extglob
 
 APP="${0##*/}"
 _DATE_ALTERED_="19/06/2024"
-_TIME_ALTERED_="04:53"
+_TIME_ALTERED_="09:00"
 _VERSION_="1.0.0-20240619"
 _WEBLIB_VERSION_="${_VERSION_} - ${_TIME_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_} - ${_TIME_ALTERED_}"
@@ -817,7 +817,6 @@ export -f sh_check_webapp_is_running
 
 function sh_webapp_change_browser() {
 	local old_browser="$1"
-	local new_browser="$2"
 	local short_new_browser="$2"
 	local DESKTOP_FILES
 	local CHANGED=0
@@ -830,31 +829,31 @@ function sh_webapp_change_browser() {
 	nDesktop_Files_Found="${#DESKTOP_FILES[@]}"
 
 	if ! ((nDesktop_Files_Found)); then
-		sh_webapp_write_new_browser "$new_browser"
+		sh_webapp_write_new_browser "$short_new_browser"
 		return
 	fi
 
-	#	case "$new_browser" in
-	#	google-chrome-stable) short_new_browser='chrome' ;;
-	#	chromium) short_new_browser='chrome' ;;
-	#	vivaldi-stable) short_new_browser='vivaldi' ;;
-	#	esac
-	#
+	case "$short_new_browser" in
+		google-chrome-stable) short_new_browser='chrome' ;;
+		chromium) short_new_browser='chrome' ;;
+		vivaldi-stable) short_new_browser='vivaldi' ;;
+	esac
+
 	#	for f in "${DESKTOP_FILES[@]}"; do
 	#		if [[ "$f" =~ "$old_browser" ]]; then
 	#			new_file="${f/$old_browser/$short_new_browser}"
 	#			mv -f "$f" "$new_file"
-	#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$new_browser"
+	#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$short_new_browser"
 	#			CHANGED=1
 	#		fi
 	#	done
-	#
+
 	#	if ((CHANGED)); then
 	#		update-desktop-database -q "$HOME_LOCAL"/share/applications
 	#		nohup kbuildsycoca5 &>/dev/null &
 	#	fi
 
-	sh_webapp_write_new_browser "$new_browser"
+	sh_webapp_write_new_browser "$short_new_browser"
 }
 export -f sh_webapp_change_browser
 
@@ -1213,25 +1212,25 @@ export -f sh_webapp-edit
 
 #######################################################################################################################
 
-	function sh_pre_process_enable_disable_desktop_files() {
-		local pattern="$1"
-		local patternfiles
- 		local IsCustom
- 		local custom
- 		local result=1
-		local CANDIDATEFILES=()
+function sh_pre_process_enable_disable_desktop_files() {
+	local pattern="$1"
+	local patternfiles
+	local IsCustom
+	local custom
+	local result=1
+	local CANDIDATEFILES=()
 
-		mapfile -t patternfiles < <(find "$HOME_LOCAL/share/applications" \( -iname "$pattern" \))
-		for custom in "${patternfiles[@]}"; do
-			if IsCustom=$(desktop.get "$custom" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
-				CANDIDATEFILES+=("$custom")
-				rm -f "$custom"
-				result=0
-			fi
-		done
-		echo "$result"
-		return "$result"
-	}
+	mapfile -t patternfiles < <(find "$HOME_LOCAL/share/applications" \( -iname "$pattern" \))
+	for custom in "${patternfiles[@]}"; do
+		if IsCustom=$(desktop.get "$custom" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
+			CANDIDATEFILES+=("$custom")
+			rm -f "$custom"
+			result=0
+		fi
+	done
+	echo "$result"
+	return "$result"
+}
 
 #######################################################################################################################
 
@@ -1243,6 +1242,13 @@ function sh_webapp_enable-disable() {
 	local candidate
 
 	[[ -z "$browser_short_name" ]] && browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
+	case "$browser_short_name" in
+		google-chrome-stable) browser_short_name='chrome' ;;
+		chromium) browser_short_name='chrome' ;;
+		vivaldi-stable) browser_short_name='vivaldi' ;;
+		*) : ;;
+	esac
+
 	app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$app"
 
 	if ! sh_pre_process_enable_disable_desktop_files "*${app}"; then
