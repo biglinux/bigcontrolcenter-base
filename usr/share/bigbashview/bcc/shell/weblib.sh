@@ -1272,19 +1272,27 @@ function sh_webapp-launch() {
 	local parameters="$*"
 	local app="$1"
 	local browser_default="$2"
-	local FILE
-	local EXEC
-	local FILE_WAYLAND
+	local desktop_file
 
 	if [[ -z "$browser_default" ]]; then
 		browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	fi
-	FILE="$HOME_LOCAL/share/applications/$browser_default-$app"
+	desktop_file="$HOME_LOCAL/share/applications/$browser_default-$app"
+	if [[ ! -e "$desktop_file" ]]; then
+		# tenta localizar o .desktop
+		local pattern="*${app}"
+		local patternfiles
+		local IsCustom
+		local custom
 
-	if grep -q '.local.bin' "$FILE"; then
-		EXEC=~/$(sed -n '/^Exec/s/.*=~\/\([^\n]*\).*/\1/p' "$FILE")
-		"${EXEC}"
-		return
+		mapfile -t patternfiles < <(find "$HOME_LOCAL/share/applications" \( -iname "$pattern" \))
+		for custom in "${patternfiles[@]}"; do
+			if IsCustom=$(desktop.get "$custom" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
+				desktop_file="$custom"
+				browser_default=$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")
+				break
+			fi
+		done
 	fi
 	gtk-launch "$browser_default-$app"
 }
