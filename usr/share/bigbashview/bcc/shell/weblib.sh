@@ -176,6 +176,27 @@ export -f sh_webapp_index_sh_config
 
 #######################################################################################################################
 
+function sh_webapp_check_dirs {
+	local customDirs="$*"
+	local dir
+
+	# Verifica se o diretórios de trabalho existem; se não, cria
+	[[ -d "$HOME_FOLDER" ]] || mkdir -p "$HOME_FOLDER"
+	[[ -d "$TMP_FOLDER" ]] || mkdir -p "$TMP_FOLDER"
+	[[ -d "$HOME_LOCAL"/share/icons ]] || mkdir -p "$HOME_LOCAL"/share/icons
+	[[ -d "$HOME_LOCAL"/share/applications ]] || mkdir -p "$HOME_LOCAL"/share/applications
+	[[ -d "$HOME_LOCAL"/bin ]] || mkdir -p "$HOME_LOCAL"/bin
+	[[ -d "$USER_DATA_DIR" ]] || mkdir -p "$USER_DATA_DIR"
+
+	for dir in "${customDirs[@]}"; do
+		[[ -z "$dir" ]] && continue
+		[[ -d "$dir" ]] || mkdir -p "$dir"
+	done
+}
+export -f sh_webapp_check_dirs
+
+#######################################################################################################################
+
 function sh_webapp_index_sh_setbrowse() {
 	local cpath
 	local nc=0
@@ -705,8 +726,6 @@ function sh_add_native_desktop_files() {
 	  		disabled="disabled"
 
 			# Verificar e definir ícone do navegador personalizado
-#			for custom in "${NATIVEFILES[@]}"; do
-
 			mapfile -t NATIVEFILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
 			for custom in "${NATIVEFILES[@]}"; do
 				local browser_custom=$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")
@@ -769,26 +788,6 @@ export -f yadmsg
 
 #######################################################################################################################
 
-function sh_webapp_check_dirs {
-	local customDirs="$*"
-	local dir
-
-	# Verifica se o diretórios de trabalho existem; se não, cria
-	[[ -d "$HOME_FOLDER" ]] || mkdir -p "$HOME_FOLDER"
-	[[ -d "$TMP_FOLDER" ]] || mkdir -p "$TMP_FOLDER"
-	[[ -d "$HOME_LOCAL"/share/icons ]] || mkdir -p "$HOME_LOCAL"/share/icons
-	[[ -d "$HOME_LOCAL"/share/applications ]] || mkdir -p "$HOME_LOCAL"/share/applications
-	[[ -d "$HOME_LOCAL"/bin ]] || mkdir -p "$HOME_LOCAL"/bin
-	[[ -d "$USER_DATA_DIR" ]] || mkdir -p "$USER_DATA_DIR"
-
-	for dir in "${customDirs[@]}"; do
-		[[ -z "$dir" ]] && continue
-		[[ -d "$dir" ]] || mkdir -p "$dir"
-	done
-}
-export -f sh_webapp_check_dirs
-
-#######################################################################################################################
 
 function sh_check_webapp_is_running() {
 	local PID
@@ -817,43 +816,70 @@ export -f sh_check_webapp_is_running
 
 function sh_webapp_change_browser() {
 	local old_browser="$1"
-	local short_new_browser="$2"
+	local new_browser="$2"
 	local DESKTOP_FILES
 	local CHANGED=0
 	local -i nDesktop_Files_Found
-	local filename
 	local f
 	local new_file
+	local line_exec
+	local line_exec_class
+	local line_exec_app
+	local new_line_exec
+	local start_browser_name
+	local old_prefix
+	local new_prefix
+	local IsCustom
 
 	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname '*-Default.desktop')
 	nDesktop_Files_Found="${#DESKTOP_FILES[@]}"
 
 	if ! ((nDesktop_Files_Found)); then
-		sh_webapp_write_new_browser "$short_new_browser"
+		sh_webapp_write_new_browser "$new_browser"
 		return
 	fi
 
-	case "$short_new_browser" in
-		google-chrome-stable) short_new_browser='chrome' ;;
-		chromium) short_new_browser='chrome' ;;
-		vivaldi-stable) short_new_browser='vivaldi' ;;
+	old_prefix="$old_browser"
+	new_prefix="$new_browser"
+
+	case "$old_browser" in
+		google-chrome-stable)	old_prefix='chrome';;
+		chromium)					old_prefix='chrome';;
+		vivaldi-stable)			old_prefix='vivaldi';;
 	esac
 
-	#	for f in "${DESKTOP_FILES[@]}"; do
-	#		if [[ "$f" =~ "$old_browser" ]]; then
-	#			new_file="${f/$old_browser/$short_new_browser}"
-	#			mv -f "$f" "$new_file"
-	#			TIni.Set "$new_file" "Desktop Entry" "X-WebApp-Browser" "$short_new_browser"
-	#			CHANGED=1
-	#		fi
-	#	done
+	case "$new_browser" in
+		google-chrome-stable)	new_prefix='chrome';  short_new_browser='chrome';;
+		chromium)					new_prefix='chrome';  short_new_browser='chromium';;
+		vivaldi-stable)			new_prefix='vivaldi'; short_new_browser='vivaldi';;
+	esac
 
-	#	if ((CHANGED)); then
-	#		update-desktop-database -q "$HOME_LOCAL"/share/applications
-	#		nohup kbuildsycoca5 &>/dev/null &
-	#	fi
+	if ((nDesktop_Files_Found)); then
+		for f in "${DESKTOP_FILES[@]}"; do
+			if [[ "$f" =~ "$old_prefixr" ]]; then
+				if IsCustom=$(TIni.Get "$f" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
+					new_file="${f/$old_prefix/$new_prefix}"
+					if [[ "$f" != "$new_file" ]]; then
+						line_exec=$(TIni.Get "$f" "Desktop Entry" "Exec")
+					 	line_exec_class="$(sh_webapp_get_param_line_exec "$line_exec" 2)"
+					 	line_exec_app="$(sh_webapp_get_param_line_exec "$line_exec" 4)"
+						new_line_exec="/usr/bin/biglinux-webapp ${line_exec_class} --profile-directory=Default ${line_exec_app} ${short_new_browser}"
+						mv -f "$f" "$new_file"
+						TIni.Set "$new_file" 'Desktop Entry' 'Exec' "$new_line_exec"
+						TIni.Set "$new_file" 'Desktop Entry' 'X-WebApp-Browser' "$short_new_browser"
+						TIni.Set "$new_file" 'Desktop Action SoftwareRender' 'Exec' "SoftwareRender $new_line_exec"
+						CHANGED=1
+					fi
+				fi
+			fi
+		done
+		if ((CHANGED)); then
+			update-desktop-database -q "$HOME_LOCAL"/share/applications
+			kbuildsycoca5 &>/dev/null &
+		fi
+	fi
 
-	sh_webapp_write_new_browser "$short_new_browser"
+	sh_webapp_write_new_browser "$new_browser"
 }
 export -f sh_webapp_change_browser
 
@@ -1300,6 +1326,23 @@ export -f sh_webapp-launch
 
 #######################################################################################################################
 
+function sh_webapp_get_param_line_exec() {
+	local line_exec="$1"
+	local param="$2"
+	local array
+
+	# pega o parametro e diminui 1, já que arrays em bash são baseados em zero
+	((--param))
+
+	# Converte a string em um array
+	IFS=' ' read -r -a array <<< "$line_exec"
+	result="${array[$param]}"
+	echo "$result"
+}
+export -f sh_webapp_get_param_line_exec
+
+#######################################################################################################################
+
 function sh_webapp_get_url() {
 	local chave_Exec="$1"
 	local app_part="${chave_Exec#*--app=}"
@@ -1704,62 +1747,41 @@ export -f sh_webapp-install
 #######################################################################################################################
 
 function sh_webapp-info() {
-	# Declaração de variáveis locais
 	local desktop_file_name
 	local user_desktop_dir
 	local app_name
 	local app_icon
-	local selected_icon
 	local app_category
 	local exec_command
+	local selected_icon
 	local binary_path
 	local app_url
 	local browser_name
 	local profile_checked
 	local link_checked
+	local IsCustom
 
 	# Extrai o nome do arquivo .desktop
-	desktop_file_name=${filedesk##*/} ## $filedesk vem do .js
+	desktop_file_name="${filedesk##*/}" ## $filedesk vem do .js
 
 	# Obtém o diretório da área de trabalho do usuário
 	user_desktop_dir=$(xdg-user-dir DESKTOP)
 
 	# Extrai o nome, ícone, categoria e comando de execução do arquivo .desktop
-	app_name=$(awk -F'=' '/Name/{print $2}' "$filedesk")
-	app_icon=$(awk -F'=' '/Icon/{print $2}' "$filedesk")
-	app_category=$(awk -F'=' '/Categories/{print $2}' "$filedesk")
-	exec_command=$(awk '/Exec/{print $0}' "$filedesk")
+	app_name="$(desktop.get "$filedesk" 'Desktop Entry' 'Name')"
+	app_category="$(desktop.get "$filedesk" 'Desktop Entry' 'Categories')"
+	browser_name="$(desktop.get "$filedesk" 'Desktop Entry' 'X-WebApp-Browser')"
+	app_url="$(desktop.get "$filedesk" 'Desktop Entry' 'X-WebApp-URL')"
+	exec_command="$(TIni.Get "$filedesk" 'Desktop Entry' 'Exec')"
+	IsCustom="$(desktop.get "$filedesk" 'Desktop Entry' 'Custom')"
+	app_icon="$(desktop.get "$filedesk" 'Desktop Entry' 'Icon')"
 
-	# Verifica se o comando de execução contém '.local.bin'
-	if grep -q '.local.bin' <<<"$exec_command"; then
-		binary_path=$(awk -F'=' '{print $2}' <<<"$exec_command")
-		app_url=$(awk '/new-instance/{gsub(/"/, ""); print $7}' "$binary_path")
-		browser_name=$(awk '/new-instance/{print $1}' "$binary_path")
-
-	# Verifica se o comando de execução contém 'falkon'
-	elif grep -q 'falkon' <<<"$exec_command"; then
-		app_url=$(awk '{print $NF}' <<<"$exec_command")
-		browser_name=$(awk '{gsub(/Exec=/, ""); print $1}' <<<"$exec_command")
-
-	# Caso contrário, extrai o URL e o nome do navegador do comando de execução
-	else
-		app_url=$(awk -F'app=' '{print $2}' <<<"$exec_command")
-		browser_name=$(awk '{gsub(/Exec=/, ""); print $1}' <<<"$exec_command")
-		# Se o URL ainda estiver vazio, tenta outra posição no comando
-		if [[ ! "$app_url" ]]; then
-			app_url=$(awk '{print $4}' <<<"$exec_command")
-		fi
-	fi
-
-	# Ajusta o nome do navegador se for um binário do Flatpak
-	if grep -q '.var.lib.flatpak.exports.bin' <<<"$browser_name"; then
-		browser_name=${browser_name##*/}
+	if [[ -n "$IsCustom" ]]; then
+		app_icon="$HOME_LOCAL/share/icons/$app_icon"
 	fi
 
 	# Verifica se o comando de execução contém diretório de dados do usuário
 	if grep -q '..user.data.dir.' <<<"$exec_command"; then
-		profile_checked='checked'
-	elif grep -q 'falkon..p' <<<"$exec_command"; then
 		profile_checked='checked'
 	fi
 
@@ -2271,21 +2293,6 @@ function sh_webapp-info() {
 '
 }
 #shellcheck disable=SC2155,SC2034,SC2094
-# Exporta a função para que ela possa ser usada em subshells e scripts chamados
 export -f sh_webapp-info
-
-#######################################################################################################################
-
-function sh_webapp-change_desktop_name_to_wayland() {
-	local file
-	local FILE_WAYLAND
-
-	for file in "$WEBAPPS_PATH"/webapps/*.desktop; do
-		FILE_WAYLAND="${file/.desktop/}"
-		FILE_WAYLAND+="__-Default.desktop"
-		mv "$file" "$WEBAPPS_PATH/webapps/$FILE_WAYLAND"
-	done
-}
-export -f sh_webapp-change_desktop_name_to_wayland
 
 #######################################################################################################################
