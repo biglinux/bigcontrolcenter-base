@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/19
+#  Altered: 2024/06/23
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,9 +36,9 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="19/06/2024"
-_TIME_ALTERED_="09:00"
-_VERSION_="1.0.0-20240619"
+_DATE_ALTERED_="23/06/2024"
+_TIME_ALTERED_="01:34"
+_VERSION_="1.0.0-20240623"
 _WEBLIB_VERSION_="${_VERSION_} - ${_TIME_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_} - ${_TIME_ALTERED_}"
 #
@@ -49,6 +49,7 @@ export HOME_LOCAL="$HOME/.local"
 export TMP_FOLDER="/tmp/bigwebapps-$USER"
 export INI_FILE_WEBAPPS="$HOME_FOLDER/bigwebapps.ini"
 export USER_DATA_DIR="$HOME_FOLDER/.cache"
+export HOME_FOLDER_PROFILE="$HOME_FOLDER/.profile"
 
 # Configurações de tradução
 export TEXTDOMAINDIR="/usr/share/locale" # Define o diretório de domínios de texto para traduções
@@ -77,11 +78,11 @@ declare -A Amsg=(
 	[error_browser_config]=$(gettext "O browser configurado como padrão em $INI_FILE_WEBAPPS\nnão está instalado ou tem erro de configuração.\n\nClique em fechar para definir para o padrão do BigLinux e continuar!")
 	[error_browser_not_installed]=$(gettext "O navegador definido para abrir os WebApps não está instalado! \nTente alterar o navegador no Gerenciador de WebApps!\n")
 )
-export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium')
-export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
-export aBrowserShortName=('brave' 'brave' 'chrome' 'chrome' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled')
-export aBrowserTitle=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI' 'BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)')
-export aBrowserCompatible=('1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '0' '1' '1' '1')
+export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium' 'opera' 'palemoon')
+export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled' 'opera' 'palemoon')
+export aBrowserShortName=('brave' 'brave' 'chrome' 'chrome' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled' 'opera' 'palemoon')
+export aBrowserTitle=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI' 'BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)' 'OPERA' 'PALEMOON')
+export aBrowserCompatible=('1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '0' '1' '1' '1' '1' '1')
 export aBrowserPath=(
 	'/usr/lib/brave-browser/brave'
 	'/opt/brave-bin/brave'
@@ -100,6 +101,8 @@ export aBrowserPath=(
 	'/var/lib/flatpak/exports/bin/org.mozilla.firefox'
 	'/var/lib/flatpak/exports/bin/io.gitlab.librewolf-community'
 	'/var/lib/flatpak/exports/bin/com.github.Eloston.UngoogledChromium'
+	'/usr/lib/opera/opera'
+	'/usr/lib/palemoon/palemoon'
 )
 
 #######################################################################################################################
@@ -187,6 +190,7 @@ function sh_webapp_check_dirs {
 	[[ -d "$HOME_LOCAL"/share/applications ]] || mkdir -p "$HOME_LOCAL"/share/applications
 	[[ -d "$HOME_LOCAL"/bin ]] || mkdir -p "$HOME_LOCAL"/bin
 	[[ -d "$USER_DATA_DIR" ]] || mkdir -p "$USER_DATA_DIR"
+	[[ -d "$HOME_FOLDER_PROFILE" ]] || mkdir -p "$HOME_FOLDER_PROFILE"
 
 	for dir in "${customDirs[@]}"; do
 		[[ -z "$dir" ]] && continue
@@ -208,7 +212,7 @@ function sh_webapp_index_sh_setbrowse() {
 			option_text="${aBrowserTitle[nc]}"
 			((++COUNT_BROWSER))
 			cat <<-EOF
-				            <option value=$option_value>$option_text</option>
+				<option value=$option_value>$option_text</option>
 			EOF
 		fi
 		((++nc))
@@ -316,8 +320,12 @@ function sh_add_custom_desktop_files() {
 
 		/^Icon=/ {
     		icon = gensub(/^Icon=/, "", 1)
-#    		icon = icon_path "/" icon ".png"
     		icon = icon_path "/" icon
+
+			#			# Verifica se o ícone existe
+			#        	if (system("test -f "icon) != 0) {
+			#	    		icon = gensub(/^Icon=/, "", 1)
+			#			}
 		}
 
 		/^Custom=/ {
@@ -327,46 +335,6 @@ function sh_add_custom_desktop_files() {
 		/^Name=/ {
       	name = gensub(/^Name=/, "", 1)
 		}
-
-#    /^Exec=/ {
-#      deskexec = gensub(/^Exec=/,"",1)
-#
-#      if ( /local\/bin/ ) {
-#      # Reads the whole amofiexec file as a string, and removes the unimportant parts to keep the url
-#      # More info about this maneuver:https://www.gnu.org/software/gawk/manual/html_node/Readfile-Function.html
-#        RS_BAK = RS
-#        RS = "^$"
-#        getline amofiexec < deskexec
-#        close(deskexec)
-#        RS = RS_BAK
-#        url = gensub(/.*new-instance "|" .*$/,"","g",amofiexec)
-#        browser_amofiexec = gensub(/.*T_SANDBOX=1 | --cl.*$/,"","g",amofiexec)
-#
-#        switch(browser_amofiexec){
-#          case /firefox/:
-#          case /.*org.mozilla.firefox/:
-#            browser_name = "firefox"
-#            break
-#
-#          case /librewolf/:
-#          case /.*io.gitlab.librewolf-community/:
-#            browser_name = "librewolf"
-#            break
-#        }
-#
-#      } else if (/.*org.gnome.Epiphany/) {
-#        url = $4
-#        browser_name = "epiphany"
-#      } else if (/falkon/) {
-#        url = $NF
-#        browser_name = "falkon"
-#      } else {
-#        url = gensub(/.*app=/,"",1)
-#        # pega o 2nd parametro da string Exec=, qual seja o browser
-#        #browser_name = gensub(/^Exec=/,"",1,$1)
-#        browser_name = gensub(/^Exec=/,"",1,$2)
-#      }
-#    }
 
 		/^Exec=/ {
       	deskexec = gensub(/^Exec=/,"",1)
@@ -386,6 +354,7 @@ function sh_add_custom_desktop_files() {
         		case /.*com.brave.Browser/:
           		browser = "icons/brave.svg"
           		break
+        		case /chrome/:
         		case /google-chrome-stable/:
         		case /.*com.google.Chrome/:
           		browser = "icons/chrome.svg"
@@ -416,13 +385,20 @@ function sh_add_custom_desktop_files() {
         		case /vivaldi-stable/:
           		browser = "icons/vivaldi.svg"
           		break
+       		case /opera/:
+          		browser = "icons/opera.svg"
+          		break
+       		case /palemoon/:
+          		browser = "icons/palemoon.svg"
+          		break
       	}
+
 	   	name_file = gensub(/.*\//, "", 1, FILENAME)
     	}
 
 		# Checking if all necessary variables are set
     	# If all variables are set, skip to ENDFILE block
-    	app_category && name_category && icon && name && deskexec && url && browser && custom {
+    	app_category && name_category && icon && name && deskexec && url && browser {
       	++allset
       	nextfile
     	}
