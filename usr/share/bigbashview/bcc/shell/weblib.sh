@@ -373,6 +373,7 @@ function sh_add_custom_desktop_files() {
         		case /epiphany/:
           		browser = "icons/epiphany.svg"
           		break
+        		case /firefox-stable/:
         		case /firefox/:
           		browser = "icons/firefox.svg"
           		break
@@ -382,6 +383,7 @@ function sh_add_custom_desktop_files() {
         		case /librewolf/:
           		browser = "icons/librewolf.svg"
           		break
+        		case /vivaldi/:
         		case /vivaldi-stable/:
           		browser = "icons/vivaldi.svg"
           		break
@@ -389,6 +391,7 @@ function sh_add_custom_desktop_files() {
           		browser = "icons/opera.svg"
           		break
        		case /palemoon/:
+       		case /palemoon-bin/:
           		browser = "icons/palemoon.svg"
           		break
       	}
@@ -1829,6 +1832,14 @@ function sh_webapp-info() {
 		selected_icon='falkon'
 		selected_falkon='selected'
 		;;
+	opera)
+		selected_icon='opera'
+		selected_opera='selected'
+		;;
+	palemoon)
+		selected_icon='palemoon'
+		selected_palemoon='selected'
+		;;
 	*) : ;;
 	esac
 
@@ -1923,10 +1934,12 @@ function sh_webapp-info() {
 	          <option '$selected_chrome' value="google-chrome-stable">'$"CHROME"'</option>
 	          <option '$selected_chromium' value="chromium">'$"CHROMIUM"'</option>
 	          <option '$selected_edge' value="microsoft-edge-stable">'$"EDGE"'</option>
+	          <option '$selected_falkon' value="falkon">'$"FALKON"'</option>
 	          <option '$selected_firefox' value="firefox">'$"FIREFOX"'</option>
 	          <option '$selected_librewolf' value="librewolf">'$"LIBREWOLF"'</option>
+	          <option '$selected_palemoon' value="palemoon">'$"PALEMOON"'</option>
+	          <option '$selected_opera' value="opera">'$"OPERA"'</option>
 	          <option '$selected_vivaldi' value="vivaldi-stable">'$"VIVALDI"'</option>
-	          <option '$selected_falkon' value="falkon">'$"FALKON"'</option>
 	          <option '$selected_brave_flatpak' value="com.brave.Browser">'$"BRAVE (FLATPAK)"'</option>
 	          <option '$selected_chrome_flatpak' value="com.google.Chrome">'$"CHROME (FLATPAK)"'</option>
 	          <option '$selected_chromium_flatpak' value="org.chromium.Chromium">'$"CHROMIUM (FLATPAK)"'</option>
@@ -2165,6 +2178,22 @@ function sh_webapp-info() {
 
 	      case "falkon":
 	        $("#browserEdit").attr("src", "icons/falkon.svg");
+	        $("#addPerfilEdit").removeClass("disabled");
+	        if (boxcheck) {
+	            $("#addPerfilEdit").prop("checked", true);
+	        }
+	        break;
+
+	      case "opera":
+	        $("#browserEdit").attr("src", "icons/opera.svg");
+	        $("#addPerfilEdit").removeClass("disabled");
+	        if (boxcheck) {
+	            $("#addPerfilEdit").prop("checked", true);
+	        }
+	        break;
+
+	      case "palemoon":
+	        $("#browserEdit").attr("src", "icons/palemoon.svg");
 	        $("#addPerfilEdit").removeClass("disabled");
 	        if (boxcheck) {
 	            $("#addPerfilEdit").prop("checked", true);
