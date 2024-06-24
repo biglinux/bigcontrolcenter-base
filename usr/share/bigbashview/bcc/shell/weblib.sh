@@ -2044,12 +2044,15 @@ function sh_webapp_create() {
 	local category="$5"
 	local urldesk="$6"
 	local shortcut="$7"
+	local IsConvert="$8"
 	local file_link
 	local filename
 	local filename_orig
+	local i
 
 	#xdebug "1-$short_browser_name\n2-$Exec\n3-$namedesk\n4-$icon\n5-$category\n6-$urldesk"
 
+	urldesk="${urldesk/www./}"
 	CLASS=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
 	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CLASS}__-Default.desktop"
    NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<< "$NEW_DESKTOP_FILE")
@@ -2068,18 +2071,24 @@ function sh_webapp_create() {
       ;;
    esac
 
-   filename_orig=$NEW_DESKTOP_FILE
-   # Verify if the WebApp already exists
-   if [[ -e $filename_orig ]]; then
-      # If the WebApp already exists, add BigWebApp1 or first available number
-      i=1
-      filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
-      while [[ -e $filename ]]; do
-         ((++i))
-         filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
-      done
-      mv $filename_orig $filename
-   fi
+	if [[ -z "$IsConvert" ]]; then
+		filename_orig=$NEW_DESKTOP_FILE
+		# Verify if the WebApp already exists
+		if [[ -e $filename_orig ]]; then
+			# If the WebApp already exists, add BigWebApp1 or first available number
+			i=1
+			filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+			while [[ -e $filename ]]; do
+				((++i))
+				filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+			done
+			mv $filename_orig $filename
+		fi
+	else
+		if [[ -e $NEW_DESKTOP_FILE ]]; then
+			return 0
+		fi
+	fi
 
 	cat >"$NEW_DESKTOP_FILE" <<-EOF
 		#!/usr/bin/env xdg-open
@@ -2120,11 +2129,13 @@ function sh_webapp_convert() {
 	local Exec
 	local name
 	local icon
+	local icon_path
 	local categories
 	local url
 	local shortcut
 	local DESKTOP_FILES
 	local nDesktop_Files_Found
+	local IsConvert=1
 
 	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname "*webapp-biglinux*")
 
@@ -2144,12 +2155,13 @@ function sh_webapp_convert() {
 	for file in "${DESKTOP_FILES[@]}"; do
 		Exec=$(TIni.Get "$file" 'Desktop Entry' 'Exec')
 		name=$(TIni.Get "$file" 'Desktop Entry' 'Name')
-		icon=$(TIni.Get "$file" 'Desktop Entry' 'Icon')
+		icon_path=$(TIni.Get "$file" 'Desktop Entry' 'Icon')
+		icon="${icon_path##*/}"
 		categories=$(TIni.Get "$file" 'Desktop Entry' 'Categories')
 		url="$(sh_webapp_get_url "$Exec")"
 
 #		xdebug "1-$browser_default\n2-$Exec\n3-$name\n4-$icon\n5-$categories\n6-$url"
-		if sh_webapp_create "$browser_default" "$Exec" "$name" "$icon" "$categories" "$url" "$shortcut" ; then
+		if sh_webapp_create "$browser_default" "$Exec" "$name" "$icon" "$categories" "$url" "$shortcut" "$IsConvert"; then
 			# Remove the old desktop file
 			rm "$file"
 		fi
