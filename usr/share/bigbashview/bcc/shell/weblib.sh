@@ -36,11 +36,10 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="23/06/2024"
-_TIME_ALTERED_="01:34"
+_DATE_ALTERED_="23/06/2024 - 22:18"
 _VERSION_="1.0.0-20240623"
-_WEBLIB_VERSION_="${_VERSION_} - ${_TIME_ALTERED_}"
-_UPDATED_="${_DATE_ALTERED_} - ${_TIME_ALTERED_}"
+_WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
+_UPDATED_="${_DATE_ALTERED_}"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
@@ -224,8 +223,8 @@ export -f sh_webapp_index_sh_setbrowse
 
 function sh_pre_process_custom_desktop_files() {
 	local allfiles
- 	local IsCustom
- 	local custom
+	local IsCustom
+	local custom
 
 	mapfile -t allfiles < <(find "$HOME_LOCAL/share/applications" \( -iname "*-Default.desktop" \))
 	for custom in "${allfiles[@]}"; do
@@ -241,8 +240,8 @@ export -f sh_pre_process_custom_desktop_files
 #######################################################################################################################
 
 function sh_add_custom_desktop_files() {
-#	CUSTOMFILES=""
-#	mapfile -t CUSTOMFILES < <(find "$HOME_LOCAL/share/applications" \( -iname "*-Default.desktop" \))
+	#	CUSTOMFILES=""
+	#	mapfile -t CUSTOMFILES < <(find "$HOME_LOCAL/share/applications" \( -iname "*-Default.desktop" \))
 
 	sh_pre_process_custom_desktop_files
 
@@ -539,80 +538,80 @@ function sh_add_native_desktop_files_OLD() {
 	# Definindo os diretórios e executando o find para obter os arquivos desejados
 	mapfile -t bigwebfiles < <(find "$WEBAPPS_PATH"/webapps \( -iname "*-Default.desktop" \))
 
- 	for app in "${bigwebfiles[@]}"; do
- 		browser_default="$BROWSER"
- 		browser_icon="$ICON"
- 		webapp="${app##*/}"
- 		urldesk="$(desktop.get "$app" "Desktop Entry" "Exec")"
- 		name="$(desktop.get "$app" "Desktop Entry" "Name")"
- 		icon="$(desktop.get "$app" "Desktop Entry" "Icon")"
- 		url="$(desktop.get "$app" "Desktop Entry" "X-WebApp-URL")"
+	for app in "${bigwebfiles[@]}"; do
+		browser_default="$BROWSER"
+		browser_icon="$ICON"
+		webapp="${app##*/}"
+		urldesk="$(desktop.get "$app" "Desktop Entry" "Exec")"
+		name="$(desktop.get "$app" "Desktop Entry" "Name")"
+		icon="$(desktop.get "$app" "Desktop Entry" "Icon")"
+		url="$(desktop.get "$app" "Desktop Entry" "X-WebApp-URL")"
 
- 		if [[ -z "$url" ]]; then
- 			# Remover tudo antes de --app=
- 			app_part=${urldesk#*--app=}
- 			# Extrair somente a URL
- 			url=${app_part%% *}
- 		fi
+		if [[ -z "$url" ]]; then
+			# Remover tudo antes de --app=
+			app_part=${urldesk#*--app=}
+			# Extrair somente a URL
+			url=${app_part%% *}
+		fi
 
-   	 	color="gray"
-   	 	checked=""
-  		disabled="disabled"
+		color="gray"
+		checked=""
+		disabled="disabled"
 
- 		for custom in "${CUSTOMFILES[@]}"; do
- 			browser_custom="$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")"
- 			if [[ -e "$HOME_LOCAL/share/applications/$browser_custom-$webapp" ]]; then
- 				browser_icon="$browser_custom"
- 				browser_default="$browser_custom"
- 		    	color="green"
-    		 	checked="checked"
- 	    		disabled=""
-     		fi
-     	done
+		for custom in "${CUSTOMFILES[@]}"; do
+			browser_custom="$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")"
+			if [[ -e "$HOME_LOCAL/share/applications/$browser_custom-$webapp" ]]; then
+				browser_icon="$browser_custom"
+				browser_default="$browser_custom"
+				color="green"
+				checked="checked"
+				disabled=""
+			fi
+		done
 
- #		cat <<-EOF
- #	   	<li class="product">
- #			<input value="$webapp" id="webapp_$n" type="checkbox" class="switch" style="margin-right:10px;" $checked />
- #			<div class="products">
- #			<img src="/usr/share/icons/hicolor/scalable/apps/$icon.svg" height="25" width="25" class="svg-center" />
- #			$name
- #	      </div>
- #			<span class="status">
- #			<span id="circle_$n" class="status-circle $color"></span>
- #			<div class="truncate">
- #			<a href="#!" onclick="_run('./webapp-launch.sh $webapp $browser_default');" class="urlNative $disabled" id="link_$n" >
- #			<svg viewBox="0 0 448 512" style="width:16px;border-radius:0px;margin:0px 0px -3px 0px;display:none">
- #			<path fill="currentcolor" d="M256 64C256 46.33 270.3 32 288 32H415.1C415.1 32 415.1 32 415.1 32C420.3 32 424.5 32.86 428.2 34.43C431.1 35.98 435.5 38.27 438.6 41.3C438.6 41.35 438.6 41.4 438.7 41.44C444.9 47.66 447.1 55.78 448 63.9C448 63.94 448 63.97 448 64V192C448 209.7 433.7 224 416 224C398.3 224 384 209.7 384 192V141.3L214.6 310.6C202.1 323.1 181.9 323.1 169.4 310.6C156.9 298.1 156.9 277.9 169.4 265.4L338.7 96H288C270.3 96 256 81.67 256 64V64zM0 128C0 92.65 28.65 64 64 64H160C177.7 64 192 78.33 192 96C192 113.7 177.7 128 160 128H64V416H352V320C352 302.3 366.3 288 384 288C401.7 288 416 302.3 416 320V416C416 451.3 387.3 480 352 480H64C28.65 480 0 451.3 0 416V128z"/>
- #			</svg>
- #			$url
- #			</a>
- #			</div>
- #			</span>
- #			<img src="icons/$browser_icon.svg" height="16" width="16" class="iconBrowser" />
- #			</li>
- #		EOF
+		#		cat <<-EOF
+		#	   	<li class="product">
+		#			<input value="$webapp" id="webapp_$n" type="checkbox" class="switch" style="margin-right:10px;" $checked />
+		#			<div class="products">
+		#			<img src="/usr/share/icons/hicolor/scalable/apps/$icon.svg" height="25" width="25" class="svg-center" />
+		#			$name
+		#	      </div>
+		#			<span class="status">
+		#			<span id="circle_$n" class="status-circle $color"></span>
+		#			<div class="truncate">
+		#			<a href="#!" onclick="_run('./webapp-launch.sh $webapp $browser_default');" class="urlNative $disabled" id="link_$n" >
+		#			<svg viewBox="0 0 448 512" style="width:16px;border-radius:0px;margin:0px 0px -3px 0px;display:none">
+		#			<path fill="currentcolor" d="M256 64C256 46.33 270.3 32 288 32H415.1C415.1 32 415.1 32 415.1 32C420.3 32 424.5 32.86 428.2 34.43C431.1 35.98 435.5 38.27 438.6 41.3C438.6 41.35 438.6 41.4 438.7 41.44C444.9 47.66 447.1 55.78 448 63.9C448 63.94 448 63.97 448 64V192C448 209.7 433.7 224 416 224C398.3 224 384 209.7 384 192V141.3L214.6 310.6C202.1 323.1 181.9 323.1 169.4 310.6C156.9 298.1 156.9 277.9 169.4 265.4L338.7 96H288C270.3 96 256 81.67 256 64V64zM0 128C0 92.65 28.65 64 64 64H160C177.7 64 192 78.33 192 96C192 113.7 177.7 128 160 128H64V416H352V320C352 302.3 366.3 288 384 288C401.7 288 416 302.3 416 320V416C416 451.3 387.3 480 352 480H64C28.65 480 0 451.3 0 416V128z"/>
+		#			</svg>
+		#			$url
+		#			</a>
+		#			</div>
+		#			</span>
+		#			<img src="icons/$browser_icon.svg" height="16" width="16" class="iconBrowser" />
+		#			</li>
+		#		EOF
 
- 		printf "%s\n" "<li class=\"product\">" \
- 		    "    <input value=\"$webapp\" id=\"webapp_$n\" type=\"checkbox\" class=\"switch\" style=\"margin-right:10px;\" $checked />" \
- 		    "    <div class=\"products\">" \
- 		    "        <img src=\"/usr/share/icons/hicolor/scalable/apps/$icon.svg\" height=\"25\" width=\"25\" class=\"svg-center\" />" \
- 		    "        $name" \
- 		    "    </div>" \
- 		    "    <span class=\"status\">" \
- 		    "        <span id=\"circle_$n\" class=\"status-circle $color\"></span>" \
- 		    "        <div class=\"truncate\">" \
- 		    "            <a href=\"#!\" onclick=\"_run('./webapp-launch.sh $webapp $browser_default');\" class=\"urlNative $disabled\" id=\"link_$n\">" \
- 		    "                <svg viewBox=\"0 0 448 512\" style=\"width:16px;border-radius:0px;margin:0px 0px -3px 0px;display:none;\">" \
- 		    "                    <path fill=\"currentcolor\" d=\"M256 64C256 46.33 270.3 32 288 32H415.1C415.1 32 415.1 32 415.1 32C420.3 32 424.5 32.86 428.2 34.43C431.1 35.98 435.5 38.27 438.6 41.3C438.6 41.35 438.6 41.4 438.7 41.44C444.9 47.66 447.1 55.78 448 63.9C448 63.94 448 63.97 448 64V192C448 209.7 433.7 224 416 224C398.3 224 384 209.7 384 192V141.3L214.6 310.6C202.1 323.1 181.9 323.1 169.4 310.6C156.9 298.1 156.9 277.9 169.4 265.4L338.7 96H288C270.3 96 256 81.67 256 64V64zM0 128C0 92.65 28.65 64 64 64H160C177.7 64 192 78.33 192 96C192 113.7 177.7 128 160 128H64V416H352V320C352 302.3 366.3 288 384 288C401.7 288 416 302.3 416 320V416C416 451.3 387.3 480 352 480H64C28.65 480 0 451.3 0 416V128z\"/>" \
- 		    "                </svg>" \
- 		    "                $url" \
- 		    "            </a>" \
- 		    "        </div>" \
- 		    "    </span>" \
- 		    "    <img src=\"icons/$browser_icon.svg\" height=\"16\" width=\"16\" class=\"iconBrowser\" />" \
- 		    "</li>"
+		printf "%s\n" "<li class=\"product\">" \
+			"    <input value=\"$webapp\" id=\"webapp_$n\" type=\"checkbox\" class=\"switch\" style=\"margin-right:10px;\" $checked />" \
+			"    <div class=\"products\">" \
+			"        <img src=\"/usr/share/icons/hicolor/scalable/apps/$icon.svg\" height=\"25\" width=\"25\" class=\"svg-center\" />" \
+			"        $name" \
+			"    </div>" \
+			"    <span class=\"status\">" \
+			"        <span id=\"circle_$n\" class=\"status-circle $color\"></span>" \
+			"        <div class=\"truncate\">" \
+			"            <a href=\"#!\" onclick=\"_run('./webapp-launch.sh $webapp $browser_default');\" class=\"urlNative $disabled\" id=\"link_$n\">" \
+			"                <svg viewBox=\"0 0 448 512\" style=\"width:16px;border-radius:0px;margin:0px 0px -3px 0px;display:none;\">" \
+			"                    <path fill=\"currentcolor\" d=\"M256 64C256 46.33 270.3 32 288 32H415.1C415.1 32 415.1 32 415.1 32C420.3 32 424.5 32.86 428.2 34.43C431.1 35.98 435.5 38.27 438.6 41.3C438.6 41.35 438.6 41.4 438.7 41.44C444.9 47.66 447.1 55.78 448 63.9C448 63.94 448 63.97 448 64V192C448 209.7 433.7 224 416 224C398.3 224 384 209.7 384 192V141.3L214.6 310.6C202.1 323.1 181.9 323.1 169.4 310.6C156.9 298.1 156.9 277.9 169.4 265.4L338.7 96H288C270.3 96 256 81.67 256 64V64zM0 128C0 92.65 28.65 64 64 64H160C177.7 64 192 78.33 192 96C192 113.7 177.7 128 160 128H64V416H352V320C352 302.3 366.3 288 384 288C401.7 288 416 302.3 416 320V416C416 451.3 387.3 480 352 480H64C28.65 480 0 451.3 0 416V128z\"/>" \
+			"                </svg>" \
+			"                $url" \
+			"            </a>" \
+			"        </div>" \
+			"    </span>" \
+			"    <img src=\"icons/$browser_icon.svg\" height=\"16\" width=\"16\" class=\"iconBrowser\" />" \
+			"</li>"
 
- 		((++n))
+		((++n))
 	done
 }
 export -f sh_add_native_desktop_files_OLD
@@ -689,21 +688,21 @@ function sh_add_native_desktop_files() {
 			local browser_default="$BROWSER"
 			local browser_icon="$ICON"
 			local webapp="${app##*/}"
-#			local urldesk=$(desktop.get "$app" "Desktop Entry" "Exec")
-#		   local name=$(desktop.get "$app" "Desktop Entry" "Name")
-#			local icon=$(desktop.get "$app" "Desktop Entry" "Icon")
-#			local url=$(desktop.get "$app" "Desktop Entry" "X-WebApp-URL")
+			#			local urldesk=$(desktop.get "$app" "Desktop Entry" "Exec")
+			#		   local name=$(desktop.get "$app" "Desktop Entry" "Name")
+			#			local icon=$(desktop.get "$app" "Desktop Entry" "Icon")
+			#			local url=$(desktop.get "$app" "Desktop Entry" "X-WebApp-URL")
 
 			# Chamada da função para ler o arquivo .desktop
 			read_desktop_file_with_read "$app"
 
 			# Obter URL se não estiver presente
-#			[[ -z "$url" ]] && url=$(awk -F'--app=' '{print $2}' <<<"$Exec" | cut -d' ' -f1)
+			#			[[ -z "$url" ]] && url=$(awk -F'--app=' '{print $2}' <<<"$Exec" | cut -d' ' -f1)
 			[[ -z "$url" ]] && url="$(sh_webapp_get_url "$Exec")"
 
-   	 	color="gray"
-   	 	checked=""
-	  		disabled="disabled"
+			color="gray"
+			checked=""
+			disabled="disabled"
 
 			# Verificar e definir ícone do navegador personalizado
 			mapfile -t NATIVEFILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
@@ -817,45 +816,45 @@ function sh_webapp_change_browser() {
 		return
 	fi
 
-#	old_prefix="$old_browser"
-#	new_prefix="$new_browser"
-#
-#	case "$old_browser" in
-#		google-chrome-stable)	old_prefix='chrome';;
-#		chromium)					old_prefix='chrome';;
-#		vivaldi-stable)			old_prefix='vivaldi';;
-#	esac
-#
-#	case "$new_browser" in
-#		google-chrome-stable)	new_prefix='chrome';  short_new_browser='chrome';;
-#		chromium)					new_prefix='chrome';  short_new_browser='chromium';;
-#		vivaldi-stable)			new_prefix='vivaldi'; short_new_browser='vivaldi';;
-#	esac
+	#	old_prefix="$old_browser"
+	#	new_prefix="$new_browser"
+	#
+	#	case "$old_browser" in
+	#		google-chrome-stable)	old_prefix='chrome';;
+	#		chromium)					old_prefix='chrome';;
+	#		vivaldi-stable)			old_prefix='vivaldi';;
+	#	esac
+	#
+	#	case "$new_browser" in
+	#		google-chrome-stable)	new_prefix='chrome';  short_new_browser='chrome';;
+	#		chromium)					new_prefix='chrome';  short_new_browser='chromium';;
+	#		vivaldi-stable)			new_prefix='vivaldi'; short_new_browser='vivaldi';;
+	#	esac
 
-#	if ((nDesktop_Files_Found)); then
-#		for f in "${DESKTOP_FILES[@]}"; do
-#			if [[ "$f" =~ "$old_prefixr" ]]; then
-#				if IsCustom=$(TIni.Get "$f" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
-#					new_file="${f/$old_prefix/$new_prefix}"
-#					if [[ "$f" != "$new_file" ]]; then
-#						line_exec=$(TIni.Get "$f" "Desktop Entry" "Exec")
-#					 	line_exec_class="$(sh_webapp_get_param_line_exec "$line_exec" 2)"
-#					 	line_exec_app="$(sh_webapp_get_param_line_exec "$line_exec" 4)"
-#						new_line_exec="/usr/bin/biglinux-webapp ${line_exec_class} --profile-directory=Default ${line_exec_app} ${short_new_browser}"
-#						mv -f "$f" "$new_file"
-#						TIni.Set "$new_file" 'Desktop Entry' 'Exec' "$new_line_exec"
-#						TIni.Set "$new_file" 'Desktop Entry' 'X-WebApp-Browser' "$short_new_browser"
-#						TIni.Set "$new_file" 'Desktop Action SoftwareRender' 'Exec' "SoftwareRender $new_line_exec"
-#						CHANGED=1
-#					fi
-#				fi
-#			fi
-#		done
-#		if ((CHANGED)); then
-#			update-desktop-database -q "$HOME_LOCAL"/share/applications
-#			kbuildsycoca5 &>/dev/null &
-#		fi
-#	fi
+	#	if ((nDesktop_Files_Found)); then
+	#		for f in "${DESKTOP_FILES[@]}"; do
+	#			if [[ "$f" =~ "$old_prefixr" ]]; then
+	#				if IsCustom=$(TIni.Get "$f" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
+	#					new_file="${f/$old_prefix/$new_prefix}"
+	#					if [[ "$f" != "$new_file" ]]; then
+	#						line_exec=$(TIni.Get "$f" "Desktop Entry" "Exec")
+	#					 	line_exec_class="$(sh_webapp_get_param_line_exec "$line_exec" 2)"
+	#					 	line_exec_app="$(sh_webapp_get_param_line_exec "$line_exec" 4)"
+	#						new_line_exec="/usr/bin/biglinux-webapp ${line_exec_class} --profile-directory=Default ${line_exec_app} ${short_new_browser}"
+	#						mv -f "$f" "$new_file"
+	#						TIni.Set "$new_file" 'Desktop Entry' 'Exec' "$new_line_exec"
+	#						TIni.Set "$new_file" 'Desktop Entry' 'X-WebApp-Browser' "$short_new_browser"
+	#						TIni.Set "$new_file" 'Desktop Action SoftwareRender' 'Exec' "SoftwareRender $new_line_exec"
+	#						CHANGED=1
+	#					fi
+	#				fi
+	#			fi
+	#		done
+	#		if ((CHANGED)); then
+	#			update-desktop-database -q "$HOME_LOCAL"/share/applications
+	#			kbuildsycoca5 &>/dev/null &
+	#		fi
+	#	fi
 
 	sh_webapp_write_new_browser "$new_browser"
 
@@ -1060,7 +1059,7 @@ function sh_webapp_backup() {
 		[[ -e "$webapp_desktop_file" ]] && backup_files+=("$webapp_desktop_file")
 		[[ -e "$HOME_LOCAL/share/icons/$temp_icon_file" ]] && backup_files+=("$HOME_LOCAL/share/icons/$temp_icon_file")
 		[[ -L "$(xdg-user-dir DESKTOP)/${webapp_desktop_file##*/}" ]] && backup_files+=("$(xdg-user-dir DESKTOP)/${webapp_desktop_file##*/}")
-		((nDesktop_Files_Found+=1))
+		((nDesktop_Files_Found += 1))
 	done
 
 	if ((nDesktop_Files_Found)); then
@@ -1247,10 +1246,10 @@ function sh_webapp_enable-disable() {
 
 	[[ -z "$browser_short_name" ]] && browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	case "$browser_short_name" in
-		google-chrome-stable) browser_short_name='chrome' ;;
-		chromium) browser_short_name='chrome' ;;
-		vivaldi-stable) browser_short_name='vivaldi' ;;
-		*) : ;;
+	google-chrome-stable) browser_short_name='chrome' ;;
+	chromium) browser_short_name='chrome' ;;
+	vivaldi-stable) browser_short_name='vivaldi' ;;
+	*) : ;;
 	esac
 
 	app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$app"
@@ -1313,7 +1312,7 @@ function sh_webapp_get_param_line_exec() {
 	((--param))
 
 	# Converte a string em um array
-	IFS=' ' read -r -a array <<< "$line_exec"
+	IFS=' ' read -r -a array <<<"$line_exec"
 	result="${array[$param]}"
 	echo "$result"
 }
@@ -1461,250 +1460,105 @@ function sh_webapp-install() {
 	local _session
 	local short_browser_name
 	local file_link
+	local prefixo
+	local local_path="$HOME_LOCAL/share/applications"
 
 	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
 	icondesk="${icondesk//$'\n'/}"
 	icondesk="${icondesk//$'\r'/}"
 	icondesk="${icondesk//$'\t'/}"
 
-	_NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
-	USER_DESKTOP=$(xdg-user-dir DESKTOP)
-	LINK_APP="$HOME_LOCAL/share/applications/$_NAMEDESK-$RANDOM-webapp-biglinux-custom.desktop"
-	BASENAME_APP="${LINK_APP##*/}"
-	NAME="${BASENAME_APP/-webapp-biglinux-custom.desktop/}"
-	DIR_PROF="$HOME_FOLDER/$NAME"
-	file_link="$USER_DESKTOP/$NAME-webapp-biglinux-custom.desktop"
-	BASENAME_ICON="${icondesk##*/}"
-	NAME_FILE="${BASENAME_ICON// /-}"
-	ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
+	local _NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
+	local USER_DESKTOP=$(xdg-user-dir DESKTOP)
+	local LINK_APP="$HOME_LOCAL/share/applications/$_NAMEDESK-$RANDOM-webapp-biglinux-custom.desktop"
+	local BASENAME_APP="${LINK_APP##*/}"
+	local NAME="${BASENAME_APP/-webapp-biglinux-custom.desktop/}"
+	local DIR_PROF="$HOME_FOLDER/$NAME"
+	local BASENAME_ICON="${icondesk##*/}"
+	local NAME_FILE="${BASENAME_ICON// /-}"
+	local ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
 
 	case "$browser" in
-	google-chrome-stable) short_browser_name='chrome' ;;
-	chromium) short_browser_name='chrome' ;;
-	vivaldi-stable) short_browser_name='vivaldi' ;;
-	*) short_browser_name="$browser" ;;
+	google-chrome-stable)
+		short_browser_name='chrome'
+		prefixo='chrome'
+		;;
+	chromium)
+		short_browser_name='chromium'
+		prefixo='chrome'
+		;;
+	vivaldi-stable)
+		short_browser_name='vivaldi'
+		prefixo='vivaldi'
+		;;
+	*)
+		short_browser_name="$browser"
+		prefixo="$browser"
+		;;
 	esac
 
-	cp "$icondesk" "$ICON_FILE"
+#	CLASS=$(sed 's|https://||;s|http://||g;s|/|__|g' <<< "$urldesk")
+#	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/$short_browser_name-$(sed 's|https://||;s|http://||;s|?.*||g;s|/|__|g' <<< $urldesk)__-Default.desktop"
+#	NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<< "$NEW_DESKTOP_FILE")
 
-	#	if grep -qiE 'firefox|librewolf' <<<"$browser"; then
-	if grep -qiE 'gatinho|teeste' <<<"$browser"; then
-		if ! grep -qiE '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-			urldesk="https://$urldesk"
-		fi
+	CLASS=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
+	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CLASS}__-Default.desktop"
+	NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<< "$NEW_DESKTOP_FILE")
 
-		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
-			cp "$icondesk" "$ICON_FILE"
-		else
-			mv "$icondesk" "$ICON_FILE"
-		fi
-
-		if [ "$browser" = "org.mozilla.firefox" ]; then
-			browser="/var/lib/flatpak/exports/bin/org.mozilla.firefox"
-			DIR_PROF="$HOME/.var/app/org.mozilla.firefox/data/$NAME"
-		elif [ "$browser" = "io.gitlab.librewolf-community" ]; then
-			browser="/var/lib/flatpak/exports/bin/io.gitlab.librewolf-community"
-			DIR_PROF="$HOME/.var/app/io.gitlab.librewolf-community/data/$NAME"
-		fi
-
-		DESKBIN="$HOME_LOCAL/bin/$NAME"
-		CLASS="$short_browser_name-webapp-$_NAMEDESK"
-		cat >"$DESKBIN" <<-EOF
-			#!/usr/bin/env bash
-
-			FOLDER=$DIR_PROF
-			CLASS="$short_browser_name-webapp-$_NAMEDESK"
-
-			if [ ! -d "\$FOLDER" ];then
-			    mkdir -p "\$FOLDER/chrome"
-			    cp -a /usr/share/bigbashview/bcc/apps/biglinux-webapps/profile/userChrome.css "\$FOLDER/chrome"
-			    cp -a /usr/share/bigbashview/bcc/apps/biglinux-webapps/profile/user.js "\$FOLDER"
-			fi
-			MOZ_APP_REMOTINGNAME="\$CLASS" \\
-			XAPP_FORCE_GTKWINDOW_ICON=$ICON_FILE \\
-			$browser --class="\$CLASS" --profile "\$FOLDER" --no-remote --new-instance "$urldesk" &
-		EOF
-		chmod +x "$DESKBIN"
-
-		cat >"$LINK_APP" <<-EOF
-			[Desktop Entry]
-			Version=1.0
-			Terminal=false
-			Type=Application
-			Name=$namedesk
-			Exec=$DESKBIN $browser
-			Icon=${NAME_FILE/.png/}
-			Categories=$category;
-			X-WebApp-Browser=$browser
-			X-WebApp-URL=$urldesk
-			Custom=Custom
-			X-KDE-StartupNotify=true
-		EOF
-		chmod +x "$LINK_APP"
-
-	elif grep -q 'org.gnome.Epiphany' <<<"$browser"; then
-		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-			urldesk="https://$urldesk"
-		fi
-
-		DIR_PORTAL="$HOME_LOCAL"/share/xdg-desktop-portal
-		DIR_PORTAL_APP="$DIR_PORTAL"/applications
-		DIR_PORTAL_ICON="$DIR_PORTAL"/icons/64x64
-
-		mkdir -p "$DIR_PORTAL_APP"
-		mkdir -p "$DIR_PORTAL_ICON"
-
-		FOLDER_DATA="$HOME/.var/app/org.gnome.Epiphany/data/org.gnome.Epiphany.WebApp_$NAME-webapp-biglinux-custom"
-		browser="/var/lib/flatpak/exports/bin/org.gnome.Epiphany"
-		EPI_FILEDESK="org.gnome.Epiphany.WebApp_$NAME-webapp-biglinux-custom.desktop"
-		EPI_DIR_FILEDESK="$DIR_PORTAL_APP/$EPI_FILEDESK"
-		EPI_FILE_ICON="$DIR_PORTAL_ICON/${EPI_FILEDESK/.desktop/}.png"
-		EPI_LINK="$HOME_LOCAL"/share/applications/"$EPI_FILEDESK"
-		EPI_DESKTOP_LINK="$USER_DESKTOP/$EPI_FILEDESK"
-
-		mkdir -p "$FOLDER_DATA"
-		true >"$FOLDER_DATA/.app"
-		echo -n 37 >"$FOLDER_DATA/.migrated"
-
-		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
-			cp "$icondesk" "$EPI_FILE_ICON"
-		else
-			mv "$icondesk" "$EPI_FILE_ICON"
-		fi
-
-		cat >"$EPI_DIR_FILEDESK" <<-EOF
-			[Desktop Entry]
-			Name=$namedesk
-			Exec=$browser --application-mode --profile=$FOLDER_DATA $urldesk
-			StartupNotify=true
-			Terminal=false
-			Type=Application
-			Categories=$category;
-			Icon=${EPI_FILE_ICON/.png/}
-			StartupWMClass=$namedesk
-			X-WebApp-Browser=$browser
-			X-WebApp-URL=$urldesk
-			Custom=Custom
-			X-Purism-FormFactor=Workstation;Mobile;
-			X-Flatpak=org.gnome.Epiphany
-		EOF
-
-		chmod +x "$EPI_DIR_FILEDESK"
-		ln -s "$EPI_DIR_FILEDESK" "$EPI_LINK"
-
-		#	elif grep -q 'falkon' <<<"$browser"; then
-		#		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-		#			urldesk="https://$urldesk"
-		#		fi
-		#
-		#		if [ "$newperfil" = "on" ]; then
-		#			mkdir -p "$HOME"/.config/falkon/profiles/"$NAME"
-		#			browser="$browser -p $NAME -ro"
-		#		else
-		#			browser="$browser -ro"
-		#		fi
-		#
-		#		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
-		#			cp "$icondesk" "$ICON_FILE"
-		#		else
-		#			mv "$icondesk" "$ICON_FILE"
-		#		fi
-		#
-		#		cat >"$LINK_APP" <<-EOF
-		#			[Desktop Entry]
-		#			Version=1.0
-		#			Terminal=false
-		#			Type=Application
-		#			Name=$namedesk
-		#			Exec=$browser $urldesk
-		#			Icon=${NAME_FILE/.png/}
-		#			Categories=$category;
-		#			X-WebApp-Browser=$browser
-		#			X-WebApp-URL=$urldesk
-		#			Custom=Custom
-		#		EOF
-		#		chmod +x "$LINK_APP"
-
-	else
-		case $browser in
-		com.brave.Browser)
-			browser="/var/lib/flatpak/exports/bin/com.brave.Browser"
-			DIR_PROF="$HOME/.var/app/com.brave.Browser/data/$NAME"
-			;;
-
-		com.google.Chrome)
-			browser="/var/lib/flatpak/exports/bin/com.google.Chrome"
-			DIR_PROF="$HOME/.var/app/com.google.Chrome/data/$NAME"
-			;;
-
-		com.microsoft.Edge)
-			browser="/var/lib/flatpak/exports/bin/com.microsoft.Edge"
-			DIR_PROF="$HOME/.var/app/com.microsoft.Edge/data/$NAME"
-			;;
-
-		org.chromium.Chromium)
-			browser="/var/lib/flatpak/exports/bin/org.chromium.Chromium"
-			DIR_PROF="$HOME/.var/app/org.chromium.Chromium/data/$NAME"
-			;;
-
-		com.github.Eloston.UngoogledChromium)
-			browser="/var/lib/flatpak/exports/bin/com.github.Eloston.UngoogledChromium"
-			DIR_PROF="$HOME/.var/app/com.github.Eloston.UngoogledChromium/data/$NAME"
-			;;
-		esac
-
-		if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-			urldesk="https://$urldesk"
-		fi
-
-		if [ "$newperfil" = "on" ]; then
-			browser="$short_browser_name --user-data-dir=$DIR_PROF --no-first-run"
-		fi
-
-		if [ "${icondesk##*/}" = "default-webapps.png" ]; then
-			cp "$icondesk" "$ICON_FILE"
-		else
-			mv "$icondesk" "$ICON_FILE"
-		fi
-
-		CUT_HTTP=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
-
-		_session="$(sh_get_desktop_session)"
-		case "${_session^^}" in
-		X11)
-			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP --profile-directory=Default --app=$urldesk $browser"
-			;;
-		WAYLAND)
-			line_exec="/usr/bin/biglinux-webapp --class=$CUT_HTTP,Chromium-browser --profile-directory=Default --app=$urldesk $browser"
-			;;
-		esac
-
-		#			Icon=${NAME_FILE/.png/}
-		cat >"$LINK_APP" <<-EOF
-			[Desktop Entry]
-			Version=1.0
-			Terminal=false
-			Type=Application
-			Name=$namedesk
-			Exec=$line_exec
-			Icon=$NAME_FILE
-			Categories=$category;
-			StartupWMClass=$CUT_HTTP
-			X-WebApp-Browser=$browser
-			X-WebApp-URL=$urldesk
-			X-KDE-StartupNotify=true
-			Custom=Custom
-		EOF
-		chmod +x "$LINK_APP"
+	if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
+		urldesk="https://$urldesk"
 	fi
 
-	if [[ -z "$CLASS" ]]; then
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CUT_HTTP}__-Default.desktop"
-		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
-	else
-		NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${CLASS}.desktop"
-		mv -f "${LINK_APP}" "${NEW_DESKTOP_FILE}"
+	if [ "$newperfil" = "on" ]; then
+		browser="$short_browser_name --user-data-dir=$DIR_PROF --no-first-run"
 	fi
+
+	if [[ "${icondesk##*/}" = "default-webapps.png" ]]; then
+		cp "$icondesk" "$ICON_FILE"
+	else
+		mv "$icondesk" "$ICON_FILE"
+	fi
+
+	_session="$(sh_get_desktop_session)"
+	case "${_session^^}" in
+	X11)
+		line_exec="/usr/bin/biglinux-webapp --class=$CLASS --profile-directory=Default --app=$urldesk $short_browser_name"
+		;;
+	WAYLAND)
+		line_exec="/usr/bin/biglinux-webapp --class=$CLASS,Chromium-browser --profile-directory=Default --app=$urldesk $short_browser_name"
+		;;
+	esac
+
+	filename_orig=$NEW_DESKTOP_FILE
+	# Verify if the WebApp already exists
+	if [[ -e $filename_orig ]]; then
+		# If the WebApp already exists, add BigWebApp1 or first available number
+		i=1
+		filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+		while [[ -e $filename ]]; do
+			((++i))
+			filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+		done
+		mv $filename_orig $filename
+	fi
+
+	cat >"$NEW_DESKTOP_FILE" <<-EOF
+		#!/usr/bin/env xdg-open
+		[Desktop Entry]
+		Version=1.0
+		Terminal=false
+		Type=Application
+		Name=$namedesk
+		Exec=$line_exec
+		Icon=$NAME_FILE
+		StartupWMClass=$CLASS
+		Categories=$category;
+		StartupNotify=false
+		X-WebApp-Browser=$short_browser_name
+		X-WebApp-URL=$urldesk
+		Custom=Custom
+	EOF
+	chmod +x "$NEW_DESKTOP_FILE"
 
 	if [[ "$shortcut" = "on" ]]; then
 		file_link="${NEW_DESKTOP_FILE##*/}"
