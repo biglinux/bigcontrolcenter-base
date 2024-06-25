@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/24
+#  Altered: 2024/06/25
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,7 +36,7 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="23/06/2024 - 10:59"
+_DATE_ALTERED_="23/06/2025 - 15:42"
 _VERSION_="1.0.0-20240624"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
@@ -172,6 +172,15 @@ function sh_webapp_index_sh_config() {
 	declare -g Criar_Backup=$(gettext "Criar Backup")
 	declare -g Nativo=$(gettext "Nativo")
 	declare -g Sobre=$(gettext "Sobre")
+	declare -g Icone_do_WebApp=$(gettext "Ícone do WebApp")
+	declare -g Categoria=$(gettext "Categoria")
+	declare -g Perfil_adicional=$(gettext "Perfil adicional")
+	declare -g Criar_atalho_na_area_de_Trabalho=$(gettext "Criar atalho na Área de Trabalho")
+	declare -g Selecione_o_icone_preferido=$(gettext "Selecione o ícone preferido:")
+	declare -g Nao_e_possivel_aplicar_a_edicao_sem_Nome=$(gettext "$Não é possível aplicar a edição sem Nome!")
+	declare -g Nao_e_possivel_aplicar_a_edicao_sem_alteracoes=$(gettext "$Não é possível aplicar a edição sem alterações!")
+	declare -g O_WebApp_foi_editado_com_sucesso=$(gettext "$O WebApp foi editado com sucesso!")
+
 	declare -g CUSTOMFILES
 	declare -g NATIVEFILES
 }
@@ -1015,6 +1024,7 @@ function sh_webapp-info() {
 	exec_command="$(TIni.Get "$filedesk" 'Desktop Entry' 'Exec')"
 	IsCustom="$(desktop.get "$filedesk" 'Desktop Entry' 'Custom')"
 	app_icon="$(desktop.get "$filedesk" 'Desktop Entry' 'Icon')"
+	selected_icon="$browser_name"
 
 	if [[ -n "$IsCustom" ]]; then
 		app_icon="$HOME_LOCAL/share/icons/$app_icon"
@@ -1028,113 +1038,20 @@ function sh_webapp-info() {
 	# Verifica se o arquivo é um link simbólico
 	[[ -L "$user_desktop_dir/$desktop_file_name" ]] && link_checked='checked'
 
-	# Exemplos de casos para diferentes navegadores podem ser adicionados aqui
-	case "$browser_name" in
-	brave)
-		selected_icon='brave'
-		selected_brave='selected'
-		;;
-	com.brave.Browser)
-		selected_icon='brave'
-		selected_brave_flatpak='selected'
-		;;
-	google-chrome-stable)
-		selected_icon='chrome'
-		selected_chrome='selected'
-		;;
-	com.google.Chrome)
-		selected_icon='chrome'
-		selected_chrome_flatpak='selected'
-		;;
-	chromium)
-		selected_icon='chromium'
-		selected_chromium='selected'
-		;;
-	org.chromium.Chromium)
-		selected_icon='chromium'
-		selected_chromium_flatpak='selected'
-		;;
-	com.github.Eloston.UngoogledChromium)
-		selected_icon='ungoogled'
-		selected_ungoogled_flatpak='selected'
-		;;
-	microsoft-edge-stable)
-		selected_icon='edge'
-		selected_edge='selected'
-		;;
-	com.microsoft.Edge)
-		selected_icon='edge'
-		selected_edge_flatpak='selected'
-		;;
-	org.gnome.Epiphany)
-		selected_icon='epiphany'
-		selected_epiphany_flatpak='selected'
-		;;
-	firefox)
-		selected_icon='firefox'
-		selected_firefox='selected'
-		;;
-	org.mozilla.firefox)
-		selected_icon='firefox'
-		selected_firefox_flatpak='selected'
-		;;
-	librewolf)
-		selected_icon='librewolf'
-		selected_librewolf='selected'
-		;;
-	io.gitlab.librewolf-community)
-		selected_icon='librewolf'
-		selected_librewolf_flatpak='selected'
-		;;
-	vivaldi-stable)
-		selected_icon='vivaldi'
-		selected_vivaldi='selected'
-		;;
-	falkon)
-		selected_icon='falkon'
-		selected_falkon='selected'
-		;;
-	opera)
-		selected_icon='opera'
-		selected_opera='selected'
-		;;
-	palemoon)
-		selected_icon='palemoon'
-		selected_palemoon='selected'
-		;;
-	*) : ;;
-	esac
-
 	case "${app_category/;/}" in
-	Development)
-		selected_Development='selected'
-		;;
-	Office)
-		selected_Office='selected'
-		;;
-	Graphics)
-		selected_Graphics='selected'
-		;;
-	Network)
-		selected_Network='selected'
-		;;
-	Game)
-		selected_Game='selected'
-		;;
-	AudioVideo)
-		selected_AudioVideo='selected'
-		;;
-	Webapps)
-		selected_Webapps='selected'
-		;;
-	Google)
-		selected_Google='selected'
-		;;
+	Development)	selected_Development='selected';;
+	Office) 			selected_Office='selected';;
+	Graphics)		selected_Graphics='selected';;
+	Network)			selected_Network='selected';;
+	Game)				selected_Game='selected';;
+	AudioVideo)		selected_AudioVideo='selected';;
+	Webapps)			selected_Webapps='selected';;
+	Google)			selected_Google='selected';;
 	*) : ;;
 	esac
 
 	# shellcheck disable=all
-	echo -n '
+	printf "%s\n" '
 	<div class="content-section">
 	  <ul style="margin-top:-20px">
 	    <li>
@@ -1191,26 +1108,42 @@ function sh_webapp-info() {
 	        '$"Navegador"'
 	      </div>
 	      <div class="button-wrapper">
-	        <select class="svg-center" id="browserSelectEdit" name="browserNew">
-	          <option '$selected_brave' value="brave">'$"BRAVE"'</option>
-	          <option '$selected_chrome' value="google-chrome-stable">'$"CHROME"'</option>
-	          <option '$selected_chromium' value="chromium">'$"CHROMIUM"'</option>
-	          <option '$selected_edge' value="microsoft-edge-stable">'$"EDGE"'</option>
-	          <option '$selected_falkon' value="falkon">'$"FALKON"'</option>
-	          <option '$selected_firefox' value="firefox">'$"FIREFOX"'</option>
-	          <option '$selected_librewolf' value="librewolf">'$"LIBREWOLF"'</option>
-	          <option '$selected_palemoon' value="palemoon">'$"PALEMOON"'</option>
-	          <option '$selected_opera' value="opera">'$"OPERA"'</option>
-	          <option '$selected_vivaldi' value="vivaldi-stable">'$"VIVALDI"'</option>
-	          <option '$selected_brave_flatpak' value="com.brave.Browser">'$"BRAVE (FLATPAK)"'</option>
-	          <option '$selected_chrome_flatpak' value="com.google.Chrome">'$"CHROME (FLATPAK)"'</option>
-	          <option '$selected_chromium_flatpak' value="org.chromium.Chromium">'$"CHROMIUM (FLATPAK)"'</option>
-	          <option '$selected_ungoogled_flatpak' value="com.github.Eloston.UngoogledChromium">'$"UNGOOGLED (FLATPAK)"'</option>
-	          <option '$selected_edge_flatpak' value="com.microsoft.Edge">'$"EDGE (FLATPAK)"'</option>
-	          <option '$selected_epiphany_flatpak' value="org.gnome.Epiphany">'$"EPIPHANY (FLATPAK)"'</option>
-	          <option '$selected_firefox_flatpak' value="org.mozilla.firefox">'$"FIREFOX (FLATPAK)"'</option>
-	          <option '$selected_librewolf_flatpak' value="io.gitlab.librewolf-community">'$"LIBREWOLF (FLATPAK)"'</option>
-	        </select>
+	'
+
+function sh_webapp_set_option_browser() {
+	local browser_selected="$1"
+	local cpath
+	local nc=0
+	local selecionado
+
+	for cpath in "${aBrowserPath[@]}"; do
+		if [[ -e "$cpath" ]]; then
+			option_value="${aBrowserId[nc]}"
+			option_text="${aBrowserTitle[nc]}"
+			option_icon="${aBrowserIcon[nc]}"
+			selecionado=
+			selected_icon=
+			if [[ "$browser_selected" = "$option_value" ]]; then
+				selecionado='selected'
+				selected_icon="$option_icon"
+			fi
+			cat <<-EOF
+				<option $selecionado value=$option_value>$option_text</option>
+			EOF
+		fi
+		((++nc))
+	done
+}
+
+	cat <<-EOF
+		<select class="svg-center" id="browserSelectEdit" name="browserNew">
+	EOF
+	sh_webapp_set_option_browser "$browser_name"
+	cat <<-EOF
+		</select>
+	EOF
+
+	printf "%s\n" '
 	        <input type="hidden" name="browserOld" value="'$browser_name'"/>
 	        <input type="hidden" name="filedesk" value="'$filedesk'"/>
 	        <input type="hidden" name="categoryOld" value="'${app_category/;/}'"/>
@@ -1227,14 +1160,14 @@ function sh_webapp-info() {
 	      <div class="button-wrapper">
 	        <div class="svg-center">
 	          <select class="svg-center" id="categorySelectEdit" name="category">
-	            <option value="Development" '$selected_Development' >'$"DESENVOLVIMENTO"'</option>
-	            <option value="Office" '$selected_Office' >'$"ESCRITÓRIO"'</option>
-	            <option value="Graphics" '$selected_Graphics' >'$"GRÁFICOS"'</option>
-	            <option value="Network" '$selected_Network' >INTERNET</option>
-	            <option value="Game" '$selected_Game' >'$"JOGOS"'</option>
-	            <option value="AudioVideo" '$selected_AudioVideo' >'$"MULTIMÍDIA"'</option>
-	            <option value="Webapps" '$selected_Webapps' >'$"WEBAPPS"'</option>
-	            <option value="Google" '$selected_Google' >'$"WEBAPPS GOOGLE"'</option>
+	            <option value="Development"	'$selected_Development'	>'$"DESENVOLVIMENTO"'</option>
+	            <option value="Office" 			'$selected_Office'		>'$"ESCRITÓRIO"'</option>
+	            <option value="Graphics" 		'$selected_Graphics'		>'$"GRÁFICOS"'</option>
+	            <option value="Network" 		'$selected_Network'		>INTERNET</option>
+	            <option value="Game" 			'$selected_Game'			>'$"JOGOS"'</option>
+	            <option value="AudioVideo" 	'$selected_AudioVideo'	>'$"MULTIMÍDIA"'</option>
+	            <option value="Webapps" 		'$selected_Webapps'		>'$"WEBAPPS"'</option>
+	            <option value="Google" 			'$selected_Google'		>'$"WEBAPPS GOOGLE"'</option>
 	          </select>
 	        </div>
 	      </div>
@@ -1286,21 +1219,21 @@ function sh_webapp-info() {
 	<div class="pop-up" id="nameError">
 	  <div class="pop-up__subtitle">'$"Não é possível aplicar a edição sem Nome!"'</div>
 	  <div class="content-button-wrapper">
-	    <button class="content-button status-button2 close">'$Fechar'</button>
+	    <button class="content-button status-button2 close">'$"Fechar"'</button>
 	  </div>
 	</div>
 
 	<div class="pop-up" id="editError">
 	  <div class="pop-up__subtitle">'$"Não é possível aplicar a edição sem alterações!"'</div>
 	  <div class="content-button-wrapper">
-	    <button class="content-button status-button2 close">'$Fechar'</button>
+	    <button class="content-button status-button2 close">'$"Fechar"'</button>
 	  </div>
 	</div>
 
 	<div class="pop-up" id="editSuccess">
 	  <div class="pop-up__subtitle">'$"O WebApp foi editado com sucesso!"'</div>
 	  <div class="content-button-wrapper">
-	    <button class="content-button status-button2 close">'$Fechar'</button>
+	    <button class="content-button status-button2 close">'$"Fechar"'</button>
 	  </div>
 	</div>
 
@@ -1314,6 +1247,23 @@ function sh_webapp-info() {
 	});
 
 	$(function(){
+// insert
+		// Quando o botão "Aplicar" (#submitEdit) é clicado
+		$("#submitEdit").click(function(e) {
+			e.preventDefault(); // Evita o comportamento padrão do formulário
+			// Ocultar a pop-up editSuccess
+			$(".pop-up#editSuccess").css("display", "none");
+			// Simular o clique automático no botão "Fechar" da pop-up editSuccess
+			$(".pop-up#editSuccess .close").trigger("click");
+		});
+
+		// Função para fechar a pop-up editSuccess quando clicar no botão "Fechar"
+		$(".pop-up#editSuccess .close").click(function(e) {
+			e.preventDefault();
+			$(".pop-up#editSuccess").css("display", "none");
+		});
+// insert
+
 	  $(".pop-up#detectIconEdit .close").click(function(e){
 	    e.preventDefault();
 	    $(".pop-up#detectIconEdit").removeClass("visible");
@@ -1563,100 +1513,200 @@ export -f sh_webapp-info
 
 #######################################################################################################################
 
-function sh_webapp-edit() {
-	CHANGE=false
-	EDIT=false
+function sh_webapp-install() {
+	local line_exec
+	local _session
+	local short_browser_name
+	local file_link
+	local prefixo
+	local local_path="$HOME_LOCAL/share/applications"
+	local Exec
 
-	if [[ "$browserOld" != "$browserNew" ]]; then
-		name_file="$RANDOM-${icondesk##*/}"
-		cp -f "$icondesk" /tmp/"$name_file"
-		icondesk=/tmp/"$name_file"
-		CHANGE=true
+	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
+	icondesk="${icondesk//$'\n'/}"
+	icondesk="${icondesk//$'\r'/}"
+	icondesk="${icondesk//$'\t'/}"
+
+	local _NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
+	local USER_DESKTOP=$(xdg-user-dir DESKTOP)
+	local LINK_APP="$HOME_LOCAL/share/applications/$_NAMEDESK-$RANDOM-webapp-biglinux-custom.desktop"
+	local BASENAME_APP="${LINK_APP##*/}"
+	local NAME="${BASENAME_APP/-webapp-biglinux-custom.desktop/}"
+	local DIR_PROF="$HOME_FOLDER/$NAME"
+	local BASENAME_ICON="${icondesk##*/}"
+	local NAME_FILE="${BASENAME_ICON// /-}"
+	local ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
+
+	case "$browser" in
+	google-chrome-stable)
+		short_browser_name='chrome'
+		prefixo='chrome'
+		;;
+	chromium)
+		short_browser_name='chromium'
+		prefixo='chrome'
+		;;
+	vivaldi-stable)
+		short_browser_name='vivaldi'
+		prefixo='vivaldi'
+		;;
+	*)
+		short_browser_name="$browser"
+		prefixo="$browser"
+		;;
+	esac
+
+	if [[ "${icondesk##*/}" = "default-webapps.png" ]]; then
+		cp "$icondesk" "$ICON_FILE"
+	else
+		mv "$icondesk" "$ICON_FILE"
 	fi
 
-	if [ "$newperfil" = "on" ]; then
-		if ! grep -q '..user.data.dir.' "$filedesk"; then
-			name_file="$RANDOM-${icondesk##*/}"
-			cp -f "$icondesk" /tmp/"$name_file"
-			icondesk=/tmp/"$name_file"
-			CHANGE=true
-		fi
+	if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
+		urldesk="https://$urldesk"
 	fi
 
-	if [ "$CHANGE" = "true" ]; then
-		JSON="{
-  \"browser\"   : \"$browserNew\",
-  \"category\"  : \"$category\",
-  \"filedesk\"  : \"$filedesk\",
-  \"icondesk\"  : \"$icondesk\",
-  \"namedesk\"  : \"$namedesk\",
-  \"newperfil\" : \"$newperfil\",
-  \"shortcut\"  : \"$shortcut\",
-  \"urldesk\"   : \"$urldesk\"
-}"
-		printf "%s" "$JSON"
-		exit
-	fi
+	sh_webapp_create "$short_browser_name" "$Exec" "$namedesk" "$NAME_FILE" "$category" "$urldesk" "$shortcut"
 
-	if [ "$icondesk" != "$icondeskOld" ]; then
-		mv -f "$icondesk" "$icondeskOld"
-		EDIT=true
-	fi
+	rm -f /tmp/*.png
+	rm -rf /tmp/.bigwebicons
+	exit
+}
+export -f sh_webapp-install
 
-	if [ "$namedeskOld" != "$namedesk" ]; then
-		sed -i "s|Name=$namedeskOld|Name=$namedesk|" "$filedesk"
-		EDIT=true
-	fi
+#######################################################################################################################
 
-	if [ "$categoryOld" != "$category" ]; then
-		sed -i "s|Categories=$categoryOld;|Categories=$category;|" "$filedesk"
-		EDIT=true
-	fi
+function sh_webapp_create() {
+	local short_browser_name="$1"
+	local Exec="$2"
+	local namedesk="$3"
+	local icon="$4"
+	local category="$5"
+	local urldesk="$6"
+	local shortcut="$7"
+	local IsConvert="$8"
+	local file_link
+	local filename
+	local filename_orig
+	local i
 
-	if [ ! "$newperfil" ]; then
-		if grep -q '..user.data.dir.' "$filedesk"; then
-			FIELD=$(awk '/Exec/{print $2}' "$filedesk")
-			FOLDER=$(awk -F'=' '{print $2}' <<<"$FIELD")
-			rm -r "$FOLDER"
-			sed -i "s|$FIELD --no-first-run ||" "$filedesk"
-			EDIT=true
-		fi
-	fi
+	urldesk="${urldesk/www./}"
+	CLASS=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
+	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CLASS}__-Default.desktop"
+   NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<< "$NEW_DESKTOP_FILE")
 
-	USER_DESKTOP=$(xdg-user-dir DESKTOP)
-	DESKNAME=${filedesk##*/}
-	if [ "$shortcut" = "on" ]; then
-		if [ ! -L "$USER_DESKTOP/$DESKNAME" ]; then
-			ln -sf "$filedesk" "$USER_DESKTOP/$DESKNAME"
-			chmod 755 "$USER_DESKTOP/$DESKNAME"
-			gio set "$USER_DESKTOP/$DESKNAME" -t string metadata::trust "true"
-			EDIT=true
-		else
-			ln -sf "$filedesk" "$USER_DESKTOP/$DESKNAME"
-			chmod 755 "$USER_DESKTOP/$DESKNAME"
-			gio set "$USER_DESKTOP/$DESKNAME" -t string metadata::trust "true"
+   if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
+      urldesk="https://$urldesk"
+   fi
+
+   _session="$(sh_get_desktop_session)"
+   case "${_session^^}" in
+   X11)
+      line_exec="/usr/bin/biglinux-webapp --class=$CLASS --profile-directory=Default --app=$urldesk $short_browser_name"
+      ;;
+   WAYLAND)
+      line_exec="/usr/bin/biglinux-webapp --class=$CLASS,Chromium-browser --profile-directory=Default --app=$urldesk $short_browser_name"
+      ;;
+   esac
+
+	if [[ -z "$IsConvert" ]]; then
+		filename_orig=$NEW_DESKTOP_FILE
+		# Verify if the WebApp already exists
+		if [[ -e $filename_orig ]]; then
+			# If the WebApp already exists, add BigWebApp1 or first available number
+			i=1
+			filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+			while [[ -e $filename ]]; do
+				((++i))
+				filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+			done
+			mv "$filename_orig" "$filename"
 		fi
 	else
-		if [ -L "$USER_DESKTOP/$DESKNAME" ]; then
-			unlink "$USER_DESKTOP/$DESKNAME"
-			EDIT=true
+		if [[ -e $NEW_DESKTOP_FILE ]]; then
+			return 0
 		fi
+		:
 	fi
 
-	if [ "$EDIT" = "true" ]; then
-		update-desktop-database -q "$HOME_LOCAL"/share/applications &
-		kbuildsycoca5 &>/dev/null &
-		rm -f /tmp/*.png
-		printf '{ "return" : "0" }'
-		exit
+	cat >"$NEW_DESKTOP_FILE" <<-EOF
+		#!/usr/bin/env xdg-open
+		[Desktop Entry]
+		Version=1.0
+		Terminal=false
+		Type=Application
+		Name=$namedesk
+		Exec=$line_exec
+		Icon=$icon
+		StartupWMClass=$CLASS
+		Categories=$category;
+		StartupNotify=false
+		X-WebApp-Browser=$short_browser_name
+		X-WebApp-URL=$urldesk
+		Custom=Custom
+	EOF
+	chmod +x "$NEW_DESKTOP_FILE"
+
+	if [[ "$shortcut" = "on" ]]; then
+		file_link="${NEW_DESKTOP_FILE##*/}"
+		ln -sf "$NEW_DESKTOP_FILE" "$USER_DESKTOP/$file_link"
+		chmod 755 "$USER_DESKTOP/$file_link"
+		gio set "$USER_DESKTOP/$file_link" -t string metadata::trust "true"
 	fi
 
-	if [ "$EDIT" = "false" ] && [ "$CHANGE" = "false" ]; then
-		printf '{ "return" : "1" }'
-		exit
-	fi
+   update-desktop-database -q "$HOME_LOCAL"/share/applications &
+   kbuildsycoca5 &>/dev/null &
+   return 0
 }
-export -f sh_webapp-edit
+export -f sh_webapp_create
+
+#######################################################################################################################
+
+function sh_webapp_convert() {
+	local local_path="$HOME_LOCAL/share/applications"
+	local default_browser
+	local file
+	local Exec
+	local name
+	local icon
+	local icon_path
+	local categories
+	local url
+	local shortcut
+	local DESKTOP_FILES
+	local nDesktop_Files_Found
+	local IsConvert=1
+
+	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname "*webapp-biglinux*")
+
+	nDesktop_Files_Found="${#DESKTOP_FILES[@]}"
+	if ! ((nDesktop_Files_Found)); then
+		return 1
+	fi
+
+	notify-send -u critical --icon=webapps --app-name "$TITLE" "$TITLE" "${Amsg[msg_convert]}" --expire-time=60
+
+	# Get the default browser
+	if browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name") && [[ -z "$browser_default" ]]; then
+		browser_default=$(sh_webapp_check_browser)
+	fi
+
+	# Iterate over all webapps
+	for file in "${DESKTOP_FILES[@]}"; do
+		Exec=$(TIni.Get "$file" 'Desktop Entry' 'Exec')
+		name=$(TIni.Get "$file" 'Desktop Entry' 'Name')
+		icon_path=$(TIni.Get "$file" 'Desktop Entry' 'Icon')
+		icon="${icon_path##*/}"
+		categories=$(TIni.Get "$file" 'Desktop Entry' 'Categories')
+		url="$(sh_webapp_get_url "$Exec")"
+
+		if sh_webapp_create "$browser_default" "$Exec" "$name" "$icon" "$categories" "$url" "$shortcut" "$IsConvert"; then
+			# Remove the old desktop file
+			rm "$file"
+		fi
+	done
+}
+export -f sh_webapp_convert
 
 #######################################################################################################################
 
@@ -1973,200 +2023,91 @@ export -f sh_add_custom_desktop_files
 
 #######################################################################################################################
 
-function sh_webapp-install() {
-	local line_exec
-	local _session
-	local short_browser_name
-	local file_link
-	local prefixo
-	local local_path="$HOME_LOCAL/share/applications"
-	local Exec
+function sh_webapp-edit() {
+	local CHANGE=0
+	local EDIT=0
+	local USER_DESKTOP
+	local DESKNAME
+	local name_file
+	local IsConvert
 
 	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
 	icondesk="${icondesk//$'\n'/}"
 	icondesk="${icondesk//$'\r'/}"
 	icondesk="${icondesk//$'\t'/}"
 
-	local _NAMEDESK=$(sed 's|https\:\/\/||;s|http\:\/\/||;s|www\.||;s|\/.*||;s|\.|-|g' <<<"$urldesk")
-	local USER_DESKTOP=$(xdg-user-dir DESKTOP)
-	local LINK_APP="$HOME_LOCAL/share/applications/$_NAMEDESK-$RANDOM-webapp-biglinux-custom.desktop"
-	local BASENAME_APP="${LINK_APP##*/}"
-	local NAME="${BASENAME_APP/-webapp-biglinux-custom.desktop/}"
-	local DIR_PROF="$HOME_FOLDER/$NAME"
-	local BASENAME_ICON="${icondesk##*/}"
-	local NAME_FILE="${BASENAME_ICON// /-}"
-	local ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
-
-	case "$browser" in
-	google-chrome-stable)
-		short_browser_name='chrome'
-		prefixo='chrome'
-		;;
-	chromium)
-		short_browser_name='chromium'
-		prefixo='chrome'
-		;;
-	vivaldi-stable)
-		short_browser_name='vivaldi'
-		prefixo='vivaldi'
-		;;
-	*)
-		short_browser_name="$browser"
-		prefixo="$browser"
-		;;
-	esac
-
-	if [[ "${icondesk##*/}" = "default-webapps.png" ]]; then
-		cp "$icondesk" "$ICON_FILE"
-	else
-		mv "$icondesk" "$ICON_FILE"
+	if [[ "$browserOld" != "$browserNew" ]]; then
+		name_file="$RANDOM-${icondesk##*/}"
+		cp -f "$icondesk" /tmp/"$name_file"
+		icondesk=/tmp/"$name_file"
+		CHANGE=1
 	fi
 
-	if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-		urldesk="https://$urldesk"
+#	if ((CHANGE)); then
+#		JSON="{
+#  \"browser\"   : \"$browserNew\",
+#  \"category\"  : \"$category\",
+#  \"filedesk\"  : \"$filedesk\",
+#  \"icondesk\"  : \"$icondesk\",
+#  \"namedesk\"  : \"$namedesk\",
+#  \"newperfil\" : \"$newperfil\",
+#  \"shortcut\"  : \"$shortcut\",
+#  \"urldesk\"   : \"$urldesk\"
+#}"
+#		printf "%s" "$JSON"
+#		exit
+#	fi
+
+	if [[ "$icondeskOld" != "$icondesk" ]]; then
+		mv -f "$icondesk" "$icondeskOld"
+		icondesk="${icondeskOld##*/}"
+		TIni.Set "$filedesk" 'Desktop Entry' 'Icon' "$icondesk"
+		EDIT=1
 	fi
 
-	sh_webapp_create "$short_browser_name" "$Exec" "$namedesk" "$NAME_FILE" "$category" "$urldesk" "$shortcut"
-
-	rm -f /tmp/*.png
-	rm -rf /tmp/.bigwebicons
-	exit
-}
-export -f sh_webapp-install
-
-#######################################################################################################################
-
-function sh_webapp_create() {
-	local short_browser_name="$1"
-	local Exec="$2"
-	local namedesk="$3"
-	local icon="$4"
-	local category="$5"
-	local urldesk="$6"
-	local shortcut="$7"
-	local IsConvert="$8"
-	local file_link
-	local filename
-	local filename_orig
-	local i
-
-	#xdebug "1-$short_browser_name\n2-$Exec\n3-$namedesk\n4-$icon\n5-$category\n6-$urldesk"
-
-	urldesk="${urldesk/www./}"
-	CLASS=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
-	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CLASS}__-Default.desktop"
-   NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<< "$NEW_DESKTOP_FILE")
-
-   if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-      urldesk="https://$urldesk"
-   fi
-
-   _session="$(sh_get_desktop_session)"
-   case "${_session^^}" in
-   X11)
-      line_exec="/usr/bin/biglinux-webapp --class=$CLASS --profile-directory=Default --app=$urldesk $short_browser_name"
-      ;;
-   WAYLAND)
-      line_exec="/usr/bin/biglinux-webapp --class=$CLASS,Chromium-browser --profile-directory=Default --app=$urldesk $short_browser_name"
-      ;;
-   esac
-
-	if [[ -z "$IsConvert" ]]; then
-		filename_orig=$NEW_DESKTOP_FILE
-		# Verify if the WebApp already exists
-		if [[ -e $filename_orig ]]; then
-			# If the WebApp already exists, add BigWebApp1 or first available number
-			i=1
-			filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
-			while [[ -e $filename ]]; do
-				((++i))
-				filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
-			done
-			mv $filename_orig $filename
-		fi
-	else
-		if [[ -e $NEW_DESKTOP_FILE ]]; then
-			return 0
-		fi
+	if [[ "$namedeskOld" != "$namedesk" ]]; then
+		TIni.Set "$filedesk" 'Desktop Entry' 'Name' "$namedesk"
+		EDIT=1
 	fi
 
-	cat >"$NEW_DESKTOP_FILE" <<-EOF
-		#!/usr/bin/env xdg-open
-		[Desktop Entry]
-		Version=1.0
-		Terminal=false
-		Type=Application
-		Name=$namedesk
-		Exec=$line_exec
-		Icon=$icon
-		StartupWMClass=$CLASS
-		Categories=$category;
-		StartupNotify=false
-		X-WebApp-Browser=$short_browser_name
-		X-WebApp-URL=$urldesk
-		Custom=Custom
-	EOF
-	chmod +x "$NEW_DESKTOP_FILE"
+	if [[ "$categoryOld" != "$category" ]]; then
+		TIni.Set "$filedesk" 'Desktop Entry' 'Categories' "$category;"
+		EDIT=1
+	fi
+
+	USER_DESKTOP=$(xdg-user-dir DESKTOP)
+	DESKNAME=${filedesk##*/}
 
 	if [[ "$shortcut" = "on" ]]; then
-		file_link="${NEW_DESKTOP_FILE##*/}"
-		ln -sf "$NEW_DESKTOP_FILE" "$USER_DESKTOP/$file_link"
-		chmod 755 "$USER_DESKTOP/$file_link"
-		gio set "$USER_DESKTOP/$file_link" -t string metadata::trust "true"
+		EDIT=1
+	else
+		unlink "$USER_DESKTOP/$DESKNAME"
 	fi
 
-   update-desktop-database -q "$HOME_LOCAL"/share/applications &
-   kbuildsycoca5 &>/dev/null &
-}
-export -f sh_webapp_create
+	#xdebug "1-$browserNew\n2-$Exec\n3-$namedesk\n4-$icondesk\n5-$category\n6-$urldesk\n7-$shortcut\n8-$IsConvert"
 
-#######################################################################################################################
-
-function sh_webapp_convert() {
-	local local_path="$HOME_LOCAL/share/applications"
-	local default_browser
-	local file
-	local Exec
-	local name
-	local icon
-	local icon_path
-	local categories
-	local url
-	local shortcut
-	local DESKTOP_FILES
-	local nDesktop_Files_Found
-	local IsConvert=1
-
-	mapfile -t DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname "*webapp-biglinux*")
-
-	nDesktop_Files_Found="${#DESKTOP_FILES[@]}"
-	if ! ((nDesktop_Files_Found)); then
-		return 1
-	fi
-
-	notify-send -u critical --icon=webapps --app-name "$TITLE" "$TITLE" "${Amsg[msg_convert]}" --expire-time=60
-
-	# Get the default browser
-	if browser_default=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name") && [[ -z "$browser_default" ]]; then
-		browser_default=$(sh_webapp_check_browser)
-	fi
-
-	# Iterate over all webapps
-	for file in "${DESKTOP_FILES[@]}"; do
-		Exec=$(TIni.Get "$file" 'Desktop Entry' 'Exec')
-		name=$(TIni.Get "$file" 'Desktop Entry' 'Name')
-		icon_path=$(TIni.Get "$file" 'Desktop Entry' 'Icon')
-		icon="${icon_path##*/}"
-		categories=$(TIni.Get "$file" 'Desktop Entry' 'Categories')
-		url="$(sh_webapp_get_url "$Exec")"
-
-#		xdebug "1-$browser_default\n2-$Exec\n3-$name\n4-$icon\n5-$categories\n6-$url"
-		if sh_webapp_create "$browser_default" "$Exec" "$name" "$icon" "$categories" "$url" "$shortcut" "$IsConvert"; then
-			# Remove the old desktop file
-			rm "$file"
+	if ((EDIT)) || ((CHANGE)); then
+		IsConvert=
+		Exec=$(TIni.Get "$filedesk" 'Desktop Entry' 'Exec')
+		if sh_webapp_create "$browserNew" "$Exec" "$namedesk" "$icondesk" "$category" "$urldesk" "$shortcut" "$IsConvert"; then
+			if [[ "$browserOld" != "$browserNew" ]]; then
+				# Remove the old desktop file
+				rm "$filedesk"
+			fi
 		fi
-	done
+	fi
+
+	if ((EDIT)) || ((CHANGE)); then
+		update-desktop-database -q "$HOME_LOCAL"/share/applications &
+		kbuildsycoca5 &>/dev/null &
+		rm -f /tmp/*.png
+		printf '{ "return" : "0" }'
+	else
+		printf '{ "return" : "1" }'
+	fi
+	exit
+
 }
-export -f sh_webapp_convert
+export -f sh_webapp-edit
 
 #######################################################################################################################
