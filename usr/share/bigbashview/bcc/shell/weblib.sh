@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="23/06/2025 - 15:42"
-_VERSION_="1.0.0-20240624"
+_DATE_ALTERED_="26/06/2025 - 16:47"
+_VERSION_="1.0.0-20240626"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -180,7 +180,8 @@ function sh_webapp_index_sh_config() {
 	declare -g Nao_e_possivel_aplicar_a_edicao_sem_Nome=$(gettext "$Não é possível aplicar a edição sem Nome!")
 	declare -g Nao_e_possivel_aplicar_a_edicao_sem_alteracoes=$(gettext "$Não é possível aplicar a edição sem alterações!")
 	declare -g O_WebApp_foi_editado_com_sucesso=$(gettext "$O WebApp foi editado com sucesso!")
-
+	declare -g Ativando_WebApps_Nativos=$(gettext "Aguarde, Ativando WebApps Nativos")
+	declare -g Desativando_WebApps_Nativos=$(gettext "Aguarde, Desativando WebApps Nativos")
 	declare -g CUSTOMFILES
 	declare -g NATIVEFILES
 }
@@ -293,12 +294,42 @@ function read_desktop_file_with_read() {
 export -f read_desktop_file_with_read
 
 #######################################################################################################################
+#		<div class="pop-up__subtitle">$WebApps_Nativos</div>
+#		<div id="menuNative">
+#		</div>
+
+function sh_webapp_insert_menu() {
+	cat <<-EOF
+     	<!-- INSERT -->
+			<div class="menuNative">
+				<svg viewBox="0 0 448 512">"
+					<path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/>"
+				</svg>
+				<button class="dropdown">
+					<ul>
+						<li id="ativar-li">    <a id="ativar">Ativar todos</a></li>
+						<li id="desativar-li"> <a id="desativar">Desativar todos</a></li>
+					</ul>
+				</button>
+			</div>
+		<!-- INSERT -->
+	EOF
+}
+export -f sh_webapp_insert_menu
+
+#######################################################################################################################
 
 # Função para adicionar arquivos nativos de desktop
 function sh_add_native_desktop_files() {
+	local NATIVE_DESKTOP_FILES
+	local app
+	local custom
 
-	find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop" |
-		while IFS= read -r app; do
+	#	find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop" |
+	#		while IFS= read -r app; do
+
+		mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
+		for app in "${NATIVE_DESKTOP_FILES[@]}"; do
 			local browser_default="$BROWSER"
 			local browser_icon="$ICON"
 			local webapp="${app##*/}"
@@ -328,8 +359,10 @@ function sh_add_native_desktop_files() {
 					color="green"
 					checked="checked"
 					disabled=""
+					FILES_FOR_DISABLED+=("$HOME_LOCAL/share/applications/$browser_custom-$webapp")
 				fi
 			done
+
 
 #			# Formatar a saída HTML usando cat
 #			cat <<-EOF
@@ -2111,3 +2144,66 @@ function sh_webapp-edit() {
 export -f sh_webapp-edit
 
 #######################################################################################################################
+
+function sh_webapp_ativar_all_native_webapps() {
+	local app
+   local browser_short_name
+   local app_fullname
+   local line_exec
+	local NATIVE_DESKTOP_FILES
+	local NATIVE_FILES
+
+   browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
+   case "$browser_short_name" in
+   google-chrome-stable) browser_short_name='chrome' ;;
+   chromium) browser_short_name='chrome' ;;
+   vivaldi-stable) browser_short_name='vivaldi' ;;
+   *) : ;;
+   esac
+
+	mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
+	for app in "${NATIVE_DESKTOP_FILES[@]}"; do
+		webapp="${app##*/}"
+	   app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$webapp"
+		if [[ ! -e "$app_fullname" ]]; then
+	  		cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
+   	  	 line_exec=$(TIni.Get "$app_fullname" "Desktop Entry" "Exec")
+     		 line_exec+=" $browser_short_name"
+     		 TIni.Set "$app_fullname" "Desktop Entry" "Exec" "$line_exec"
+     		 TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser_short_name"
+	   fi
+	done
+   sh_pre_process_custom_desktop_files
+   update-desktop-database -q "$HOME_LOCAL"/share/applications
+   kbuildsycoca5 &>/dev/null &
+}
+export -f sh_webapp_ativar_all_native_webapps
+
+#######################################################################################################################
+function sh_webapp_desativar_all_native_webapps() {
+	local NATIVE_DESKTOP_FILES
+	local NATIVE_FILES
+	local app
+	local custom
+
+	mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
+	for app in "${NATIVE_DESKTOP_FILES[@]}"; do
+		local browser_default="$BROWSER"
+		local webapp="${app##*/}"
+
+		# Chamada da função para ler o arquivo .desktop que,
+		# atribui as vars $urldesk $name $icon $url
+		read_desktop_file_with_read "$app"
+
+		# Verificar e definir ícone do navegador personalizado
+		mapfile -t NATIVEFILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
+		for custom in "${NATIVEFILES[@]}"; do
+			local browser_custom=$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")
+			if [[ -e "$HOME_LOCAL/share/applications/$browser_custom-$webapp" ]]; then
+				rm "$HOME_LOCAL/share/applications/$browser_custom-$webapp"
+			fi
+		done
+	done
+}
+export -f sh_webapp_desativar_all_native_webapps
+
