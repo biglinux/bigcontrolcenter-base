@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/25
+#  Altered: 2024/06/27
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="26/06/2025 - 16:47"
-_VERSION_="1.0.0-20240626"
+_DATE_ALTERED_="27/06/2024 - 08:27"
+_VERSION_="1.0.0-20240627"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -294,25 +294,25 @@ function read_desktop_file_with_read() {
 export -f read_desktop_file_with_read
 
 #######################################################################################################################
-#		<div class="pop-up__subtitle">$WebApps_Nativos</div>
-#		<div id="menuNative">
+#		  <div class="pop-up__subtitle">$WebApps_Nativos</div>
 #		</div>
+#					<li id="backup-li">    <a id="backup"   >Criar Backup</a></li>
 
 function sh_webapp_insert_menu() {
 	cat <<-EOF
      	<!-- INSERT -->
-			<div class="menuNative">
-				<svg viewBox="0 0 448 512">"
-					<path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/>"
-				</svg>
-				<button class="dropdown">
-					<ul>
-						<li id="ativar-li">    <a id="ativar">Ativar todos</a></li>
-						<li id="desativar-li"> <a id="desativar">Desativar todos</a></li>
-					</ul>
-				</button>
-			</div>
-		<!-- INSERT -->
+		<div class="menuNative">
+			<svg viewBox="0 0 448 512">"
+				<path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/>
+			</svg>
+			<button class="dropdown">
+				<ul>
+					<li id="ativar-li"><a id="ativar">Ativar todos WebApps Nativos</a></li>
+					<li id="desativar-li"><a id="desativar">Desativar todos WebApps Nativos</a></li>
+				</ul>
+			</button>
+		</div>
+	<!-- INSERT -->
 	EOF
 }
 export -f sh_webapp_insert_menu
@@ -2166,7 +2166,7 @@ function sh_webapp_ativar_all_native_webapps() {
 		webapp="${app##*/}"
 	   app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$webapp"
 		if [[ ! -e "$app_fullname" ]]; then
-	  		cp -f "$WEBAPPS_PATH/webapps/$app" "$app_fullname"
+	  		cp -f "$app" "$app_fullname"
    	  	 line_exec=$(TIni.Get "$app_fullname" "Desktop Entry" "Exec")
      		 line_exec+=" $browser_short_name"
      		 TIni.Set "$app_fullname" "Desktop Entry" "Exec" "$line_exec"
@@ -2182,25 +2182,20 @@ export -f sh_webapp_ativar_all_native_webapps
 #######################################################################################################################
 function sh_webapp_desativar_all_native_webapps() {
 	local NATIVE_DESKTOP_FILES
-	local NATIVE_FILES
+	local HOME_DESKTOP_FILES
 	local app
-	local custom
+	local file
+	local webapp
+	local IsCustom
 
 	mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
 	for app in "${NATIVE_DESKTOP_FILES[@]}"; do
-		local browser_default="$BROWSER"
-		local webapp="${app##*/}"
+		webapp="${app##*/}"
 
-		# Chamada da função para ler o arquivo .desktop que,
-		# atribui as vars $urldesk $name $icon $url
-		read_desktop_file_with_read "$app"
-
-		# Verificar e definir ícone do navegador personalizado
-		mapfile -t NATIVEFILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
-		for custom in "${NATIVEFILES[@]}"; do
-			local browser_custom=$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")
-			if [[ -e "$HOME_LOCAL/share/applications/$browser_custom-$webapp" ]]; then
-				rm "$HOME_LOCAL/share/applications/$browser_custom-$webapp"
+		mapfile -t HOME_DESKTOP_FILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
+		for file in "${HOME_DESKTOP_FILES[@]}"; do
+			if IsCustom=$(desktop.get "$file" "Desktop Entry" "Custom") && [[ -z "$IsCustom" ]]; then
+				rm "$file"
 			fi
 		done
 	done
