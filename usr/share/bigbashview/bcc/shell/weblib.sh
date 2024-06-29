@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/27
+#  Altered: 2024/06/29
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="27-06-2024 - 19:51"
-_VERSION_="1.0.0-20240627"
+_DATE_ALTERED_="29-06-2024 - 12:02"
+_VERSION_="1.0.0-20240629"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -80,7 +80,8 @@ declare -A Amsg=(
 )
 export aBrowserId=('brave' 'brave' 'google-chrome-stable' 'chromium' 'microsoft-edge-stable' 'firefox' 'falkon' 'librewolf' 'vivaldi-stable' 'com.brave.Browser' 'com.google.Chrome' 'org.chromium.Chromium' 'com.microsoft.Edge' 'org.gnome.Epiphany' 'org.mozilla.firefox' 'io.gitlab.librewolf-community' 'com.github.Eloston.UngoogledChromium' 'opera' 'palemoon')
 export aBrowserIcon=('brave' 'brave' 'chrome' 'chromium' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled' 'opera' 'palemoon')
-export aBrowserShortName=('brave' 'brave' 'chrome' 'chrome' 'edge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled' 'opera' 'palemoon')
+export aBrowserShortName=('brave' 'brave' 'chrome' 'chrome' 'msedge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled' 'opera' 'palemoon')
+export aBrowserAliasName=('brave' 'brave' 'chrome' 'chrome' 'msedge' 'firefox' 'falkon' 'librewolf' 'vivaldi' 'brave' 'chrome' 'chromium' 'edge' 'epiphany' 'firefox' 'librewolf' 'ungoogled' 'opera' 'palemoon')
 export aBrowserTitle=('BRAVE' 'BRAVE' 'CHROME' 'CHROMIUM' 'EDGE' 'FIREFOX' 'FALKON' 'LIBREWOLF' 'VIVALDI' 'BRAVE (FlatPak)' 'CHROME (FlatPak)' 'CHROMIUM (FlatPak)' 'EDGE (FlatPak)' 'EPIPHANY (FlatPak)' 'FIREFOX (FlatPak)' 'LIBREWOLF (FlatPak)' 'UNGOOGLED (FlatPak)' 'OPERA' 'PALEMOON')
 export aBrowserCompatible=('1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '1' '0' '1' '1' '1' '1' '1')
 export aBrowserPath=(
@@ -326,7 +327,7 @@ function sh_add_native_desktop_files() {
 	local NATIVE_DESKTOP_FILES
 	local NATIVE_HOME_FILES
 	local app
-	local custom
+	local homeFile
 	local webapp
 	local browser_default
 	local browser_icon
@@ -334,6 +335,7 @@ function sh_add_native_desktop_files() {
 	local color
 	local checked
 	local disabled
+	local IsCustom
 
 	mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
 	for app in "${NATIVE_DESKTOP_FILES[@]}"; do
@@ -357,8 +359,12 @@ function sh_add_native_desktop_files() {
 
 		# Verificar e definir ícone do navegador personalizado
 		mapfile -t NATIVE_HOME_FILES < <(find "$HOME_LOCAL"/share/applications -iname "*$webapp")
-		for custom in "${NATIVE_HOME_FILES[@]}"; do
-			browser_custom=$(desktop.get "$custom" "Desktop Entry" "X-WebApp-Browser")
+		for homeFile in "${NATIVE_HOME_FILES[@]}"; do
+			browser_custom=$(desktop.get "$homeFile" "Desktop Entry" "X-WebApp-Browser")
+			if IsCustom=$(desktop.get "$homeFile" "Desktop Entry" "Custom") && [[ -n "$IsCustom" ]]; then
+				# remove a chave Custom, pois é um WebApp Nativo
+				TIni.Delete "$homeFile" "Desktop Entry" "Custom"
+			fi
 			if [[ -e "$HOME_LOCAL/share/applications/$browser_custom-$webapp" ]]; then
 				browser_default="$browser_custom"
 				browser_icon="$browser_custom"
@@ -550,12 +556,14 @@ function sh_webapp_write_new_browser() {
 	local flatpak
 	local short_name
 	local nc=0
+	local alias_name
 
 	for browser in "${aBrowserId[@]}"; do
 		if [[ "$browser" = "$new_browser" ]]; then
 			cpath="${aBrowserPath[nc]}"
 			default_browser="${aBrowserId[nc]}"
 			short_name="${aBrowserShortName[nc]}"
+			alias_name="${aBrowserAliasName[nc]}"
 			id="${aBrowserId[nc]}"
 			icon="${aBrowserIcon[nc]}"
 			data_bin="${aBrowserId[nc]}"
@@ -571,6 +579,7 @@ function sh_webapp_write_new_browser() {
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "path" "$cpath"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "name" "$default_browser"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "short_name" "$short_name"
+			TIni.Set "$INI_FILE_WEBAPPS" "browser" "alias_name" "$alias_name"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "id" "$id"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "icon" "$icon"
 			TIni.Set "$INI_FILE_WEBAPPS" "browser" "data_bin" "$data_bin"
@@ -822,6 +831,7 @@ function sh_webapp_enable-disable() {
 
 	[[ -z "$browser_short_name" ]] && browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
 	case "$browser_short_name" in
+	microsoft-edge-stable) browser_short_name='msedge' ;;
 	google-chrome-stable) browser_short_name='chrome' ;;
 	chromium) browser_short_name='chrome' ;;
 	vivaldi-stable) browser_short_name='vivaldi' ;;
@@ -1056,6 +1066,10 @@ function sh_webapp-install() {
 	local ICON_FILE="$HOME_LOCAL"/share/icons/"$NAME_FILE"
 
 	case "$browser" in
+	microsoft-edge-stable)
+		short_browser_name='msedge'
+		prefixo='chrome'
+		;;
 	google-chrome-stable)
 		short_browser_name='chrome'
 		prefixo='chrome'
@@ -1559,7 +1573,6 @@ function sh_webapp-edit() {
 	local urldeskOld="${urldeskOld:-}"
 	local shortcut="${shortcut:-}"
 
-
 	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
 	icondesk="${icondesk//$'\n'/}"
 	icondesk="${icondesk//$'\r'/}"
@@ -1651,6 +1664,7 @@ function sh_webapp_ativar_all_native_webapps() {
 
    browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
    case "$browser_short_name" in
+   microsoft-edge-stable) browser_short_name='msedge' ;;
    google-chrome-stable) browser_short_name='chrome' ;;
    chromium) browser_short_name='chrome' ;;
    vivaldi-stable) browser_short_name='vivaldi' ;;

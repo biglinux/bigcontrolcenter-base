@@ -253,6 +253,22 @@ function TIni.Get() {
 }
 export -f TIni.Get
 
+# Função para remover uma chave de um arquivo de configuração INI
+function TIni.Delete() {
+	local config_file="$1"
+	local section="$2"
+	local key="$3"
+
+	# Verifica se o arquivo de configuração existe
+	if [ ! -f "$config_file" ]; then
+		return 2
+    fi
+
+	# Usa sed para remover a chave do arquivo de configuração
+	sed -i "/^\[$section\]/,/^$/ { /^\s*$key\s*=/d }" "$config_file"
+}
+export -f TIni.Delete
+
 function TIni.GetAwk() {
 	local config_file="$1"
 	local section="$2"
