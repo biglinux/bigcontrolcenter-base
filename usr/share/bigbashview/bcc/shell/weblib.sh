@@ -1578,6 +1578,9 @@ function sh_webapp-edit() {
 	icondesk="${icondesk//$'\r'/}"
 	icondesk="${icondesk//$'\t'/}"
 
+
+xdebug "1-$namedeskOld-1\n2-$namedesk-2"
+
 	if [[ "$browserOld" != "$browserNew" ]]; then
 		name_file="$RANDOM-${icondesk##*/}"
 		cp -f "$icondesk" /tmp/"$name_file"
@@ -2267,11 +2270,42 @@ export -f sh_webapp_getbgcolor
 
 function sh_webapp_setbgcolor {
 	local param="$1"
-    local lightmode=0
+    local lightmode=1
 
-	[[ "$param" = "true" ]] && lightmode=1
+	[[ "$param" = "true" ]] && lightmode=0
 	TIni.Set "$INI_FILE_WEBAPPS" 'config' 'lightmode' "$lightmode"
 }
 export -f sh_webapp_setbgcolor
+
+#######################################################################################################################
+
+function xdebug {
+    local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
+    local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
+    local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
+
+    #   kdialog --title "[xdebug (kdialog)]$0" \
+    #       --yes-label="Não" \
+    #       --no-label="Sim" \
+    #       --warningyesno "\n${*}\n\nContinuar ?\n"
+    #   result=$?
+    #   [[ $result -eq 0 ]] && exit 1 # botões invertidos
+    #   return $result
+    #
+
+    yad --title="[xdebug (yad)]$script_name1" \
+        --text="${*}\n\nContinuar ?" \
+        --center \
+        --window-icon="$xicon" \
+        --buttons-layout=center \
+        --on-top \
+        --selectable-labels \
+        --button="Sim:0" \
+        --button="Não:1"
+    result=$?
+    [[ $result -eq 1 ]] && exit 1
+    return $result
+}
+export -f xdebug
 
 #######################################################################################################################
