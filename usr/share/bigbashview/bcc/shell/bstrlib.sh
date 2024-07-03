@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2023/10/11
+#  Altered: 2024/07/03
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20231011"
+_VERSION_="1.0.0-20240703"
 LOGGER='/dev/tty8'
 
 export HOME_FOLDER="$HOME/.bigstore"
@@ -1605,6 +1605,51 @@ function sh_this_package_update {
 	pacman -Qu "$1" 2>/dev/null | awk '{print $NF}'
 }
 export -f sh_this_package_update
+
+#######################################################################################################################
+
+# determina se o fundo do KDE está em modo claro ou escuro
+function sh_bstr_getbgcolor() {
+    local result
+    local r g b
+    local average_rgb
+
+    if lightmode="$(TIni.Get "$INI_FILE_BIG_STORE" 'config' 'lightmode')" && [[ -z "$lightmode" ]]; then
+        # Read background color RGB values
+        lightmode=0
+        if result="$(kreadconfig5 --group "Colors:Window" --key BackgroundNormal)" && [[ -n "$result" ]]; then
+            r=${result%,*}
+            g=${result#*,}
+            g=${g%,*}
+            b=${result##*,}
+            average_rgb=$(((r + g + b) / 3))
+            if ((average_rgb > 127)); then
+                lightmode=1
+            fi
+        fi
+        TIni.Set "$INI_FILE_BIG_STORE" 'config' 'lightmode' "$lightmode"
+    fi
+
+    if ((lightmode)); then
+        echo '<body class=light-mode>'
+    else
+        echo '<body>'
+    fi
+}
+export -f sh_bstr_getbgcolor
+
+#######################################################################################################################
+
+function sh_bstr_setbgcolor() {
+    local param="$1"
+    local lightmode=1
+
+    [[ "$param" = "true" ]] && lightmode=0
+    TIni.Set "$INI_FILE_BIG_STORE" 'config' 'lightmode' "$lightmode"
+}
+export -f sh_bstr_setbgcolor
+
+##########################################
 
 function sh_main {
 	local execute_app="$1"
