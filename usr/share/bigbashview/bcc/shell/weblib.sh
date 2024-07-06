@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/06/29
+#  Altered: 2024/07/03
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="29-06-2024 - 12:02"
-_VERSION_="1.0.0-20240629"
+_DATE_ALTERED_="03-07-2024 - 13:47"
+_VERSION_="1.0.0-20240703"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -443,6 +443,48 @@ function yadmsg() {
 		--window-icon="$WEBAPPS_PATH"/icons/webapp.svg
 }
 export -f yadmsg
+
+#######################################################################################################################
+
+function sh_webapp_setbgcolor {
+	local param="$1"
+    local lightmode=1
+
+	[[ "$param" = "true" ]] && lightmode=0
+	TIni.Set "$INI_FILE_WEBAPPS" 'config' 'lightmode' "$lightmode"
+}
+export -f sh_webapp_setbgcolor
+
+#######################################################################################################################
+
+function xdebug {
+    local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
+    local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
+    local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
+
+    #   kdialog --title "[xdebug (kdialog)]$0" \
+    #       --yes-label="Não" \
+    #       --no-label="Sim" \
+    #       --warningyesno "\n${*}\n\nContinuar ?\n"
+    #   result=$?
+    #   [[ $result -eq 0 ]] && exit 1 # botões invertidos
+    #   return $result
+    #
+
+    yad --title="[xdebug (yad)]$script_name1" \
+        --text="${*}\n\nContinuar ?" \
+        --center \
+        --window-icon="$xicon" \
+        --buttons-layout=center \
+        --on-top \
+        --selectable-labels \
+        --button="Sim:0" \
+        --button="Não:1"
+    result=$?
+    [[ $result -eq 1 ]] && exit 1
+    return $result
+}
+export -f xdebug
 
 #######################################################################################################################
 
@@ -1578,9 +1620,6 @@ function sh_webapp-edit() {
 	icondesk="${icondesk//$'\r'/}"
 	icondesk="${icondesk//$'\t'/}"
 
-
-xdebug "1-$namedeskOld-1\n2-$namedesk-2"
-
 	if [[ "$browserOld" != "$browserNew" ]]; then
 		name_file="$RANDOM-${icondesk##*/}"
 		cp -f "$icondesk" /tmp/"$name_file"
@@ -1832,30 +1871,30 @@ function sh_webapp-info() {
 	      <div class="button-wrapper">
 	'
 
-function sh_webapp_set_option_browser() {
-	local browser_selected="$1"
-	local cpath
-	local nc=0
-	local selecionado
+	function sh_webapp_set_option_browser() {
+		local browser_selected="$1"
+		local cpath
+		local nc=0
+		local selecionado
 
-	for cpath in "${aBrowserPath[@]}"; do
-		if [[ -e "$cpath" ]]; then
-			option_value="${aBrowserId[nc]}"
-			option_text="${aBrowserTitle[nc]}"
-			option_icon="${aBrowserIcon[nc]}"
-			selecionado=
-			selected_icon=
-			if [[ "$browser_selected" = "$option_value" ]]; then
-				selecionado='selected'
-				selected_icon="$option_icon"
+		for cpath in "${aBrowserPath[@]}"; do
+			if [[ -e "$cpath" ]]; then
+				option_value="${aBrowserId[nc]}"
+				option_text="${aBrowserTitle[nc]}"
+				option_icon="${aBrowserIcon[nc]}"
+				selecionado=
+				selected_icon=
+				if [[ "$browser_selected" = "$option_value" ]]; then
+					selecionado='selected'
+					selected_icon="$option_icon"
+				fi
+				cat <<-EOF
+					<option $selecionado value=$option_value>$option_text</option>
+				EOF
 			fi
-			cat <<-EOF
-				<option $selecionado value=$option_value>$option_text</option>
-			EOF
-		fi
-		((++nc))
-	done
-}
+			((++nc))
+		done
+	}
 
 	cat <<-EOF
 		<select class="svg-center" id="browserSelectEdit" name="browserNew">
@@ -2231,6 +2270,7 @@ function sh_webapp_set_option_browser() {
 	});
 	</script>
 '
+
 }
 export -f sh_webapp-info
 
@@ -2265,47 +2305,5 @@ function sh_webapp_getbgcolor {
     fi
 }
 export -f sh_webapp_getbgcolor
-
-#######################################################################################################################
-
-function sh_webapp_setbgcolor {
-	local param="$1"
-    local lightmode=1
-
-	[[ "$param" = "true" ]] && lightmode=0
-	TIni.Set "$INI_FILE_WEBAPPS" 'config' 'lightmode' "$lightmode"
-}
-export -f sh_webapp_setbgcolor
-
-#######################################################################################################################
-
-function xdebug {
-    local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
-    local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
-    local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
-
-    #   kdialog --title "[xdebug (kdialog)]$0" \
-    #       --yes-label="Não" \
-    #       --no-label="Sim" \
-    #       --warningyesno "\n${*}\n\nContinuar ?\n"
-    #   result=$?
-    #   [[ $result -eq 0 ]] && exit 1 # botões invertidos
-    #   return $result
-    #
-
-    yad --title="[xdebug (yad)]$script_name1" \
-        --text="${*}\n\nContinuar ?" \
-        --center \
-        --window-icon="$xicon" \
-        --buttons-layout=center \
-        --on-top \
-        --selectable-labels \
-        --button="Sim:0" \
-        --button="Não:1"
-    result=$?
-    [[ $result -eq 1 ]] && exit 1
-    return $result
-}
-export -f xdebug
 
 #######################################################################################################################
