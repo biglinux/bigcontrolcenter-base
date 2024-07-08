@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/07/08
+#  Altered: 2024/07/03
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="08-07-2024 - 13:47"
-_VERSION_="1.0.0-20240708"
+_DATE_ALTERED_="03-07-2024 - 13:47"
+_VERSION_="1.0.0-20240703"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -114,47 +114,45 @@ function sh_webapp_index_sh_config() {
 	declare -g NATIVE=0
 	declare -g FLATPAK=0
 	declare -g COUNT_BROWSER=0
-	declare -g WebApps_BigLinux="WebApps BigLinux"
 	declare -g Detectando_o_nome=$(gettext "Detectando o nome, aguarde...")
 	declare -g Detectando_o_icone=$(gettext "Detectando o icone, aguarde...")
 	declare -g Adicionando_o_webapp=$(gettext "Adicionando o webapp...")
 	declare -g Aplicando_as_alteracoes=$(gettext "Aplicando as alterações...")
 	declare -g Criando_o_backup=$(gettext "Criando o backup...")
-	declare -g Importando_os_webapps=$(gettext "Importando os WebApps...")
+	declare -g Importando_os_webapps=$(gettext "Importando os webapps...")
 	declare -g Removendo_o_webapp=$(gettext "Removendo o webapp...")
-	declare -g Removendo_todos_os_webapps=$(gettext "Removendo todos os WebApps...")
+	declare -g Removendo_todos_os_webapps=$(gettext "Removendo todos os webapps...")
 	declare -g Adicionar_WebApps=$(gettext "Adicionar WebApps")
 	declare -g Remover_WebApps=$(gettext "Remover WebApps")
 	declare -g Editar_WebApp=$(gettext "Editar WebApp")
 	declare -g WebApps_Adicionados=$(gettext "WebApps Adicionados")
+	declare -g WebApps_BigLinux="WebApps BigLinux"
 	declare -g Exemplo=$(gettext "Exemplo")
-	declare -g Url_Exemplo='https://www.exemplo.com'
-	declare -g URL='URL'
+	declare -g Url_Exemplo="https://www.exemplo.com"
+	declare -g URL="URL"
 	declare -g Nome=$(gettext "Nome")
 	declare -g Icone_do_WebApp=$(gettext "Icone do WebApp")
-	declare -g Adicionar=$(gettext "Adicionar")
 	declare -g Alterar=$(gettext "Alterar")
-	declare -g Aplicar=$(gettext "Aplicar")
 	declare -g Cancelar=$(gettext "Cancelar")
+	declare -g Aplicar=$(gettext "Aplicar")
+	declare -g Adicionar=$(gettext "Adicionar")
 	declare -g Fechar=$(gettext "Fechar")
-	declare -g dos=$(gettext "dos")
-	declare -g Sim=$(gettext "Sim")
-	declare -g Nao=$(gettext "Não")
-	declare -g Nativo=$(gettext "Nativo")
-	declare -g Sobre=$(gettext "Sobre")
+	declare -g Detectar_Nome_e_Icone=$(gettext "Detectar nome e icone")
 	declare -g Navegador=$(gettext "Navegador")
 	declare -g Categoria=$(gettext "Categoria")
+	declare -g Criar_atalho_na_Area_de_Trabalho=$(gettext "Criar atalho na Área de Trabalho")
+	declare -g Perfil_Adicional=$(gettext "Perfil Adicional")
 	declare -g Desenvolvimento=$(gettext "Desenvolvimento")
 	declare -g Escritorio=$(gettext "Escritório")
 	declare -g Graficos=$(gettext "Gráficos")
 	declare -g Internet=$(gettext "Internet")
 	declare -g Jogos=$(gettext "Jogos")
 	declare -g Multimidia=$(gettext "Multimidia")
-	declare -g Detectar_Nome_e_Icone=$(gettext "Detectar nome e ícone")
-	declare -g Criar_atalho_na_Area_de_Trabalho=$(gettext "Criar atalho na Área de Trabalho")
-	declare -g Perfil_Adicional=$(gettext "Perfil Adicional")
 	declare -g WebApps_Nativos=$(gettext "WebApps Nativos")
-	declare -g Navegador_Padrao=$(gettext "Navegador Padrão")
+	declare -g Navegador_padrao=$(gettext "Navegador Padrão")
+	declare -g dos=$(gettext "dos")
+	declare -g Sim=$(gettext "Sim")
+	declare -g Nao=$(gettext "Não")
 	declare -g O_navegador_nao_esta_instalado=$(gettext "O navegador não está instalado!")
 	declare -g Nao_existem_navegadores_compativeis_instalados_no_sistema=$(gettext "Não existem navegadores compatíveis instalados no sistema!")
 	declare -g Selecione_o_navegador_preferido=$(gettext "Selecione o navegador preferido")
@@ -173,8 +171,12 @@ function sh_webapp_index_sh_config() {
 	declare -g Tem_certeza_que_deseja_remover_este_WebApp=$(gettext "Tem certeza que deseja remover este WebApp?")
 	declare -g Importar_Backup=$(gettext "Restaurar Backup")
 	declare -g Criar_Backup=$(gettext "Criar Backup")
+	declare -g Nativo=$(gettext "Nativo")
+	declare -g Sobre=$(gettext "Sobre")
 	declare -g Icone_do_WebApp=$(gettext "Ícone do WebApp")
+	declare -g Categoria=$(gettext "Categoria")
 	declare -g Perfil_adicional=$(gettext "Perfil adicional")
+	declare -g Criar_atalho_na_area_de_Trabalho=$(gettext "Criar atalho na Área de Trabalho")
 	declare -g Selecione_o_icone_preferido=$(gettext "Selecione o ícone preferido:")
 	declare -g Nao_e_possivel_aplicar_a_edicao_sem_Nome=$(gettext "Não é possível aplicar a edição sem Nome!")
 	declare -g Nao_e_possivel_aplicar_a_edicao_sem_alteracoes=$(gettext "Não é possível aplicar a edição sem alterações!")
@@ -1833,17 +1835,17 @@ function sh_webapp-info() {
 
 	case "${app_category/;/}" in
 	Development)	selected_Development='selected';;
-	Office)			selected_Office='selected';;
+	Office) 			selected_Office='selected';;
 	Graphics)		selected_Graphics='selected';;
-	Network)		selected_Network='selected';;
-	Game)			selected_Game='selected';;
+	Network)			selected_Network='selected';;
+	Game)				selected_Game='selected';;
 	AudioVideo)		selected_AudioVideo='selected';;
-	Webapps)		selected_Webapps='selected';;
+	Webapps)			selected_Webapps='selected';;
 	Google)			selected_Google='selected';;
 	*) : ;;
 	esac
 
-	cat <<-EOF
+	cat <<-EOF | tee -i -a /github/bcc/temp.html
 		<div class="content-section">
 		<ul style="margin-top:-20px">
 		<li>
@@ -1857,7 +1859,7 @@ function sh_webapp-info() {
 		<div class="button-wrapper">
 		<div class=app-card>
 		<div class="button-wrapper">
-		<button class="button" style="height:30px" id="detectAllEdit">${Detectar_Nome_e_Icone} </button>
+		<button class="button" style="height:30px" id="detectAllEdit"> $Detectar_Nome_e_Icone </button>
 		</div>
 		</div>
 		</div>
@@ -1889,14 +1891,14 @@ function sh_webapp-info() {
 		${Icone_do_WebApp}:
 		</div>
 		<div class="button-wrapper">
-		<button class="button" style="height:30px" id="loadIconEdit">${Alterar} </button>
+		<button class="button" style="height:30px" id="loadIconEdit">$Alterar</button>
 		</div>
 		</li>
 
 		<li>
 		<div class="products">
 		<div class="svg-center" id="thumb">
-		<img height="58" width="58" id="browserEdit" src=icons/$selected_icon.svg />
+		<img height="58" width="58" id="browserEdit" src=icons/$selected_icon.svg/>
 		</div>
 		${Navegador}:
 		</div>
@@ -1921,7 +1923,7 @@ function sh_webapp-info() {
 					selecionado='selected'
 					selected_icon="$option_icon"
 				fi
-				cat <<-EOF
+				cat <<-EOF | tee -i -a /github/bcc/temp.html
 					<option $selecionado value=$option_value>$option_text </option>
 				EOF
 			fi
@@ -1930,14 +1932,14 @@ function sh_webapp-info() {
 	}
 	sh_webapp_set_option_browser "$browser_name"
 
-	cat <<-EOF
+	cat <<-EOF | tee -i -a /github/bcc/temp.html
 		</select>
-		<input type="hidden" name="urldeskOld"	value=$app_url />
-		<input type="hidden" name="browserOld"	value=$browser_name />
-		<input type="hidden" name="filedesk"	value=$filedesk />
-		<input type="hidden" name="categoryOld"	value=${app_category/;/} />
-		<input type="hidden" name="namedeskOld"	value=$app_name />
-		<input type="hidden" name="icondeskOld"	value=$app_icon />
+		<input type="hidden" name="urldeskOld" value=$app_url/>
+		<input type="hidden" name="browserOld" value=$browser_name/>
+		<input type="hidden" name="filedesk" value=$filedesk/>
+		<input type="hidden" name="categoryOld" value=${app_category/;/}/>
+		<input type="hidden" name="namedeskOld" value=$app_name/>
+		<input type="hidden" name="icondeskOld" value=$app_icon/>
 		</div>
 	    </li>
 
@@ -1949,14 +1951,14 @@ function sh_webapp-info() {
 	      <div class="button-wrapper">
 	        <div class="svg-center">
 	          <select class="svg-center" id="categorySelectEdit" name="category">
-	            <option value="Development"	$selected_Development >${Desenvolvimento^^}" </option>
-	            <option value="Office"		$selected_Office	  >${Escritorio^^} </option>
-	            <option value="Graphics"	$selected_Graphics	  >${Graficos^^} </option>
-	            <option value="Network"		$selected_Network	  >INTERNET </option>
-	            <option value="Game"		$selected_Game		  >${Jogos^^} </option>
-	            <option value="AudioVideo"	$selected_AudioVideo  >${Multimidia^^} </option>
-	            <option value="Webapps"		$selected_Webapps	  >WEBAPPS </option>
-	            <option value="Google"		$selected_Google	  >WEBAPPS GOOGLE </option>
+	            <option value="Development"		$selected_Development >${Desenvolvimento^DESENVOLVIMENTO" </option>
+	            <option value="Office" 			$selected_Office	  >$"ESCRITÓRIO" </option>
+	            <option value="Graphics" 		$selected_Graphics	  >$"GRÁFICOS" </option>
+	            <option value="Network" 		$selected_Network	  >INTERNET </option>
+	            <option value="Game" 			$selected_Game		  >$"JOGOS" </option>
+	            <option value="AudioVideo"		$selected_AudioVideo  >$"MULTIMÍDIA" </option>
+	            <option value="Webapps" 		$selected_Webapps	  >WEBAPPS </option>
+	            <option value="Google" 			$selected_Google	  >WEBAPPS GOOGLE </option>
 	          </select>
 	        </div>
 	      </div>

@@ -9,7 +9,7 @@ pkgrel=$(date +%H%M)
 arch=('any')
 license=('GPL3')
 url="https://github.com/biglinux/$pkgname"
-source=("git+https://github.com/biglinux/$pkgname.git")
+source=("git+${url}.git")
 provides=("$pkgname")
 depends=('bash'
 	'curl'
