@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="08-07-2024 - 13:47"
-_VERSION_="1.0.0-20240708"
+_DATE_ALTERED_="11-07-2024 - 23:49"
+_VERSION_="1.0.0-20240711"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -331,17 +331,19 @@ export -f sh_read_desktop_file_with_read
 
 function sh_webapp_insert_menu() {
 	cat <<-EOF
-     	<!-- INSERT -->
+		<!-- INSERT -->
+		<div class="content-section-menu" style="text-align:left">
 		<div class="menuNative">
 			<svg viewBox="0 0 448 512">"
-				<path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/>
+			<path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/>
 			</svg>
-			<button class="dropdown">
+			<button class="dropdownNative">
 				<ul>
 					<li id="ativar-li"><a id="ativar">Ativar todos WebApps Nativos</a></li>
 					<li id="desativar-li"><a id="desativar">Desativar todos WebApps Nativos</a></li>
 				</ul>
 			</button>
+		</div>
 		</div>
 	<!-- INSERT -->
 	EOF
@@ -1883,8 +1885,8 @@ function sh_webapp-info() {
 		</svg>
 		</div>
 		</div>
-		<img id="iconDeskEdit" src=$ICON width="58" height="58" />
-		<input type="hidden" name="icondesk" value=$ICON id="inputIconDeskEdit" />
+		<img id="iconDeskEdit" src="${app_icon}" width="58" height="58" />
+		<input type="hidden" name="icondesk" value="${app_icon}" id="inputIconDeskEdit" />
 		</div>
 		${Icone_do_WebApp}:
 		</div>
