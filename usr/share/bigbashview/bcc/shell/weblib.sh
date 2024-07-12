@@ -181,6 +181,8 @@ function sh_webapp_index_sh_config() {
 	declare -g O_WebApp_foi_editado_com_sucesso=$(gettext "$O WebApp foi editado com sucesso!")
 	declare -g Ativando_WebApps_Nativos=$(gettext "Aguarde, Ativando WebApps Nativos")
 	declare -g Desativando_WebApps_Nativos=$(gettext "Aguarde, Desativando WebApps Nativos")
+	declare -g Ativar_todos_WebApps=$(gettext "Ativar todos webApps")
+	declare -g Desativar_todos_WebApps=$(gettext "Desativar todos WebApps")
 	declare -g CUSTOMFILES
 	declare -g NATIVEFILES
 }
@@ -323,32 +325,6 @@ function sh_read_desktop_file_with_read() {
 	done <"$file"
 }
 export -f sh_read_desktop_file_with_read
-
-#######################################################################################################################
-#		  <div class="pop-up__subtitle">$WebApps_Nativos</div>
-#		</div>
-#					<li id="backup-li">    <a id="backup"   >Criar Backup</a></li>
-
-function sh_webapp_insert_menu() {
-	cat <<-EOF
-		<!-- INSERT -->
-		<div class="content-section-menu" style="text-align:left">
-		<div class="menuNative">
-			<svg viewBox="0 0 448 512">"
-			<path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/>
-			</svg>
-			<button class="dropdownNative">
-				<ul>
-					<li id="ativar-li"><a id="ativar">Ativar todos WebApps Nativos</a></li>
-					<li id="desativar-li"><a id="desativar">Desativar todos WebApps Nativos</a></li>
-				</ul>
-			</button>
-		</div>
-		</div>
-	<!-- INSERT -->
-	EOF
-}
-export -f sh_webapp_insert_menu
 
 #######################################################################################################################
 
