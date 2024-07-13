@@ -36,7 +36,7 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="13-07-2024 - 01:35"
+_DATE_ALTERED_="13-07-2024 - 11:16"
 _VERSION_="1.0.0-20240713"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
@@ -1173,6 +1173,7 @@ function sh_webapp_create() {
 	local filename_orig
 	local i
 
+	icon="${icon##*/}"
 	urldesk="${urldesk/www./}"
 	CLASS=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
 	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CLASS}__-Default.desktop"
@@ -1193,18 +1194,19 @@ function sh_webapp_create() {
 	esac
 
 	if [[ -z "$IsConvert" ]]; then
-		filename_orig=$NEW_DESKTOP_FILE
-		# Verify if the WebApp already exists
-		if [[ -e $filename_orig ]]; then
-			# If the WebApp already exists, add BigWebApp1 or first available number
-			i=1
-			filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
-			while [[ -e $filename ]]; do
-				((++i))
-				filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
-			done
-			mv "$filename_orig" "$filename"
-		fi
+#		filename_orig=$NEW_DESKTOP_FILE
+#		# Verify if the WebApp already exists
+#		if [[ -e $filename_orig ]]; then
+#			# If the WebApp already exists, add BigWebApp1 or first available number
+#			i=1
+#			filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+#			while [[ -e $filename ]]; do
+#				((++i))
+#				filename="${filename_orig/.desktop/}-BigWebApp$i.desktop"
+#			done
+#			mv "$filename_orig" "$filename"
+#		fi
+		:
 	else
 		if [[ -e $NEW_DESKTOP_FILE ]]; then
 			return 0
@@ -1218,6 +1220,7 @@ function sh_webapp_create() {
 		Version=1.0
 		Terminal=false
 		Type=Application
+		MimeType=text/html;text/xml;application/xhtml_xml;
 		Name=$namedesk
 		Exec=$line_exec
 		Icon=$icon
@@ -1242,6 +1245,105 @@ function sh_webapp_create() {
 	return 0
 }
 export -f sh_webapp_create
+
+#######################################################################################################################
+
+function sh_webapp-edit() {
+	local CHANGE=0
+	local EDIT=0
+	local USER_DESKTOP
+	local DESKNAME
+	local name_file
+	local IsConvert
+	local browserOld="${browserOld:-}"
+	local browserNew="${browserNew:-}"
+	local icondesk="${icondesk:-}"
+	local icondeskOld="${icondeskOld:-}"
+	local filedesk="${filedesk:-}"
+	local namedeskOld="${namedeskOld:-}"
+	local categoryOld="${categoryOld:-}"
+	local urldesk="${urldesk:-}"
+	local urldeskOld="${urldeskOld:-}"
+	local shortcut="${shortcut:-}"
+
+	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
+	icondesk="${icondesk//$'\n'/}"
+	icondesk="${icondesk//$'\r'/}"
+	icondesk="${icondesk//$'\t'/}"
+
+	if [[ "$browserOld" != "$browserNew" ]]; then
+		name_file="$RANDOM-${icondesk##*/}"
+		cp -f "$icondesk" /tmp/"$name_file"
+		icondesk=/tmp/"$name_file"
+		CHANGE=1
+	fi
+
+	#	if ((CHANGE)); then
+	#		JSON="{
+	#  \"browser\"   : \"$browserNew\",
+	#  \"category\"  : \"$category\",
+	#  \"filedesk\"  : \"$filedesk\",
+	#  \"icondesk\"  : \"$icondesk\",
+	#  \"namedesk\"  : \"$namedesk\",
+	#  \"newperfil\" : \"$newperfil\",
+	#  \"shortcut\"  : \"$shortcut\",
+	#  \"urldesk\"   : \"$urldesk\"
+	#}"
+	#		printf "%s" "$JSON"
+	#		exit
+	#	fi
+
+	if [[ "$icondeskOld" != "$icondesk" ]]; then
+		mv -f "$icondesk" "$icondeskOld"
+		icondesk="${icondeskOld##*/}"
+		TIni.Set "$filedesk" 'Desktop Entry' 'Icon' "$icondesk"
+		EDIT=1
+	fi
+
+	if [[ "$namedeskOld" != "$namedesk" ]]; then
+		TIni.Set "$filedesk" 'Desktop Entry' 'Name' "$namedesk"
+		EDIT=1
+	fi
+
+	if [[ "$categoryOld" != "$category" ]]; then
+		TIni.Set "$filedesk" 'Desktop Entry' 'Categories' "$category;"
+		EDIT=1
+	fi
+
+	USER_DESKTOP=$(xdg-user-dir DESKTOP)
+	DESKNAME=${filedesk##*/}
+
+	if [[ "$shortcut" = "on" ]]; then
+		EDIT=1
+	else
+		unlink "$USER_DESKTOP/$DESKNAME"
+	fi
+
+#	xdebug "1-$browserNew\n2-$Exec\n3-$namedesk\n4-$icondesk\n5-$category\n6-$urldesk\n7-$shortcut\n8-$IsConvert"
+
+	if ((EDIT)) || ((CHANGE)); then
+		IsConvert=
+		Exec=$(TIni.Get "$filedesk" 'Desktop Entry' 'Exec')
+		if sh_webapp_create "$browserNew" "$Exec" "$namedesk" "$icondesk" "$category" "$urldesk" "$shortcut" "$IsConvert"; then
+			if [[ "$browserOld" != "$browserNew" || "$urldeskOld" != "$urldesk" ]]; then
+				# Remove the old desktop file
+				rm "$filedesk"
+			fi
+		fi
+	fi
+
+	if ((EDIT)) || ((CHANGE)); then
+		update-desktop-database -q "$HOME_LOCAL"/share/applications &
+		kbuildsycoca5 &>/dev/null &
+		rm -f /tmp/*.png
+		printf '{ "return" : "0" }'
+	else
+		printf '{ "return" : "1" }'
+	fi
+	exit
+
+}
+export -f sh_webapp-edit
 
 #######################################################################################################################
 
@@ -1606,105 +1708,6 @@ export -f sh_add_custom_desktop_files
 
 #######################################################################################################################
 
-function sh_webapp-edit() {
-	local CHANGE=0
-	local EDIT=0
-	local USER_DESKTOP
-	local DESKNAME
-	local name_file
-	local IsConvert
-	local browserOld="${browserOld:-}"
-	local browserNew="${browserNew:-}"
-	local icondesk="${icondesk:-}"
-	local icondeskOld="${icondeskOld:-}"
-	local filedesk="${filedesk:-}"
-	local namedeskOld="${namedeskOld:-}"
-	local categoryOld="${categoryOld:-}"
-	local urldesk="${urldesk:-}"
-	local urldeskOld="${urldeskOld:-}"
-	local shortcut="${shortcut:-}"
-
-	# Removendo quebras de linha, tabulações e retorno de carro usando substituição de padrões
-	icondesk="${icondesk//$'\n'/}"
-	icondesk="${icondesk//$'\r'/}"
-	icondesk="${icondesk//$'\t'/}"
-
-	if [[ "$browserOld" != "$browserNew" ]]; then
-		name_file="$RANDOM-${icondesk##*/}"
-		cp -f "$icondesk" /tmp/"$name_file"
-		icondesk=/tmp/"$name_file"
-		CHANGE=1
-	fi
-
-	#	if ((CHANGE)); then
-	#		JSON="{
-	#  \"browser\"   : \"$browserNew\",
-	#  \"category\"  : \"$category\",
-	#  \"filedesk\"  : \"$filedesk\",
-	#  \"icondesk\"  : \"$icondesk\",
-	#  \"namedesk\"  : \"$namedesk\",
-	#  \"newperfil\" : \"$newperfil\",
-	#  \"shortcut\"  : \"$shortcut\",
-	#  \"urldesk\"   : \"$urldesk\"
-	#}"
-	#		printf "%s" "$JSON"
-	#		exit
-	#	fi
-
-	if [[ "$icondeskOld" != "$icondesk" ]]; then
-		mv -f "$icondesk" "$icondeskOld"
-		icondesk="${icondeskOld##*/}"
-		TIni.Set "$filedesk" 'Desktop Entry' 'Icon' "$icondesk"
-		EDIT=1
-	fi
-
-	if [[ "$namedeskOld" != "$namedesk" ]]; then
-		TIni.Set "$filedesk" 'Desktop Entry' 'Name' "$namedesk"
-		EDIT=1
-	fi
-
-	if [[ "$categoryOld" != "$category" ]]; then
-		TIni.Set "$filedesk" 'Desktop Entry' 'Categories' "$category;"
-		EDIT=1
-	fi
-
-	USER_DESKTOP=$(xdg-user-dir DESKTOP)
-	DESKNAME=${filedesk##*/}
-
-	if [[ "$shortcut" = "on" ]]; then
-		EDIT=1
-	else
-		unlink "$USER_DESKTOP/$DESKNAME"
-	fi
-
-	#xdebug "1-$browserNew\n2-$Exec\n3-$namedesk\n4-$icondesk\n5-$category\n6-$urldesk\n7-$shortcut\n8-$IsConvert"
-
-	if ((EDIT)) || ((CHANGE)); then
-		IsConvert=
-		Exec=$(TIni.Get "$filedesk" 'Desktop Entry' 'Exec')
-		if sh_webapp_create "$browserNew" "$Exec" "$namedesk" "$icondesk" "$category" "$urldesk" "$shortcut" "$IsConvert"; then
-			if [[ "$browserOld" != "$browserNew" || "$urldeskOld" != "$urldesk" ]]; then
-				# Remove the old desktop file
-				rm "$filedesk"
-			fi
-		fi
-	fi
-
-	if ((EDIT)) || ((CHANGE)); then
-		update-desktop-database -q "$HOME_LOCAL"/share/applications &
-		kbuildsycoca5 &>/dev/null &
-		rm -f /tmp/*.png
-		printf '{ "return" : "0" }'
-	else
-		printf '{ "return" : "1" }'
-	fi
-	exit
-
-}
-export -f sh_webapp-edit
-
-#######################################################################################################################
-
 function sh_webapp_ativar_all_native_webapps() {
 	local app
 	local browser_short_name
@@ -1797,6 +1800,14 @@ function sh_webapp-info() {
 	IsCustom="$(desktop.get "$filedesk" 'Desktop Entry' 'Custom')"
 	app_icon="$(desktop.get "$filedesk" 'Desktop Entry' 'Icon')"
 	selected_icon="$browser_name"
+
+	case "$selected_icon" in
+	microsoft-edge-stable) selected_icon='edge' ;;
+	google-chrome-stable) selected_icon='chrome' ;;
+	vivaldi-stable) selected_icon='vivaldi' ;;
+	*) : ;;
+	esac
+
 
 	if [[ -n "$IsCustom" ]]; then
 		app_icon="$HOME_LOCAL/share/icons/$app_icon"
