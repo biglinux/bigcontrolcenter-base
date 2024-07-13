@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/07/08
+#  Altered: 2024/07/13
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,8 +36,8 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="11-07-2024 - 23:49"
-_VERSION_="1.0.0-20240711"
+_DATE_ALTERED_="13-07-2024 - 01:35"
+_VERSION_="1.0.0-20240713"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -214,31 +214,31 @@ export -f sh_webapp_check_dirs
 
 # determina se o fundo do KDE está em modo claro ou escuro
 function sh_webapp_getbgcolor {
-    local result
-    local r g b
-    local average_rgb
+	local result
+	local r g b
+	local average_rgb
 
 	if lightmode="$(TIni.Get "$INI_FILE_WEBAPPS" 'config' 'lightmode')" && [[ -z "$lightmode" ]]; then
-        # Read background color RGB values
-        lightmode=0
-        if result="$(kreadconfig5 --group "Colors:Window" --key BackgroundNormal)" && [[ -n "$result" ]]; then
-            r=${result%,*}
-            g=${result#*,}
-            g=${g%,*}
-            b=${result##*,}
-            average_rgb=$(((r + g + b) / 3))
-            if ((average_rgb > 127)); then
-                lightmode=1
-            fi
-        fi
+		# Read background color RGB values
+		lightmode=0
+		if result="$(kreadconfig5 --group "Colors:Window" --key BackgroundNormal)" && [[ -n "$result" ]]; then
+			r=${result%,*}
+			g=${result#*,}
+			g=${g%,*}
+			b=${result##*,}
+			average_rgb=$(((r + g + b) / 3))
+			if ((average_rgb > 127)); then
+				lightmode=1
+			fi
+		fi
 		TIni.Set "$INI_FILE_WEBAPPS" 'config' 'lightmode' "$lightmode"
-    fi
+	fi
 
-    if ((lightmode)); then
-        echo '<body class=light-mode>'
-    else
-        echo '<body>'
-    fi
+	if ((lightmode)); then
+		echo '<body class=light-mode>'
+	else
+		echo '<body>'
+	fi
 }
 export -f sh_webapp_getbgcolor
 
@@ -344,16 +344,17 @@ function sh_add_native_desktop_files() {
 	local checked
 	local disabled
 	local IsCustom
+	local -i n=1
 
 	mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
 	for app in "${NATIVE_DESKTOP_FILES[@]}"; do
 		browser_default="$paramBrowser_default"
 		browser_icon="$paramBrowser_icon"
 		webapp="${app##*/}"
-#		urldesk=$(desktop.get "$app" "Desktop Entry" "Exec")
-#	    name=$(desktop.get "$app" "Desktop Entry" "Name")
-#		icon=$(desktop.get "$app" "Desktop Entry" "Icon")
-#		url=$(desktop.get "$app" "Desktop Entry" "X-WebApp-URL")
+		#		urldesk=$(desktop.get "$app" "Desktop Entry" "Exec")
+		#	    name=$(desktop.get "$app" "Desktop Entry" "Name")
+		#		icon=$(desktop.get "$app" "Desktop Entry" "Icon")
+		#		url=$(desktop.get "$app" "Desktop Entry" "X-WebApp-URL")
 
 		# Chamada função para ler o arquivo .desktop e atribuir as vars $urldesk $name $icon $url
 		sh_read_desktop_file_with_read "$app"
@@ -382,28 +383,28 @@ function sh_add_native_desktop_files() {
 			fi
 		done
 
-#		# Formatar a saída HTML usando cat
-#		cat <<-EOF
-#	   	<li class="product">
-#			<input value="$webapp" id="webapp_$n" type="checkbox" class="switch" style="margin-right:10px;" $checked />
-#			<div class="products">
-#			<img src="/usr/share/icons/hicolor/scalable/apps/$icon.svg" height="25" width="25" class="svg-center" />
-#			$name
-#	      </div>
-#			<span class="status">
-#			<span id="circle_$n" class="status-circle $color"></span>
-#			<div class="truncate">
-#			<a href="#!" onclick="_run('./webapp-launch.sh $webapp $browser_default');" class="urlNative $disabled" id="link_$n" >
-#			<svg viewBox="0 0 448 512" style="width:16px;border-radius:0px;margin:0px 0px -3px 0px;display:none">
-#			<path fill="currentcolor" d="M256 64C256 46.33 270.3 32 288 32H415.1C415.1 32 415.1 32 415.1 32C420.3 32 424.5 32.86 428.2 34.43C431.1 35.98 435.5 38.27 438.6 41.3C438.6 41.35 438.6 41.4 438.7 41.44C444.9 47.66 447.1 55.78 448 63.9C448 63.94 448 63.97 448 64V192C448 209.7 433.7 224 416 224C398.3 224 384 209.7 384 192V141.3L214.6 310.6C202.1 323.1 181.9 323.1 169.4 310.6C156.9 298.1 156.9 277.9 169.4 265.4L338.7 96H288C270.3 96 256 81.67 256 64V64zM0 128C0 92.65 28.65 64 64 64H160C177.7 64 192 78.33 192 96C192 113.7 177.7 128 160 128H64V416H352V320C352 302.3 366.3 288 384 288C401.7 288 416 302.3 416 320V416C416 451.3 387.3 480 352 480H64C28.65 480 0 451.3 0 416V128z"/>
-#			</svg>
-#			$url
-#			</a>
-#			</div>
-#			</span>
-#			<img src="icons/$browser_icon.svg" height="16" width="16" class="iconBrowser" />
-#			</li>
-#		EOF
+		#		# Formatar a saída HTML usando cat
+		#		cat <<-EOF
+		#	   	<li class="product">
+		#			<input value="$webapp" id="webapp_$n" type="checkbox" class="switch" style="margin-right:10px;" $checked />
+		#			<div class="products">
+		#			<img src="/usr/share/icons/hicolor/scalable/apps/$icon.svg" height="25" width="25" class="svg-center" />
+		#			$name
+		#	      </div>
+		#			<span class="status">
+		#			<span id="circle_$n" class="status-circle $color"></span>
+		#			<div class="truncate">
+		#			<a href="#!" onclick="_run('./webapp-launch.sh $webapp $browser_default');" class="urlNative $disabled" id="link_$n" >
+		#			<svg viewBox="0 0 448 512" style="width:16px;border-radius:0px;margin:0px 0px -3px 0px;display:none">
+		#			<path fill="currentcolor" d="M256 64C256 46.33 270.3 32 288 32H415.1C415.1 32 415.1 32 415.1 32C420.3 32 424.5 32.86 428.2 34.43C431.1 35.98 435.5 38.27 438.6 41.3C438.6 41.35 438.6 41.4 438.7 41.44C444.9 47.66 447.1 55.78 448 63.9C448 63.94 448 63.97 448 64V192C448 209.7 433.7 224 416 224C398.3 224 384 209.7 384 192V141.3L214.6 310.6C202.1 323.1 181.9 323.1 169.4 310.6C156.9 298.1 156.9 277.9 169.4 265.4L338.7 96H288C270.3 96 256 81.67 256 64V64zM0 128C0 92.65 28.65 64 64 64H160C177.7 64 192 78.33 192 96C192 113.7 177.7 128 160 128H64V416H352V320C352 302.3 366.3 288 384 288C401.7 288 416 302.3 416 320V416C416 451.3 387.3 480 352 480H64C28.65 480 0 451.3 0 416V128z"/>
+		#			</svg>
+		#			$url
+		#			</a>
+		#			</div>
+		#			</span>
+		#			<img src="icons/$browser_icon.svg" height="16" width="16" id="imgsrcwebapp_$n" class="iconBrowser" />
+		#			</li>
+		#		EOF
 
 		# Formatar a saída HTML usando printf
 		printf "%s\n" "<li class=\"product\">" \
@@ -423,7 +424,7 @@ function sh_add_native_desktop_files() {
 			"            </a>" \
 			"        </div>" \
 			"    </span>" \
-			"    <img src=\"icons/$browser_icon.svg\" height=\"16\" width=\"16\" class=\"iconBrowser\" />" \
+			"    <img src=\"icons/$browser_icon.svg\" height=\"16\" width=\"16\" id=\"imgsrcwebapp_$n\" class=\"iconBrowser\" />" \
 			"</li>"
 		((++n))
 	done
@@ -456,7 +457,7 @@ export -f yadmsg
 
 function sh_webapp_setbgcolor {
 	local param="$1"
-    local lightmode=1
+	local lightmode=1
 
 	[[ "$param" = "true" ]] && lightmode=0
 	TIni.Set "$INI_FILE_WEBAPPS" 'config' 'lightmode' "$lightmode"
@@ -466,31 +467,31 @@ export -f sh_webapp_setbgcolor
 #######################################################################################################################
 
 function xdebug {
-    local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
-    local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
-    local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
+	local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
+	local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
+	local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
 
-    #   kdialog --title "[xdebug (kdialog)]$0" \
-    #       --yes-label="Não" \
-    #       --no-label="Sim" \
-    #       --warningyesno "\n${*}\n\nContinuar ?\n"
-    #   result=$?
-    #   [[ $result -eq 0 ]] && exit 1 # botões invertidos
-    #   return $result
-    #
+	#   kdialog --title "[xdebug (kdialog)]$0" \
+	#       --yes-label="Não" \
+	#       --no-label="Sim" \
+	#       --warningyesno "\n${*}\n\nContinuar ?\n"
+	#   result=$?
+	#   [[ $result -eq 0 ]] && exit 1 # botões invertidos
+	#   return $result
+	#
 
-    yad --title="[xdebug (yad)]$script_name1" \
-        --text="${*}\n\nContinuar ?" \
-        --center \
-        --window-icon="$xicon" \
-        --buttons-layout=center \
-        --on-top \
-        --selectable-labels \
-        --button="Sim:0" \
-        --button="Não:1"
-    result=$?
-    [[ $result -eq 1 ]] && exit 1
-    return $result
+	yad --title="[xdebug (yad)]$script_name1" \
+		--text="${*}\n\nContinuar ?" \
+		--center \
+		--window-icon="$xicon" \
+		--buttons-layout=center \
+		--on-top \
+		--selectable-labels \
+		--button="Sim:0" \
+		--button="Não:1"
+	result=$?
+	[[ $result -eq 1 ]] && exit 1
+	return $result
 }
 export -f xdebug
 
@@ -523,7 +524,7 @@ export -f sh_check_webapp_is_running
 function sh_webapp_write_new_browser() {
 	local new_browser="$1"
 	local default_browser=
-	local compatible=1     # Flag para indicar se navegador é compatível
+	local compatible=1 # Flag para indicar se navegador é compatível
 	local cpath
 	local id
 	local icon
@@ -1175,21 +1176,21 @@ function sh_webapp_create() {
 	urldesk="${urldesk/www./}"
 	CLASS=$(sed 's|https://||;s|/|_|g;s|_|__|1;s|_$||;s|_$||;s|&|_|g;s|?||g;s|=|_|g' <<<"$urldesk")
 	NEW_DESKTOP_FILE="${HOME_LOCAL}/share/applications/${short_browser_name}-${CLASS}__-Default.desktop"
-   NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<< "$NEW_DESKTOP_FILE")
+	NEW_DESKTOP_FILE=$(sed -E "s/(__.*)__-Default/\1-Default/g" <<<"$NEW_DESKTOP_FILE")
 
-   if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
-      urldesk="https://$urldesk"
-   fi
+	if ! grep -Eq '^http:|^https:|^localhost|^127' <<<"$urldesk"; then
+		urldesk="https://$urldesk"
+	fi
 
-   _session="$(sh_get_desktop_session)"
-   case "${_session^^}" in
-   X11)
-      line_exec="/usr/bin/biglinux-webapp --class=$CLASS --profile-directory=Default --app=$urldesk $short_browser_name"
-      ;;
-   WAYLAND)
-      line_exec="/usr/bin/biglinux-webapp --class=$CLASS,Chromium-browser --profile-directory=Default --app=$urldesk $short_browser_name"
-      ;;
-   esac
+	_session="$(sh_get_desktop_session)"
+	case "${_session^^}" in
+	X11)
+		line_exec="/usr/bin/biglinux-webapp --class=$CLASS --profile-directory=Default --app=$urldesk $short_browser_name"
+		;;
+	WAYLAND)
+		line_exec="/usr/bin/biglinux-webapp --class=$CLASS,Chromium-browser --profile-directory=Default --app=$urldesk $short_browser_name"
+		;;
+	esac
 
 	if [[ -z "$IsConvert" ]]; then
 		filename_orig=$NEW_DESKTOP_FILE
@@ -1236,9 +1237,9 @@ function sh_webapp_create() {
 		gio set "$USER_DESKTOP/$file_link" -t string metadata::trust "true"
 	fi
 
-   update-desktop-database -q "$HOME_LOCAL"/share/applications &
-   kbuildsycoca5 &>/dev/null &
-   return 0
+	update-desktop-database -q "$HOME_LOCAL"/share/applications &
+	kbuildsycoca5 &>/dev/null &
+	return 0
 }
 export -f sh_webapp_create
 
@@ -1536,10 +1537,10 @@ function sh_add_custom_desktop_files() {
 				# Prints header of the category
 				print(\
 					"           <div class=\"content-section\" style=\"margin-top:-26px;\" id=\"" app_category "\">",
-				   "             <div id=\"" app_category "\" class=\"content-section-title\" style=\"text-align:left;\">",
+					"             <div id=\"" app_category "\" class=\"content-section-title\" style=\"text-align:left;\">",
 				                 app_array[app_category]["name_category"], "(<span id=\"" app_category "\"></span>)",
-				   "             </div>",
-				   "             <ul style=\"margin-top:0px;\" id=\"" app_category "\">")
+					"             </div>",
+					"             <ul style=\"margin-top:0px;\" id=\"" app_category "\">")
 
 				for (filename in app_array[app_category]) {
           		# Skips "name_category" index from the app_array[app_category] array
@@ -1635,20 +1636,20 @@ function sh_webapp-edit() {
 		CHANGE=1
 	fi
 
-#	if ((CHANGE)); then
-#		JSON="{
-#  \"browser\"   : \"$browserNew\",
-#  \"category\"  : \"$category\",
-#  \"filedesk\"  : \"$filedesk\",
-#  \"icondesk\"  : \"$icondesk\",
-#  \"namedesk\"  : \"$namedesk\",
-#  \"newperfil\" : \"$newperfil\",
-#  \"shortcut\"  : \"$shortcut\",
-#  \"urldesk\"   : \"$urldesk\"
-#}"
-#		printf "%s" "$JSON"
-#		exit
-#	fi
+	#	if ((CHANGE)); then
+	#		JSON="{
+	#  \"browser\"   : \"$browserNew\",
+	#  \"category\"  : \"$category\",
+	#  \"filedesk\"  : \"$filedesk\",
+	#  \"icondesk\"  : \"$icondesk\",
+	#  \"namedesk\"  : \"$namedesk\",
+	#  \"newperfil\" : \"$newperfil\",
+	#  \"shortcut\"  : \"$shortcut\",
+	#  \"urldesk\"   : \"$urldesk\"
+	#}"
+	#		printf "%s" "$JSON"
+	#		exit
+	#	fi
 
 	if [[ "$icondeskOld" != "$icondesk" ]]; then
 		mv -f "$icondesk" "$icondeskOld"
@@ -1712,30 +1713,30 @@ function sh_webapp_ativar_all_native_webapps() {
 	local NATIVE_DESKTOP_FILES
 	local NATIVE_FILES
 
-   browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
-   case "$browser_short_name" in
-   microsoft-edge-stable) browser_short_name='msedge' ;;
-   google-chrome-stable) browser_short_name='chrome' ;;
-   chromium) browser_short_name='chrome' ;;
-   vivaldi-stable) browser_short_name='vivaldi' ;;
-   *) : ;;
-   esac
+	browser_short_name=$(TIni.Get "$INI_FILE_WEBAPPS" "browser" "short_name")
+	case "$browser_short_name" in
+	microsoft-edge-stable) browser_short_name='msedge' ;;
+	google-chrome-stable) browser_short_name='chrome' ;;
+	chromium) browser_short_name='chrome' ;;
+	vivaldi-stable) browser_short_name='vivaldi' ;;
+	*) : ;;
+	esac
 
 	mapfile -t NATIVE_DESKTOP_FILES < <(find "$WEBAPPS_PATH/webapps" -iname "*-Default.desktop")
 	for app in "${NATIVE_DESKTOP_FILES[@]}"; do
 		webapp="${app##*/}"
-	   app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$webapp"
+		app_fullname="$HOME_LOCAL/share/applications/$browser_short_name-$webapp"
 		if [[ ! -e "$app_fullname" ]]; then
-	  		cp -f "$app" "$app_fullname"
-   	  	 line_exec=$(TIni.Get "$app_fullname" "Desktop Entry" "Exec")
-     		 line_exec+=" $browser_short_name"
-     		 TIni.Set "$app_fullname" "Desktop Entry" "Exec" "$line_exec"
-     		 TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser_short_name"
-	   fi
+			cp -f "$app" "$app_fullname"
+			line_exec=$(TIni.Get "$app_fullname" "Desktop Entry" "Exec")
+			line_exec+=" $browser_short_name"
+			TIni.Set "$app_fullname" "Desktop Entry" "Exec" "$line_exec"
+			TIni.Set "$app_fullname" "Desktop Entry" "X-WebApp-Browser" "$browser_short_name"
+		fi
 	done
-   sh_pre_process_custom_desktop_files
-   update-desktop-database -q "$HOME_LOCAL"/share/applications
-   kbuildsycoca5 &>/dev/null &
+	sh_pre_process_custom_desktop_files
+	update-desktop-database -q "$HOME_LOCAL"/share/applications
+	kbuildsycoca5 &>/dev/null &
 }
 export -f sh_webapp_ativar_all_native_webapps
 
@@ -1810,14 +1811,14 @@ function sh_webapp-info() {
 	[[ -L "$user_desktop_dir/$desktop_file_name" ]] && link_checked='checked'
 
 	case "${app_category/;/}" in
-	Development)	selected_Development='selected';;
-	Office)			selected_Office='selected';;
-	Graphics)		selected_Graphics='selected';;
-	Network)		selected_Network='selected';;
-	Game)			selected_Game='selected';;
-	AudioVideo)		selected_AudioVideo='selected';;
-	Webapps)		selected_Webapps='selected';;
-	Google)			selected_Google='selected';;
+	Development) selected_Development='selected' ;;
+	Office) selected_Office='selected' ;;
+	Graphics) selected_Graphics='selected' ;;
+	Network) selected_Network='selected' ;;
+	Game) selected_Game='selected' ;;
+	AudioVideo) selected_AudioVideo='selected' ;;
+	Webapps) selected_Webapps='selected' ;;
+	Google) selected_Google='selected' ;;
 	*) : ;;
 	esac
 
@@ -1829,7 +1830,7 @@ function sh_webapp-info() {
 		<svg viewBox="0 0 512 512">
 			<path fill="currentColor" d="M512 256C512 397.4 397.4 512 256 512C114.6 512 0 397.4 0 256C0 114.6 114.6 0 256 0C397.4 0 512 114.6 512 256zM57.71 192.1L67.07 209.4C75.36 223.9 88.99 234.6 105.1 239.2L162.1 255.7C180.2 260.6 192 276.3 192 294.2V334.1C192 345.1 198.2 355.1 208 359.1C217.8 364.9 224 374.9 224 385.9V424.9C224 440.5 238.9 451.7 253.9 447.4C270.1 442.8 282.5 429.1 286.6 413.7L289.4 402.5C293.6 385.6 304.6 371.1 319.7 362.4L327.8 357.8C342.8 349.3 352 333.4 352 316.1V307.9C352 295.1 346.9 282.9 337.9 273.9L334.1 270.1C325.1 261.1 312.8 255.1 300.1 255.1H256.1C245.9 255.1 234.9 253.1 225.2 247.6L190.7 227.8C186.4 225.4 183.1 221.4 181.6 216.7C178.4 207.1 182.7 196.7 191.7 192.1L197.7 189.2C204.3 185.9 211.9 185.3 218.1 187.7L242.2 195.4C250.3 198.1 259.3 195 264.1 187.9C268.8 180.8 268.3 171.5 262.9 165L249.3 148.8C239.3 136.8 239.4 119.3 249.6 107.5L265.3 89.12C274.1 78.85 275.5 64.16 268.8 52.42L266.4 48.26C262.1 48.09 259.5 48 256 48C163.1 48 84.4 108.9 57.71 192.1L57.71 192.1zM437.6 154.5L412 164.8C396.3 171.1 388.2 188.5 393.5 204.6L410.4 255.3C413.9 265.7 422.4 273.6 433 276.3L462.2 283.5C463.4 274.5 464 265.3 464 256C464 219.2 454.4 184.6 437.6 154.5H437.6z"/>
 		</svg>
-		app_url:
+		URL:
 		</div>
 		<input type="search" class="input" id="urlDeskEdit" name="urldesk" value=${app_url} />
 		<div class="button-wrapper">
@@ -1910,104 +1911,102 @@ function sh_webapp-info() {
 
 	cat <<-EOF
 		</select>
-		<input type="hidden" name="urldeskOld"	value=$app_url />
-		<input type="hidden" name="browserOld"	value=$browser_name />
-		<input type="hidden" name="filedesk"	value=$filedesk />
-		<input type="hidden" name="categoryOld"	value=${app_category/;/} />
-		<input type="hidden" name="namedeskOld"	value=$app_name />
-		<input type="hidden" name="icondeskOld"	value=$app_icon />
+		<input type="hidden" name="urldeskOld"  value=$app_url />
+		<input type="hidden" name="browserOld"  value=$browser_name />
+		<input type="hidden" name="filedesk"    value=$filedesk />
+		<input type="hidden" name="categoryOld" value=${app_category/;/} />
+		<input type="hidden" name="namedeskOld" value=$app_name />
+		<input type="hidden" name="icondeskOld" value=$app_icon />
 		</div>
-	    </li>
+		</li>
+		<li>
+		<div class="products">
+		<div class="svg-center" id="imgCategoryEdit">$(<./icons/${app_category/;/}.svg) </div>
+		${Categoria}:
+		      </div>
+		      <div class="button-wrapper">
+		        <div class="svg-center">
+		          <select class="svg-center" id="categorySelectEdit" name="category">
+		            <option value="Development" $selected_Development >${Desenvolvimento^^}" </option>
+		            <option value="Office"                         $selected_Office   >${Escritorio^^} </option>
+		            <option value="Graphics"    $selected_Graphics   >${Graficos^^} </option>
+		            <option value="Network"                        $selected_Network   >INTERNET </option>
+		            <option value="Game"                           $selected_Game       >${Jogos^^} </option>
+		            <option value="AudioVideo"  $selected_AudioVideo  >${Multimidia^^} </option>
+		            <option value="Webapps"      $selected_Webapps   >WEBAPPS </option>
+		            <option value="Google"       $selected_Google    >WEBAPPS GOOGLE </option>
+		          </select>
+		        </div>
+		      </div>
+		    </li>
 
-	    <li>
-	      <div class="products">
-	        <div class="svg-center" id="imgCategoryEdit">$(<./icons/${app_category/;/}.svg) </div>
-			${Categoria}:
-	      </div>
-	      <div class="button-wrapper">
-	        <div class="svg-center">
-	          <select class="svg-center" id="categorySelectEdit" name="category">
-	            <option value="Development"	$selected_Development >${Desenvolvimento^^}" </option>
-	            <option value="Office"		$selected_Office	  >${Escritorio^^} </option>
-	            <option value="Graphics"	$selected_Graphics	  >${Graficos^^} </option>
-	            <option value="Network"		$selected_Network	  >INTERNET </option>
-	            <option value="Game"		$selected_Game		  >${Jogos^^} </option>
-	            <option value="AudioVideo"	$selected_AudioVideo  >${Multimidia^^} </option>
-	            <option value="Webapps"		$selected_Webapps	  >WEBAPPS </option>
-	            <option value="Google"		$selected_Google	  >WEBAPPS GOOGLE </option>
-	          </select>
-	        </div>
-	      </div>
-	    </li>
+		    <li>
+		      <div class="products">
+		        <svg viewBox="0 0 512 512">
+		          <path fill="currentColor" d="M464 96h-192l-64-64h-160C21.5 32 0 53.5 0 80v352C0 458.5 21.5 480 48 480h416c26.5 0 48-21.5 48-48v-288C512 117.5 490.5 96 464 96zM336 311.1h-56v56C279.1 381.3 269.3 392 256 392c-13.27 0-23.1-10.74-23.1-23.1V311.1H175.1C162.7 311.1 152 301.3 152 288c0-13.26 10.74-23.1 23.1-23.1h56V207.1C232 194.7 242.7 184 256 184s23.1 10.74 23.1 23.1V264h56C349.3 264 360 274.7 360 288S349.3 311.1 336 311.1z"/>
+		        </svg>
+		        ${Criar_atalho_na_Area_de_Trabalho}:
+		      </div>
+		      <div class="button-wrapper">
+		        <input id="shortcut" type="checkbox" class="switch" name="shortcut" $checked />
+		      </div>
+		    </li>
 
-	    <li>
-	      <div class="products">
-	        <svg viewBox="0 0 512 512">
-	          <path fill="currentColor" d="M464 96h-192l-64-64h-160C21.5 32 0 53.5 0 80v352C0 458.5 21.5 480 48 480h416c26.5 0 48-21.5 48-48v-288C512 117.5 490.5 96 464 96zM336 311.1h-56v56C279.1 381.3 269.3 392 256 392c-13.27 0-23.1-10.74-23.1-23.1V311.1H175.1C162.7 311.1 152 301.3 152 288c0-13.26 10.74-23.1 23.1-23.1h56V207.1C232 194.7 242.7 184 256 184s23.1 10.74 23.1 23.1V264h56C349.3 264 360 274.7 360 288S349.3 311.1 336 311.1z"/>
-	        </svg>
-	        ${Criar_atalho_na_Area_de_Trabalho}:
-	      </div>
-	      <div class="button-wrapper">
-	        <input id="shortcut" type="checkbox" class="switch" name="shortcut" $checked />
-	      </div>
-	    </li>
+		    <li>
+		      <div class="products">
+		        <svg viewBox="0 0 640 512">
+		          <path fill="currentColor" d="M224 256c70.7 0 128-57.31 128-128S294.7 0 224 0C153.3 0 96 57.31 96 128S153.3 256 224 256zM274.7 304H173.3C77.61 304 0 381.6 0 477.3C0 496.5 15.52 512 34.66 512h378.7C432.5 512 448 496.5 448 477.3C448 381.6 370.4 304 274.7 304zM616 200h-48v-48C568 138.8 557.3 128 544 128s-24 10.75-24 24v48h-48C458.8 200 448 210.8 448 224s10.75 24 24 24h48v48C520 309.3 530.8 320 544 320s24-10.75 24-24v-48h48C629.3 248 640 237.3 640 224S629.3 200 616 200z"/>
+		        </svg>
+		        ${Perfil_adicional}:
+		      </div>
+		      <div class="button-wrapper">
+		        <input id="addPerfilEdit" type="checkbox" class="switch" name="newperfil" $checked_perfil />
+		      </div>
+		    </li>
+		  </ul>
+		</div>
 
-	    <li>
-	      <div class="products">
-	        <svg viewBox="0 0 640 512">
-	          <path fill="currentColor" d="M224 256c70.7 0 128-57.31 128-128S294.7 0 224 0C153.3 0 96 57.31 96 128S153.3 256 224 256zM274.7 304H173.3C77.61 304 0 381.6 0 477.3C0 496.5 15.52 512 34.66 512h378.7C432.5 512 448 496.5 448 477.3C448 381.6 370.4 304 274.7 304zM616 200h-48v-48C568 138.8 557.3 128 544 128s-24 10.75-24 24v48h-48C458.8 200 448 210.8 448 224s10.75 24 24 24h48v48C520 309.3 530.8 320 544 320s24-10.75 24-24v-48h48C629.3 248 640 237.3 640 224S629.3 200 616 200z"/>
-	        </svg>
-	        ${Perfil_adicional}:
-	      </div>
-	      <div class="button-wrapper">
-	        <input id="addPerfilEdit" type="checkbox" class="switch" name="newperfil" $checked_perfil />
-	      </div>
-	    </li>
-	  </ul>
-	</div>
+		<!--DETECT ICON MODAL-->
+		<div class="pop-up" id="detectIconEdit">
+		  <div class="pop-up__title">${Selecione_o_icone_preferido}:
+		    <svg class="close" width="24" height="24" fill="none"
+		         stroke="currentColor" stroke-width="2"
+		         stroke-linecap="round" stroke-linejoin="round"
+		         class="feather feather-x-circle">
+		      <circle cx="12" cy="12" r="10" />
+		      <path d="M15 9l-6 6M9 9l6 6" />
+		    </svg>
+		  </div>
+		  <div id="desc">
+		    <div id="menu-icon"></div>
+		  </div>
+		</div>
 
-	<!--DETECT ICON MODAL-->
-	<div class="pop-up" id="detectIconEdit">
-	  <div class="pop-up__title">${Selecione_o_icone_preferido}:
-	    <svg class="close" width="24" height="24" fill="none"
-	         stroke="currentColor" stroke-width="2"
-	         stroke-linecap="round" stroke-linejoin="round"
-	         class="feather feather-x-circle">
-	      <circle cx="12" cy="12" r="10" />
-	      <path d="M15 9l-6 6M9 9l6 6" />
-	    </svg>
-	  </div>
-	  <div id="desc">
-	    <div id="menu-icon"></div>
-	  </div>
-	</div>
+		<div class="pop-up" id="nameError">
+		  <div class="pop-up__subtitle">${Nao_e_possivel_aplicar_a_edicao_sem_Nome} </div>
+		  <div class="content-button-wrapper">
+		    <button class="content-button status-button2 close">${Fechar} </button>
+		  </div>
+		</div>
 
-	<div class="pop-up" id="nameError">
-	  <div class="pop-up__subtitle">${Nao_e_possivel_aplicar_a_edicao_sem_Nome} </div>
-	  <div class="content-button-wrapper">
-	    <button class="content-button status-button2 close">${Fechar} </button>
-	  </div>
-	</div>
+		<div class="pop-up" id="editError">
+		  <div class="pop-up__subtitle">${Nao_e_possivel_aplicar_a_edicao_sem_alteracoes} </div>
+		  <div class="content-button-wrapper">
+		    <button class="content-button status-button2 close">${Fechar} </button>
+		  </div>
+		</div>
 
-	<div class="pop-up" id="editError">
-	  <div class="pop-up__subtitle">${Nao_e_possivel_aplicar_a_edicao_sem_alteracoes} </div>
-	  <div class="content-button-wrapper">
-	    <button class="content-button status-button2 close">${Fechar} </button>
-	  </div>
-	</div>
+		<div class="pop-up" id="editSuccess">
+		  <div class="pop-up__subtitle">${O_WebApp_foi_editado_com_sucesso} </div>
+		  <div class="content-button-wrapper">
+		    <button class="content-button status-button2 close">${Fechar} </button>
+		  </div>
+		</div>
 
-	<div class="pop-up" id="editSuccess">
-	  <div class="pop-up__subtitle">${O_WebApp_foi_editado_com_sucesso} </div>
-	  <div class="content-button-wrapper">
-	    <button class="content-button status-button2 close">${Fechar} </button>
-	  </div>
-	</div>
-
-	<script src="js/script_browser.js"></script>
+		<script src="js/script_browser.js"></script>
 	EOF
 
 }
 export -f sh_webapp-info
 
 #######################################################################################################################
-
