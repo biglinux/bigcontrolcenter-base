@@ -625,6 +625,67 @@ function sh_reset_xfce {
 }
 export -f sh_reset_xfce
 
+########################################################################################################################
+
+function sh_reset_gnome {
+	local result
+
+	if result=$(pidof dolphin) && [[ -n $result ]]; then
+		kill -9 "$result"
+		return
+	fi
+
+#	#Remove(home) folders
+#	rm -r ~/.cache/*
+#	mv ~/.config/xfce4 /tmp/./config/xfce4_backup
+#
+#	#Remove(home) files
+#	rm ~/.bash_history
+#	rm ~/.bash_logout
+#	rm ~/.bashrc
+#	rm ~/.bash_profile
+#	rm ~/.big_desktop_theme
+#	rm ~/.big_performance
+#	rm ~/.big_preload
+#	rm ~/.local/share/RecentDocuments/*
+#	rm ~/.local/share/Trash/files/*
+#
+#	#Copy(skel) folders
+#	cp -rf /etc/skel/.config ~
+#	cp -rf /etc/skel/.local ~
+#	cp -rf /etc/skel/.pje ~
+#	cp -rf /etc/skel/.pki ~
+#
+#	#Copy(skel) files
+#	cp -f /etc/skel/.bash_logout ~
+#	cp -f /etc/skel/.bash_profile ~
+#	cp -f /etc/skel/.bashrc ~
+#	cp -f /etc/skel/.xinitrc ~
+
+	sleep 1
+	echo -n "#"
+	return
+}
+export -f sh_reset_xfce
+
+########################################################################################################################
+
+function sh_reset_palemoon() {
+	local result
+
+	if result=$(pidof palemoon) && [[ -n $result ]]; then
+		echo -n "$result"
+		return
+	fi
+
+	rm -r $HOME/'.moonchild productions'
+	echo -n "#"
+	return
+}
+export -f sh_reset_palemoon
+
+########################################################################################################################
+
 function sh_main {
    local execute_app="$1"
    local param_skel="$2"
