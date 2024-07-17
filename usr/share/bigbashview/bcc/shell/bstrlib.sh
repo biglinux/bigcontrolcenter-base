@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/07/03
+#  Altered: 2024/07/17
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,9 +35,12 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240703"
-LOGGER='/dev/tty8'
-
+_DATE_ALTERED_="17-07-2024 - 00:31"
+_VERSION_="1.0.0-20240717"
+_BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
+_UPDATED_="${_DATE_ALTERED_}"
+#
+export LOGGER='/dev/tty8'
 export HOME_FOLDER="$HOME/.bigstore"
 export TMP_FOLDER="/tmp/bigstore-$USER"
 export FILE_SUMMARY_JSON="/usr/share/bigbashview/bcc/apps/big-store/json/summary.json"
