@@ -1654,7 +1654,33 @@ function sh_bstr_setbgcolor() {
 }
 export -f sh_bstr_setbgcolor
 
-##########################################
+#######################################################################################################################
+
+function sh_bcfg_setbgcolor() {
+    local param="$1"
+    local lightmode=1
+
+    [[ "$param" = "true" ]] && lightmode=0
+    TIni.Set "$INI_FILE_BIG_CONFIG" 'config' 'lightmode' "$lightmode"
+}
+export -f sh_bcfg_setbgcolor
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function sh_main {
 	local execute_app="$1"
