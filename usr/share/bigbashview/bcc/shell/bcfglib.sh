@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2023/08/04
-#  Altered: 2024/07/02
+#  Altered: 2024/07/16
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,9 +36,9 @@ LIB_BCFGLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="02-07-2024 - 22:52"
-_VERSION_="1.0.0-20240702"
-_WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
+_DATE_ALTERED_="16-07-2024 - 13:36"
+_VERSION_="1.0.0-20240716"
+_BCFGLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 
 #######################################################################################################################
@@ -584,11 +584,13 @@ function sh_reset_vlc {
 }
 export -f sh_reset_vlc
 
-function sh_reset_xfce {
-	local result
+########################################################################################################################
 
-	if result=$(pidof dolphin) && [[ -n $result ]]; then
-		kill -9 "$result"
+function sh_reset_xfce {
+	local nPID
+
+	if nPID=$(pidof dolphin) && [[ -n $nPID ]]; then
+		kill -9 "$nPID"
 		return
 	fi
 
@@ -628,10 +630,10 @@ export -f sh_reset_xfce
 ########################################################################################################################
 
 function sh_reset_gnome {
-	local result
+	local nPID
 
-	if result=$(pidof dolphin) && [[ -n $result ]]; then
-		kill -9 "$result"
+	if nPID=$(pidof dolphin) && [[ -n $nPID ]]; then
+		kill -9 "$nPID"
 		return
 	fi
 
@@ -666,15 +668,58 @@ function sh_reset_gnome {
 	echo -n "#"
 	return
 }
-export -f sh_reset_xfce
+export -f sh_reset_gnome
+
+########################################################################################################################
+
+function sh_reset_dde {
+	local nPID
+
+	if nPID=$(pidof dolphin) && [[ -n $nPID ]]; then
+		kill -9 "$nPID"
+		return
+	fi
+
+#	#Remove(home) folders
+#	rm -r ~/.cache/*
+#	mv ~/.config/xfce4 /tmp/./config/xfce4_backup
+#
+#	#Remove(home) files
+#	rm ~/.bash_history
+#	rm ~/.bash_logout
+#	rm ~/.bashrc
+#	rm ~/.bash_profile
+#	rm ~/.big_desktop_theme
+#	rm ~/.big_performance
+#	rm ~/.big_preload
+#	rm ~/.local/share/RecentDocuments/*
+#	rm ~/.local/share/Trash/files/*
+#
+#	#Copy(skel) folders
+#	cp -rf /etc/skel/.config ~
+#	cp -rf /etc/skel/.local ~
+#	cp -rf /etc/skel/.pje ~
+#	cp -rf /etc/skel/.pki ~
+#
+#	#Copy(skel) files
+#	cp -f /etc/skel/.bash_logout ~
+#	cp -f /etc/skel/.bash_profile ~
+#	cp -f /etc/skel/.bashrc ~
+#	cp -f /etc/skel/.xinitrc ~
+
+	sleep 1
+	echo -n "#"
+	return
+}
+export -f sh_reset_dde
 
 ########################################################################################################################
 
 function sh_reset_palemoon() {
-	local result
+	local nPID
 
-	if result=$(pidof palemoon) && [[ -n $result ]]; then
-		echo -n "$result"
+	if nPID=$(pidof palemoon) && [[ -n $nPID ]]; then
+		echo -n "$nPID"
 		return
 	fi
 

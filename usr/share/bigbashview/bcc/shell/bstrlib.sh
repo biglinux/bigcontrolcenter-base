@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/07/03
+#  Altered: 2024/07/22
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,11 +35,16 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240703"
-LOGGER='/dev/tty8'
-
-export HOME_FOLDER="$HOME/.bigstore"
-export TMP_FOLDER="/tmp/bigstore-$USER"
+_DATE_ALTERED_="22-07-2024 - 19:46"
+_VERSION_="1.0.0-20240722"
+_BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
+_UPDATED_="${_DATE_ALTERED_}"
+#
+export BOOTLOG="/tmp/big-store-$USER-$(date +"%d%m%Y").log"
+export LOGGER='/dev/tty8'
+export HOME_FOLDER="$HOME/.big-store"
+export TMP_FOLDER="/tmp/big-store-$USER"
+export INI_FILE_BIG_STORE="$HOME_FOLDER/big-store.ini"
 export FILE_SUMMARY_JSON="/usr/share/bigbashview/bcc/apps/big-store/json/summary.json"
 export FILE_SUMMARY_JSON_CUSTOM="$HOME_FOLDER/summary-custom.json"
 unset GREP_OPTIONS
@@ -1324,7 +1329,7 @@ function sh_update_cache_flatpakOLD {
 	[[ -e "$CACHE_FILE" ]] && rm -f "$CACHE_FILE"
 
 	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
-	#	flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' | grep '|stable|' | rev | uniq --skip-fields=2 | rev >"$HOME/.bigstore/flatpak.cache"
+	#	flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' | grep '|stable|' | rev | uniq --skip-fields=2 | rev >"$HOME_FOLDER/flatpak.cache"
 	#	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u >"$CACHE_FILE"
 	#   flatpak search --arch x86_64 "" |
 	#        sed '/\t/s//|/g' |
@@ -1649,7 +1654,33 @@ function sh_bstr_setbgcolor() {
 }
 export -f sh_bstr_setbgcolor
 
-##########################################
+#######################################################################################################################
+
+function sh_bcfg_setbgcolor() {
+    local param="$1"
+    local lightmode=1
+
+    [[ "$param" = "true" ]] && lightmode=0
+    TIni.Set "$INI_FILE_BIG_CONFIG" 'config' 'lightmode' "$lightmode"
+}
+export -f sh_bcfg_setbgcolor
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function sh_main {
 	local execute_app="$1"

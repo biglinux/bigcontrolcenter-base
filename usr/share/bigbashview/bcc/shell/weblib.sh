@@ -6,7 +6,7 @@
 #  Description: Library for BigLinux WebApps
 #
 #  Created: 2024/05/31
-#  Altered: 2024/07/13
+#  Altered: 2024/07/22
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -36,17 +36,17 @@ LIB_WEBLIB_SH=1
 shopt -s extglob
 
 APP="${0##*/}"
-_DATE_ALTERED_="13-07-2024 - 11:16"
-_VERSION_="1.0.0-20240713"
+_DATE_ALTERED_="22-07-2024 - 19:44"
+_VERSION_="1.0.0-20240722"
 _WEBLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
 export BOOTLOG="/tmp/bigwebapps-$USER-$(date +"%d%m%Y").log"
 export LOGGER='/dev/tty8'
-export HOME_FOLDER="$HOME/.bigwebapps"
+export HOME_FOLDER="$HOME/.big-webapps"
 export HOME_LOCAL="$HOME/.local"
-export TMP_FOLDER="/tmp/bigwebapps-$USER"
-export INI_FILE_WEBAPPS="$HOME_FOLDER/bigwebapps.ini"
+export TMP_FOLDER="/tmp/big-webapps-$USER"
+export INI_FILE_WEBAPPS="$HOME_FOLDER/big-webapps.ini"
 export USER_DATA_DIR="$HOME_FOLDER/.cache"
 export HOME_FOLDER_PROFILE="$HOME_FOLDER/.profile"
 
