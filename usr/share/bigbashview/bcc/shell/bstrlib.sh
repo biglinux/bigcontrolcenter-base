@@ -771,12 +771,16 @@ function sh_search_aur_category {
 	local icon=""
 	local line
 	local traducao_online
+	local searchFilter_checkbox
+	local searchInDescription=0
 
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+	searchFilter_checkbox="$(TIni.Get "$INI_FILE_BIG_STORE" 'bigstore' 'searchFilter')"
+	[[ -n $searchFilter_checkbox ]] && searchInDescription=1
 
 	while IFS= read -r line; do
 		if [[ -z "$line" ]]; then
@@ -844,17 +848,47 @@ function sh_search_aur {
 	local n=1
 	local count=0
 	local cmd
+	local pacote
+	local regex=""
 	local traducao_online
+	local searchFilter_checkbox
+	local searchInDescription=0
 
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
 
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+	searchFilter_checkbox="$(TIni.Get "$INI_FILE_BIG_STORE" 'bigstore' 'searchFilter')"
+	[[ -n $searchFilter_checkbox ]] && searchInDescription=1
+
+	# Loop para concatenar os nomes dos pacotes à regex
+	for pacote in ${search[*]}; do
+		if [[ -n "$regex" ]]; then
+			regex+="|"
+		fi
+		if ((aur_search_category)); then
+			regex+="$pacote$"
+		else
+			regex+="$pacote"
+		fi
+	done
+
+	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
+	regex="^($regex)"
+	if ! ((searchInDescription)); then
+		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+	else
+		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+	fi
 
 	#cmd="$(LC_ALL=C paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)"
 	#json=$(big-pacman-to-json <<<"$cmd")
-	json=$(LC_ALL=C big-pacman-to-json paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)
+	#if ((aur_search_category)); then
+	#	json=$(LC_ALL=C big-pacman-to-json paru -Sia $search --limit 60 --sortby popularity --topdown 2)
+	#else
+	#	json=$(LC_ALL=C big-pacman-to-json paru -Ssa $search --limit 60 --sortby popularity --searchby name-desc)
+	#fi
 
 	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
 	item_json=$(jq -c '.[]' <<<"$json")
@@ -862,12 +896,20 @@ function sh_search_aur {
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
 		name=$(jq -r '.name' <<<"$item")
-		version=$(jq -r '.version' <<<"$item")
-		size=$(jq -r '.size' <<<"$item")
-		status=$(jq -r '.status' <<<"$item")
-		description=$(jq -r '.description' <<<"$item")
 
 		if [[ $name == aur/* ]]; then
+			if ! ((aur_search_category)); then
+				if ! ((searchInDescription)); then
+					if [[ ! "$name" =~ "$search" ]]; then
+						continue
+					fi
+				fi
+			fi
+
+			version=$(jq -r '.version' <<<"$item")
+			size=$(jq -r '.size' <<<"$item")
+			status=$(jq -r '.status' <<<"$item")
+			description=$(jq -r '.description' <<<"$item")
 			pkg=${name#aur/}
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
@@ -941,8 +983,11 @@ function sh_search_category_appstream_pamac() {
 	local count=0
 	local cmd
 	local regex=""
+	local pacote
 	local traducao_online
 	local LIMITE=60
+	local searchFilter_checkbox
+	local searchInDescription=0
 
 	[[ -e "$TMP_FOLDER/category_aur.txt" ]] && rm -f "$TMP_FOLDER/category_aur.txt"
 	[[ -e "$TMP_FOLDER/appstream.html" ]] && rm -f "$TMP_FOLDER/appstream.html"
@@ -950,6 +995,8 @@ function sh_search_category_appstream_pamac() {
 	[[ -e "$TMP_FOLDER/appstream_number.html" ]] && rm -f "$TMP_FOLDER/appstream_number.html"
 
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+	searchFilter_checkbox="$(TIni.Get "$INI_FILE_BIG_STORE" 'bigstore' 'searchFilter')"
+	[[ -n $searchFilter_checkbox ]] && searchInDescription=1
 
 	# Loop para concatenar os nomes dos pacotes à regex
 	for pacote in ${search[*]}; do
@@ -975,20 +1022,26 @@ function sh_search_category_appstream_pamac() {
 		if [[ $json =~ "\"$pacote\"" ]]; then
 			continue
 		fi
-
 		echo $pacote >>"$TMP_FOLDER/category_aur.txt"
 	done
 
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
-
 		name=$(jq -r '.name' <<<"$item")
-		version=$(jq -r '.version' <<<"$item")
-		size=$(jq -r '.size' <<<"$item")
-		status=$(jq -r '.status' <<<"$item")
-		description=$(jq -r '.description' <<<"$item")
 
 		if [[ -n "$name" ]]; then
+			if ! ((appstream_search_category)); then
+				if ! ((searchInDescription)); then
+					if [[ ! "$name" =~ "$search" ]]; then
+						continue
+					fi
+				fi
+			fi
+			version=$(jq -r '.version' <<<"$item")
+			size=$(jq -r '.size' <<<"$item")
+			status=$(jq -r '.status' <<<"$item")
+			description=$(jq -r '.description' <<<"$item")
+
 			pkg=${name##*/}
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
