@@ -505,7 +505,8 @@ function sh_search_flatpak() {
 		#		result=$(jq --arg id_name "$id_name" -r 'to_entries[] | select(.key | test($id_name)) | "\(.value.name)|\(.value.description)|\(.value.id_name)|\(.value.version)|\(.value.branch)|\(.value.remotes)|\(.value.icon)"' "$cacheFile")
 
 		# Usando jq para buscar e formatar a saída com busca insensível a maiúsculas/minúsculas e por parte da string
-		if ((searchInDescription)); then
+
+		if ((searchInDescription)) && ! (( flatpak_search_category )); then
 			result=$(jq --arg name "$id_name" -r '
 				.[] |
 				select(
