@@ -52,22 +52,40 @@ unset GREP_OPTIONS
 #Translation
 export TEXTDOMAINDIR="/usr/share/locale"
 export TEXTDOMAIN=big-store
+
+declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
+declare -g snap_cache_filtered_file="$HOME_FOLDER/snap_filtered.cache"
+declare -g flatpak_cache_file="$HOME_FOLDER/flatpak.json"
+declare -g flatpak_cache_filtered_file="$HOME_FOLDER/flatpak_filtered.json"
+
 declare -g Programas_AUR=$"Programas AUR"
 declare -g Programas_Flatpak=$"Programas Flatpak"
 declare -g Programas_Nativos=$"Programas Nativos"
 declare -g flatpak_versao=$"Versão: "
 declare -g flatpak_pacote=$"Pacote: "
 declare -g flatpak_nao_informada=$"Não informada"
-declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
-declare -g snap_cache_filtered_file="$HOME_FOLDER/snap_filtered.cache"
-declare -g flatpak_cache_file="$HOME_FOLDER/flatpak.json"
-declare -g flatpak_cache_filtered_file="$HOME_FOLDER/flatpak_filtered.json"
+
 declare -g Instalar_text=$"Instalar"
 declare -g Remover_text=$"Remover"
 declare -g Atualizar_text=$"Atualizar"
+
+declare -g Button_Atualizar=$"Atualizar"
+declare -g Button_Executar=$"Executar"
+declare -g Button_Remover=$"Remover"
+declare -g Button_Instalar=$"Instalar"
+declare -g Versao=$"Versão: "
+declare -g Pacote=$"Pacote: "
+declare -g Versao_disponivel=$"Versão disponível:"
+declare -g Repositorio=$"Repositório:"
+declare -g Nao_informada=$"Não informada"
+declare -g Programas_Flatpak=$"Programas Flatpak"
+declare -g cacheFile="$flatpak_cache_file"
+
 declare -gA PKG_FLATPAK
 declare -gA PKG_TRANSLATE_DESC
 export PKG_TRANSLATE_DESC
+# Arquivo para armazenar o valor da variável 'static'
+export static_file="$TMP_FOLDER/sh_search_flatpak.txt"
 
 #######################################################################################################################
 
@@ -412,18 +430,43 @@ function sh_flatpak_installed_list {
 
 #######################################################################################################################
 
+# Função para ler o valor da variável 'static' do arquivo
+function read_static_var() {
+	if [[ -f $static_file ]]; then
+		static_var=$(<"$static_file")
+	else
+		static_var=0
+	fi
+	echo $static_var
+}
+
+# Função para salvar o valor da variável 'static' no arquivo
+function write_static_var() {
+	echo "$static_var" >"$static_file"
+}
+
+# Função que acessa e modifica a variável 'static'
+function increment_static_var() {
+	read_static_var
+	((++static_var))
+	write_static_var
+}
+
+#######################################################################################################################
+
 function sh_search_flatpak() {
 	local search="$*"
 	local traducao_online
 	local searchFilter_checkbox
 	local searchInDescription=0
-	local -i LIMITE=60
+	local -i LIMITE
 	local -i COUNT
 	local i
 
 	[[ -e "$TMP_FOLDER/flatpak_number.html" ]] && rm -f "$TMP_FOLDER/flatpak_number.html"
 	[[ -e "$TMP_FOLDER/flatpak.html" ]] && rm -f "$TMP_FOLDER/flatpak.html"
 	[[ -e "$TMP_FOLDER/flatpak_build.html" ]] && rm -f "$TMP_FOLDER/flatpak_build.html"
+	[[ -e "$static_file" ]] && rm -f "$static_file"
 
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
 	searchFilter_checkbox="$(TIni.Get "$INI_FILE_BIG_STORE" 'bigstore' 'searchFilter')"
@@ -445,15 +488,6 @@ function sh_search_flatpak() {
 		local COUNT
 
 		id_name="$(sh_change_pkg_id "$package")"
-
-		#    "name": "zelda3",
-		#    "version": "v0.3",
-		#    "size": "",
-		#    "icon": "",
-		#    "id_name": "io.github.snesrev.Zelda3",
-		#    "branch": "stable",
-		#    "remotes": "flathub",
-		#    "description": "Zelda3 is a reverse engineered clone of Zelda - A Link to the Past"
 
 		#		PKG_FLATPAK[PKG_NAME]="$(big-jq '-S' "$cacheFile" "$id_name.name")"
 		#		PKG_FLATPAK[PKG_DESC]="$(big-jq '-S' "$cacheFile" "$id_name.description")"
@@ -501,7 +535,7 @@ function sh_search_flatpak() {
 		mapfile -t myarray <<<"$result"
 
 		for item in "${myarray[@]}"; do
-			((++COUNT))
+			increment_static_var
 			# Separar os valores usando o delimitador '|'
 			IFS='|' read -r name desc id version branch remote icon <<<"$item"
 
@@ -554,16 +588,16 @@ function sh_search_flatpak() {
 			# Verify if package are installed
 			if [[ "$FLATPAK_INSTALLED_LIST" == *"|${PKG_FLATPAK[PKG_ID]}|"* ]]; then
 				if [ -n "$(tr -d '\n' <<<"${PKG_FLATPAK[PKG_UPDATE]}")" ]; then
-					PKG_FLATPAK[PKG_INSTALLED]=$"Atualizar"
+					PKG_FLATPAK[PKG_INSTALLED]="$Atualizar_text"
 					PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_upgradable"
 					PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
 				else
-					PKG_FLATPAK[PKG_INSTALLED]=$"Remover"
+					PKG_FLATPAK[PKG_INSTALLED]="$Remover_text"
 					PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_installed"
 					PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
 				fi
 			else
-				PKG_FLATPAK[PKG_INSTALLED]=$"Instalar"
+				PKG_FLATPAK[PKG_INSTALLED]="$Instalar_text"
 				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_not_installed"
 
 				if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
@@ -638,9 +672,6 @@ function sh_search_flatpak() {
 				EOF
 			fi
 		done
-		OLD_COUNT=$(TIni.Get "$TMP_FOLDER/sh_search_flatpak.ini" "flatpak" "count")
-		NEW_COUNT=$((OLD_COUNT + COUNT))
-		TIni.Set "$TMP_FOLDER/sh_search_flatpak.ini" "flatpak" "count" $NEW_COUNT
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
@@ -648,6 +679,9 @@ function sh_search_flatpak() {
 	else
 		cacheFile="$flatpak_cache_filtered_file"
 	fi
+
+	LIMITE=60
+	COUNT=0
 
 	for i in ${search[*]}; do
 		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
@@ -662,16 +696,14 @@ function sh_search_flatpak() {
 	# Aguarda todos os resultados antes de exibir para o usuário
 	wait
 
-	if COUNT=$(TIni.Get "$TMP_FOLDER/sh_search_flatpak.ini" "flatpak" "count"); then
-		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
-		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
-			<script>\$(document).ready(function() {\$("#box_flatpak").show();});</script>
-			<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
-		EOF
-		cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
-		TIni.Set "$TMP_FOLDER/sh_search_flatpak.ini" "flatpak" "count" 0
-fi
+	COUNT=$(read_static_var)
+	echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
+	cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+		<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
+		<script>\$(document).ready(function() {\$("#box_flatpak").show();});</script>
+		<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
+	EOF
+	cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
 }
 export -f sh_search_flatpak
 
@@ -1503,14 +1535,14 @@ function sh_update_cache_flatpak() {
       branch = $5
       remote = $6
 
-# Remove aspas internas na descrição
+		# Remove aspas internas na descrição
     gsub(/"/, "", desc)
 
-    # Remove espaços extras no início e no fim da descrição
+		# Remove espaços extras no início e no fim da descrição
     sub(/^ +/, "", desc)
     sub(/ +$/, "", desc)
 
- # Imprimir o objeto JSON no arquivo de saída
+		# Imprimir o objeto JSON no arquivo de saída
     print "  {"
     print "    \"name\": \"" name "\","
     print "    \"version\": \"" version "\","
