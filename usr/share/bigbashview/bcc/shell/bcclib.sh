@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2024/06/11
+#  Altered: 2024/07/31
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240611"
+_VERSION_="1.0.0-20240731"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -549,18 +549,6 @@ function sh_get_de {
 	echo $de
 }
 export -f sh_get_de
-
-# qua 23 ago 2023 19:20:09 -04
-function sh_get_XIVAStudio {
-	release_description=$(lsb_release -sd)
-	release_description=${release_description//\"/} # remove as aspas
-	release_description=${release_description^^}    # Converte para maiúsculas
-	if [[ "$release_description" == *"XIVA"* ]]; then
-		return 0
-	fi
-	return 1
-}
-export -f sh_get_XIVAStudio
 
 # ter 15 ago 2023 23:45:22 -04
 # Função que aceita múltiplas linhas de entrada e imprime sem aspas e escapes um bloco de texto, similar ao cat, porém usando o printf

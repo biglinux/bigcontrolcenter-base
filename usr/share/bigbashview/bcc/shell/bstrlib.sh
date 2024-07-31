@@ -224,6 +224,20 @@ export -f sh_seek_json_summary_jq
 
 #######################################################################################################################
 
+# qua 23 ago 2023 19:20:09 -04
+function sh_get_XIVAStudio {
+	release_description=$(lsb_release -sd)
+	release_description=${release_description//\"/} # remove as aspas
+	release_description=${release_description^^}    # Converte para maiúsculas
+	if [[ "$release_description" == *"XIVA"* ]]; then
+		return 0
+	fi
+	return 1
+}
+export -f sh_get_XIVAStudio
+
+#######################################################################################################################
+
 # qua 11 out 2023 13:24:51 -04
 function sh_seek_json_icon_jq {
 	local jsonFile="$1"
@@ -422,14 +436,6 @@ function sh_seek_flatpak_parallel_filter() {
 
 #######################################################################################################################
 
-function sh_flatpak_installed_list {
-	# Le os pacotes instalados em flatpak
-	local FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
-	echo "$FLATPAK_INSTALLED_LIST"
-}
-
-#######################################################################################################################
-
 # Função para ler o valor da variável 'static' do arquivo
 function read_static_var() {
 	if [[ -f $static_file ]]; then
@@ -450,6 +456,14 @@ function increment_static_var() {
 	read_static_var
 	((++static_var))
 	write_static_var
+}
+
+#######################################################################################################################
+
+function sh_flatpak_installed_list {
+	# Le os pacotes instalados em flatpak
+	local FLATPAK_INSTALLED_LIST="|$(flatpak list | cut -f2 -d$'\t' | tr '\n' '|')"
+	echo "$FLATPAK_INSTALLED_LIST"
 }
 
 #######################################################################################################################
@@ -506,7 +520,7 @@ function sh_search_flatpak() {
 
 		# Usando jq para buscar e formatar a saída com busca insensível a maiúsculas/minúsculas e por parte da string
 
-		if ((searchInDescription)) && ! (( flatpak_search_category )); then
+		if ((searchInDescription)) && ! ((flatpak_search_category)); then
 			result=$(jq --arg name "$id_name" -r '
 				.[] |
 				select(
@@ -1505,7 +1519,11 @@ export -f sh_update_cache_flatpakOLD
 # qua 11 out 2023 14:19:05 -04
 function sh_update_cache_flatpak() {
 	local processamento_em_paralelo="$1"
+	local verbose="$2"
 	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
+
+	[[ -z "$verbose" ]] && verbose=1
+	[[ -n "$verbose" ]] && verbose=0
 
 	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
 		processamento_em_paralelo=0
@@ -1513,11 +1531,15 @@ function sh_update_cache_flatpak() {
 		processamento_em_paralelo=1
 	fi
 
-	echo "Criando e removendo necessários arquivos e 'paths'"
+	if ((verbose)); then
+		echo "Criando e removendo necessários arquivos e 'paths'"
+	fi
 	[[ -e "$flatpak_cache_file" ]] && rm -f "$flatpak_cache_file"
 	[[ -e "$flatpak_cache_filtered_file" ]] && rm -f "$flatpak_cache_filtered_file"
 
-	echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
+	if ((verbose)); then
+		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
+	fi
 	LC_ALL=C flatpak search --arch=x86_64 "" | awk -F'\t' '
   BEGIN {
       print "["
@@ -1525,50 +1547,56 @@ function sh_update_cache_flatpak() {
       OFS = "\t"
   }
   NR > 0 {
-      if (!first) {
-          print ","
-      }
+		branch = $5
+		if (branch == "stable") {
+			if (!first) {
+				print ","
+			}
       first = 0
       name = $1
       desc = $2
       id = $3
       version = $4
-      branch = $5
       remote = $6
 
-		# Remove aspas internas na descrição
-    gsub(/"/, "", desc)
+			# Remove aspas internas na descrição
+    	gsub(/"/, "", desc)
 
-		# Remove espaços extras no início e no fim da descrição
-    sub(/^ +/, "", desc)
-    sub(/ +$/, "", desc)
+			# Remove espaços extras no início e no fim da descrição
+    	sub(/^ +/, "", desc)
+    	sub(/ +$/, "", desc)
 
-		# Imprimir o objeto JSON no arquivo de saída
-    print "  {"
-    print "    \"name\": \"" name "\","
-    print "    \"version\": \"" version "\","
-    print "    \"size\": \"\","
-    print "    \"icon\": \"\","
-    print "    \"id_name\": \"" id "\","
-    print "    \"branch\": \"" branch "\","
-    print "    \"remotes\": \"" remote "\","
-    print "    \"description\": \"" desc "\""
-    print "  }"
+			# Imprimir o objeto JSON no arquivo de saída
+    	print "  {"
+    	print "    \"name\": \"" name "\","
+	    print "    \"version\": \"" version "\","
+  	  print "    \"size\": \"\","
+			print "    \"icon\": \"\","
+			print "    \"id_name\": \"" id "\","
+			print "    \"branch\": \"" branch "\","
+			print "    \"remotes\": \"" remote "\","
+			print "    \"description\": \"" desc "\""
+			print "  }"
+		}
   }
   END {
       print "]"
 	}' >"$TMP_FOLDER/input.json"
-	jq 'unique_by(.name)' "$TMP_FOLDER/input.json" >"$flatpak_cache_file"
+	jq 'sort_by(.name) | unique_by(.name)' "$TMP_FOLDER/input.json" >"$flatpak_cache_file"
 
 	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 	#		sed -i "s/|${i}.*/&update|/" "$flatpak_cache_file"
 	#	done
 
-	echo "Realizando filtragem de pacotes Flatpak..."
+	if ((verbose)); then
+		echo "Realizando filtragem de pacotes Flatpak..."
+	fi
 	grep -Fwf "$LIST_FILE" "$flatpak_cache_file" >"$flatpak_cache_filtered_file"
 	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
 	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
-	echo "filtragem finalizada."
+	if ((verbose)); then
+		echo "filtragem finalizada."
+	fi
 }
 export -f sh_update_cache_flatpak
 
