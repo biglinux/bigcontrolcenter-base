@@ -73,10 +73,13 @@ declare -g Button_Atualizar=$"Atualizar"
 declare -g Button_Executar=$"Executar"
 declare -g Button_Remover=$"Remover"
 declare -g Button_Instalar=$"Instalar"
+declare -g Button_Fechar=$"Fechar"
+declare -g Button_Cancelar=$"Cancelar"
 declare -g Versao=$"Versão: "
 declare -g Pacote=$"Pacote: "
 declare -g Versao_disponivel=$"Versão disponível:"
 declare -g Repositorio=$"Repositório:"
+declare -g Ramo=$"Ramo:"
 declare -g Nao_informada=$"Não informada"
 declare -g Programas_Flatpak=$"Programas Flatpak"
 declare -g cacheFile="$flatpak_cache_file"
@@ -381,57 +384,86 @@ function sh_seek_flatpak_parallel_filter() {
 	local package="$1"
 	local myarray
 	local icon
+	local id_name
+	local pkg
+	local description
+	local summary
+	local result
+	local item
+	local name
+	local desc
+	local id
+	local version
+	local branch
+	local remote
 
-	mapfile -t -d"|" myarray <<<"$package"
-	PKG_FLATPAK[PKG_NAME]="${myarray[0]}"
-	PKG_FLATPAK[PKG_DESC]="${myarray[1]}"
-	PKG_FLATPAK[PKG_ID]="${myarray[2]}"
-	PKG_FLATPAK[PKG_VERSION]="${myarray[3]}"
-	PKG_FLATPAK[PKG_STABLE]="${myarray[4]}"
-	PKG_FLATPAK[PKG_REMOTE]="${myarray[5]}"
-	PKG_FLATPAK[PKG_UPDATE]="${myarray[6]}"
+	id_name="$(sh_change_pkg_id "$package")"
 
-	local pkg="${PKG_FLATPAK[PKG_ID]}"
-	local description="${PKG_FLATPAK[PKG_DESC]}"
-	local summary="$description"
-
-	# Seleciona o arquivo xml para filtrar os dados
-	PKG_FLATPAK[PKG_XML_APPSTREAM]="/var/lib/flatpak/appstream/${PKG_FLATPAK[PKG_REMOTE]}/x86_64/active/appstream.xml"
-	if [[ -z "${PKG_FLATPAK[PKG_VERSION]}" ]]; then
-		PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
+	# Usando jq para buscar e formatar a saída com busca insensível a maiúsculas/minúsculas e por parte da string
+	if ((searchInDescription)) && ! ((flatpak_search_category)); then
+		result=$(jq --arg name "$id_name" -r '
+				.[] |
+				select(
+				(.name | ascii_downcase | contains($name | ascii_downcase)) or
+				(.description | ascii_downcase | contains($name | ascii_downcase)) or
+				(.id_name | ascii_downcase | contains($name | ascii_downcase)) or
+				(.version | ascii_downcase | contains($name | ascii_downcase)) or
+				(.branch | ascii_downcase | contains($name | ascii_downcase)) or
+				(.remotes | ascii_downcase | contains($name | ascii_downcase))
+				) |
+				"\(.name)|\(.description)|\(.id_name)|\(.version)|\(.branch)|\(.remotes)|\(.icon)"
+			' "$cacheFile")
+	else
+		result=$(jq --arg name "$id_name" -r '
+			  .[] |
+			  select(.name | ascii_downcase | contains($name | ascii_downcase)) |
+			  "\(.name)|\(.description)|\(.id_name)|\(.version)|\(.branch)|\(.remotes)|\(.icon)"
+			' "$cacheFile")
 	fi
 
-	# Search icon
-	#	PKG_FLATPAK[PKG_ICON]="$(find /var/lib/flatpak/appstream/ -type f -iname "${PKG_FLATPAK[PKG_ID]}.png" -print -quit)"
-	#	PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/64x64/${PKG_FLATPAK[PKG_ID]}.png"
-	#	if ! test -e "PKG_FLATPAK[PKG_ICON]}"; then
-	#		PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128/${PKG_FLATPAK[PKG_ID]}.png"
-	#		if ! test -e "PKG_FLATPAK[PKG_ICON]}"; then
-	#			PKG_FLATPAK[PKG_ICON]=""
-	#		fi
-	#	fi
-	#
-	#	# If not found try another way
-	#	if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
-	#		# If cached icon not found, try online
-	#		PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
-	#
-	#		# If online icon not found, try another way
-	#		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" ]]; then
-	#			PKG_FLATPAK[PKG_ICON]="$(awk /\<id\>${PKG_FLATPAK[PKG_ID]}.desktop\<\\/id\>/,/\<\\/component\>/ ${PKG_FLATPAK[PKG_XML_APPSTREAM]} | LC_ALL=C grep -i -m1 -e icon -e remote | sed 's|</icon>||g;s|.*http|http|g')"
-	#		fi
-	#	fi
+	if [[ -z "$result" ]]; then
+		return
+	fi
 
-	summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")
-	icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
-	PKG_FLATPAK[PKG_DESC]="$summary"
-	PKG_FLATPAK[PKG_ICON]="$icon"
-	if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
-		PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128/${PKG_FLATPAK[PKG_ID]}.png"
-		if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
-			PKG_FLATPAK[PKG_ICON]=""
+	# Usando mapfile para ler o resultado em um array
+	#		mapfile -t -d'|' myarray <<< "$result"
+	mapfile -t myarray <<<"$result"
+
+	for item in "${myarray[@]}"; do
+		# Separar os valores usando o delimitador '|'
+		IFS='|' read -r name desc id version branch remote icon <<<"$item"
+
+		# Preencher o array associativo com os valores
+		PKG_FLATPAK[PKG_NAME]="$name"
+		PKG_FLATPAK[PKG_DESC]="$desc"
+		PKG_FLATPAK[PKG_ID]="$id"
+		PKG_FLATPAK[PKG_VERSION]="$version"
+		PKG_FLATPAK[PKG_BRANCH]="$branch"
+		PKG_FLATPAK[PKG_REMOTE]="$remote"
+		PKG_FLATPAK[PKG_ICON]="$icon"
+		PKG_FLATPAK[PKG_UPDATE]=""
+
+		pkg="${PKG_FLATPAK[PKG_ID]}"
+		description="${PKG_FLATPAK[PKG_DESC]}"
+		summary="$description"
+
+		# Seleciona o arquivo xml para filtrar os dados
+		PKG_FLATPAK[PKG_XML_APPSTREAM]="/var/lib/flatpak/appstream/${PKG_FLATPAK[PKG_REMOTE]}/x86_64/active/appstream.xml"
+		if [[ -z "${PKG_FLATPAK[PKG_VERSION]}" ]]; then
+			PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
 		fi
-	fi
+
+		summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")
+		icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
+		PKG_FLATPAK[PKG_DESC]="$summary"
+		PKG_FLATPAK[PKG_ICON]="$icon"
+		if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+			PKG_FLATPAK[PKG_ICON]="/var/lib/flatpak/appstream/flathub/x86_64/active/icons/128x128/${PKG_FLATPAK[PKG_ID]}.png"
+			if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
+				PKG_FLATPAK[PKG_ICON]=""
+			fi
+		fi
+	done
 }
 
 #######################################################################################################################

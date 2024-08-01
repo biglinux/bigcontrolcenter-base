@@ -486,7 +486,6 @@ function xdebug {
 		--window-icon="$xicon" \
 		--buttons-layout=center \
 		--on-top \
-		--selectable-labels \
 		--button="Sim:0" \
 		--button="Não:1"
 	result=$?
@@ -494,6 +493,8 @@ function xdebug {
 	return $result
 }
 export -f xdebug
+#    --width=500 \
+#		--selectable-labels \
 
 #######################################################################################################################
 

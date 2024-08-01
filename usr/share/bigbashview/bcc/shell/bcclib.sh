@@ -328,9 +328,13 @@ function sh_get_window_id {
 export -f sh_get_window_id
 
 function xdebug {
-	local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
-	local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
-	local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
+	local script_name0="${0##*/}[${FUNCNAME[1]}:${BASH_LINENO[1]}]"
+	local script_name1="${0##*/}[${FUNCNAME[0]}:${BASH_LINENO[0]}]"
+	local script_name2="${0##*/}[${FUNCNAME[2]}:${BASH_LINENO[2]}]"
+	# Obter a largura da tela em pixels usando xrandr
+	local screen_width=$(xrandr | grep '*' | awk '{print $1}' | cut -d 'x' -f1)
+	# Calcular 75% da largura da tela
+	local width=$((screen_width * 75 / 100))
 
 	#	kdialog --title "[xdebug (kdialog)]$0" \
 	#		--yes-label="Não" \
@@ -340,15 +344,14 @@ function xdebug {
 	#	[[ $result -eq 0 ]] && exit 1 # botões invertidos
 	#	return $result
 	#
-
-	yad --title="[xdebug (yad)]$script_name1" \
+	yad --title="xdebug (yad):$script_name0->$script_name1" \
 		--text="${*}\n\nContinuar ?" \
 		--center \
-		--width=400 \
+		--width=$width \
+		--fontname="Ubuntu Condensed 10" \
 		--window-icon="$xicon" \
 		--buttons-layout=center \
 		--on-top \
-		--close-on-unfocus \
 		--selectable-labels \
 		--button="Sim:0" \
 		--button="Não:1"
@@ -357,6 +360,7 @@ function xdebug {
 	return $result
 }
 export -f xdebug
+#		--close-on-unfocus \
 
 function log_error {
 	#	printf "%s %-s->%-s->%-s : %s => %s\n" "$(date +"%H:%M:%S")" "$1" "$2" "$3" "$4" "$5" >> "$BOOTLOG"
