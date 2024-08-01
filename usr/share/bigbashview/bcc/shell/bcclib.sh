@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2024/06/11
+#  Altered: 2024/07/31
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240611"
+_VERSION_="1.0.0-20240731"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -328,9 +328,13 @@ function sh_get_window_id {
 export -f sh_get_window_id
 
 function xdebug {
-	local script_name0="${0##*/}[${FUNCNAME[0]}]:${BASH_LINENO[0]}"
-	local script_name1="${0##*/}[${FUNCNAME[1]}]:${BASH_LINENO[1]}"
-	local script_name2="${0##*/}[${FUNCNAME[2]}]:${BASH_LINENO[2]}"
+	local script_name0="${0##*/}[${FUNCNAME[1]}:${BASH_LINENO[1]}]"
+	local script_name1="${0##*/}[${FUNCNAME[0]}:${BASH_LINENO[0]}]"
+	local script_name2="${0##*/}[${FUNCNAME[2]}:${BASH_LINENO[2]}]"
+	# Obter a largura da tela em pixels usando xrandr
+	local screen_width=$(xrandr | grep '*' | awk '{print $1}' | cut -d 'x' -f1)
+	# Calcular 75% da largura da tela
+	local width=$((screen_width * 75 / 100))
 
 	#	kdialog --title "[xdebug (kdialog)]$0" \
 	#		--yes-label="Não" \
@@ -340,15 +344,14 @@ function xdebug {
 	#	[[ $result -eq 0 ]] && exit 1 # botões invertidos
 	#	return $result
 	#
-
-	yad --title="[xdebug (yad)]$script_name1" \
+	yad --title="xdebug (yad):$script_name0->$script_name1" \
 		--text="${*}\n\nContinuar ?" \
 		--center \
-		--width=400 \
+		--width=$width \
+		--fontname="Ubuntu Condensed 10" \
 		--window-icon="$xicon" \
 		--buttons-layout=center \
 		--on-top \
-		--close-on-unfocus \
 		--selectable-labels \
 		--button="Sim:0" \
 		--button="Não:1"
@@ -357,6 +360,7 @@ function xdebug {
 	return $result
 }
 export -f xdebug
+#		--close-on-unfocus \
 
 function log_error {
 	#	printf "%s %-s->%-s->%-s : %s => %s\n" "$(date +"%H:%M:%S")" "$1" "$2" "$3" "$4" "$5" >> "$BOOTLOG"
@@ -549,18 +553,6 @@ function sh_get_de {
 	echo $de
 }
 export -f sh_get_de
-
-# qua 23 ago 2023 19:20:09 -04
-function sh_get_XIVAStudio {
-	release_description=$(lsb_release -sd)
-	release_description=${release_description//\"/} # remove as aspas
-	release_description=${release_description^^}    # Converte para maiúsculas
-	if [[ "$release_description" == *"XIVA"* ]]; then
-		return 0
-	fi
-	return 1
-}
-export -f sh_get_XIVAStudio
 
 # ter 15 ago 2023 23:45:22 -04
 # Função que aceita múltiplas linhas de entrada e imprime sem aspas e escapes um bloco de texto, similar ao cat, porém usando o printf
