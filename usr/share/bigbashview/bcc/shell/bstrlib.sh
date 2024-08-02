@@ -501,7 +501,7 @@ function sh_seek_flatpak_parallel_filter() {
 			PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
 		fi
 
-		summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")
+		summary="$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")"
 		icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
 		PKG_FLATPAK[PKG_DESC]="$summary"
 		PKG_FLATPAK[PKG_ICON]="$icon"
@@ -581,10 +581,13 @@ function sh_search_flatpak() {
 			fi
 		fi
 
+		summary="${PKG_FLATPAK[PKG_DESC]}"
+		pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
+
 		# If all fail, use generic icon
 		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${PKG_FLATPAK[PKG_ICON]}")" ]]; then
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_NAME]}&pkg_summary=${PKG_FLATPAK[PKG_DESC]}">
+				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_NAME]}&pkg_summary=$pkg_summary_encoded'>
 				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
@@ -616,7 +619,7 @@ function sh_search_flatpak() {
 			EOF
 		else
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href="view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_ID]}&pkg_summary=${PKG_FLATPAK[PKG_DESC]}">
+				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_ID]}&pkg_summary=$pkg_summary_encoded'>
 				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
@@ -641,7 +644,7 @@ function sh_search_flatpak() {
 				</a>
 				</div>
 				</div>
-			EOF
+		EOF
 		fi
 	}
 
