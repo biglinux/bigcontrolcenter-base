@@ -582,12 +582,13 @@ function sh_search_flatpak() {
 		fi
 
 		summary="${PKG_FLATPAK[PKG_DESC]}"
-		pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
+		pkg_summary_encoded=$(printf '%s' "$summary" | jq -sRr @uri)
 
 		# If all fail, use generic icon
 		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${PKG_FLATPAK[PKG_ICON]}")" ]]; then
+			pkg_name_encoded=$(printf '%s' "${PKG_FLATPAK[PKG_NAME]}" | jq -sRr @uri)
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_NAME]}&pkg_summary=$pkg_summary_encoded'>
+				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${PKG_FLATPAK[PKG_NAME]}'>
 				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
@@ -618,8 +619,9 @@ function sh_search_flatpak() {
 					</div>
 			EOF
 		else
+			pkg_name_encoded=$(printf '%s' "${PKG_FLATPAK[PKG_ID]}" | jq -sRr @uri)
 			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_name=${PKG_FLATPAK[PKG_ID]}&pkg_summary=$pkg_summary_encoded'>
+				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${PKG_FLATPAK[PKG_ID]}'>
 				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
 				<div class="showapp">
 				<div id="flatpak_icon">
@@ -1029,9 +1031,10 @@ function sh_search_aur {
 
 			summary="$description"
 			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
+			pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
 
 			{
-				echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_name=$pkg&pkg_summary=$summary\">"
+				echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=$pkg\">"
 				echo "<div class=\"col s12 m6 l3\" id=$aur_priority>"
 				echo "<div class=\"showapp\">"
 				echo "<div id=aur_icon><div class=icon_middle>$icon</div>"
@@ -1170,9 +1173,10 @@ function sh_search_category_appstream_pamac() {
 
 			summary="$description"
 			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
+			pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
 
 			{
-				echo "<a onclick=\"disableBody();\" href=\"view_appstream.sh.htm?pkg_name=$pkg&pkg_summary=$summary\">"
+				echo "<a onclick=\"disableBody();\" href=\"view_appstream.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=$pkg\">"
 				echo "<div class=\"col s12 m6 l3\" id=$id_priority>"
 				echo "<div class=\"showapp\">"
 				echo "<div id=appstream_icon><div class=icon_middle>$icon</div>"
