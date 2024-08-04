@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/01
+#  Altered: 2024/08/04
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="01-08-2024 - 01:01"
+_DATE_ALTERED_="04-08-2024 - 14:06"
 _VERSION_="1.0.0-20240801"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
@@ -1138,7 +1138,7 @@ function sh_search_category_appstream_pamac() {
 				title_uppercase_first_letter+=" ${word^}"
 			done
 
-			if [[ -n "$status" || "$status" == *"[I|i]nstalled"* ]]; then
+			if [[ "$status" =~ [I|i]nstalled ]]; then
 				id_priority="AppstreamP1"
 				file_path="$TMP_FOLDER/upgradeable.txt"
 				if grep -q "$pkg" "$file_path"; then
@@ -1660,6 +1660,23 @@ export -f sh_enable_snapd_and_apparmor
 
 #######################################################################################################################
 
+function sh_toggle_comment_pamac_conf() {
+	local action="$1"
+	local keyword="$2"
+	local file="$3"
+
+	if [ "$action" == "comment" ]; then
+		sudo sed -i "s/^\($keyword\)/#\1/" "$file"
+	elif [ "$action" == "uncomment" ]; then
+		sudo sed -i "s/^#\($keyword\)/\1/" "$file"
+	else
+		echo "Ação inválida. Use 'comment' ou 'uncomment'."
+	fi
+}
+export -f sh_toggle_comment_pamac_conf
+
+#######################################################################################################################
+
 function sh_run_pamac_remove {
 	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
 	pamac-installer --remove "$@" $packages_to_remove &
@@ -1701,6 +1718,7 @@ function sh_run_pamac_installer {
 
 	#	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
 	AutoAddLangPkg="$(pacman -Ssq $package-.18.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
+	sh_toggle_comment_pamac_conf 'uncomment' "SimpleInstall" "/etc/pamac.conf"
 	pamac-installer $@ $AutoAddLangPkg &
 	PID="$!"
 
