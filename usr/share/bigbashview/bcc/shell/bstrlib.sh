@@ -347,7 +347,7 @@ function sh_translate_desc {
 			#				return 0
 			#			fi
 
-			if summary=$(trans -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+			if summary=$(trans -no-auto -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
 				summary="$description"
 				updated=0
 			else
@@ -360,7 +360,7 @@ function sh_translate_desc {
 				return 0
 			fi
 
-			if summary=$(trans -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
+			if summary=$(trans -no-auto -no-autocorrect -brief :"${lang/_/-}" "$description") && [[ -z "$summary" ]]; then
 				summary="$description"
 				updated=0
 			else
@@ -1164,27 +1164,36 @@ function sh_search_category_appstream_pamac() {
 			}
 
 			if [[ -e "icons/$pkgicon.png" ]]; then
-				icon="<img class=\"icon\" src=\"icons/$pkgicon.png\">"
+				icon="<img class=icon src=icons/$pkgicon.png>"
 			elif find_icon=$(sh_find_icon "${pkgicon//-*/}") && [[ -e "$find_icon" ]]; then
-				icon="<img class=\"icon\" src=\"$find_icon\">"
+				icon="<img class=icon src=$find_icon>"
 			else
 				icon="<div class=avatar_appstream>${pkgicon:0:3}</div>"
 			fi
 
 			summary="$description"
 			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
-			pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
+			summary="${summary//[\(\)\'\"]/}"
 
-			{
-				echo "<a onclick=\"disableBody();\" href=\"view_appstream.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=$pkg\">"
-				echo "<div class=\"col s12 m6 l3\" id=$id_priority>"
-				echo "<div class=\"showapp\">"
-				echo "<div id=appstream_icon><div class=icon_middle>$icon</div>"
-				echo "<div id=appstream_name><div id=limit_title_name>$title_uppercase_first_letter</div>"
-				echo "<div id=version>$version</div></div></div>"
-				echo "<div id=box_appstream_desc><div id=appstream_desc>$summary</div></div>"
-				echo "$button</a></div></div>"
-			} >>"$TMP_FOLDER/appstream_build.html"
+			cat >>"$TMP_FOLDER/appstream_build.html" <<-EOF
+				<a onclick="disableBody();" href='view_appstream.sh.htm?pkg_summary=$summary&pkg_name=$pkg'>
+				<div class="col s12 m6 l3" id=$id_priority>
+				<div class="showapp">
+				<div id=appstream_icon>
+				<div class=icon_middle>$icon</div>
+				<div id=appstream_name>
+				<div id=limit_title_name>$title_uppercase_first_letter</div>
+				<div id=version>$version</div>
+				</div>
+				</div>
+				<div id=box_appstream_desc>
+				<div id=appstream_desc>$summary</div>
+				</div>
+				$button
+				</a>
+				</div>
+				</div>
+			EOF
 			((++count))
 			if ((count >= LIMITE)); then
 				break
