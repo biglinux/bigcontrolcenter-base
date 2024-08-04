@@ -980,11 +980,16 @@ function sh_search_aur {
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
 		name=$(jq -r '.name' <<<"$item")
+		pkg=${name#aur/}
+		description=$(jq -r '.description' <<<"$item")
 
 		if [[ $name == aur/* ]]; then
+		 	# Se NÃO é por categorias
 			if ! ((aur_search_category)); then
+			 	# Se NÃO é para buscar na descrição
 				if ! ((searchInDescription)); then
-					if [[ ! "$name" =~ "$search" ]]; then
+					# Se a variável $search NÃO contiver a palavra $pkg
+					if [[ ! "$search" =~ "$pkg" ]]; then
 						continue
 					fi
 				fi
@@ -993,8 +998,6 @@ function sh_search_aur {
 			version=$(jq -r '.version' <<<"$item")
 			size=$(jq -r '.size' <<<"$item")
 			status=$(jq -r '.status' <<<"$item")
-			description=$(jq -r '.description' <<<"$item")
-			pkg=${name#aur/}
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
 			pkgicon=${pkgicon//-beta/}
@@ -1126,8 +1129,11 @@ function sh_search_category_appstream_pamac() {
 		description=$(jq -r '.description' <<<"$item")
 
 		if [[ -n "$pkg" ]]; then
+		 	# Se NÃO é por categorias
 			if ! ((appstream_search_category)); then
+			 	# Se NÃO é para buscar na descrição
 				if ! ((searchInDescription)); then
+					# Se a variável $search NÃO contiver a palavra $pkg
 					if [[ ! "$search" =~ "$pkg" ]]; then
 						continue
 					fi
