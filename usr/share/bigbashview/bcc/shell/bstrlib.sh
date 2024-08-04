@@ -379,6 +379,18 @@ function sh_translate_desc {
 export -f sh_translate_desc
 
 #######################################################################################################################
+function sh_read_number_var() {
+	local file="$1"
+	local count=0
+
+	if [[ -f $file ]]; then
+		count=$(<"$file")
+	fi
+	echo $count
+}
+export -f sh_read_number_var
+
+#######################################################################################################################
 
 # Função para ler o valor da variável 'static' do arquivo
 function read_static_var() {
@@ -1056,10 +1068,12 @@ function sh_search_aur {
 		echo "$count" >"$TMP_FOLDER/aur_number.html"
 		echo "<script>\$(document).ready(function() {\$(\"#box_aur\").show();});</script>" >>"$TMP_FOLDER/aur_build.html"
 		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
-
-		# Move temporary HTML file to final location
-		mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+	else
+		echo "0" >"$TMP_FOLDER/aur_number.html"
+		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
 	fi
+	# Move temporary HTML file to final location
+	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
 }
 export -f sh_search_aur
 
@@ -1220,14 +1234,27 @@ function sh_search_category_appstream_pamac() {
 		fi
 	done < <(echo "$item_json")
 
+#	if ((count)); then
+#		echo "$count" >"$TMP_FOLDER/appstream_number.html"
+#		echo '<script>runAvatarAppstream(); $(document).ready(function () $("#box_appstream").show();});</script>' >> "$TMP_FOLDER/appstream_build.html"
+#		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>" >>"$TMP_FOLDER/appstream_build.html"
+#	else
+#		echo "0" >"$TMP_FOLDER/appstream_number.html"
+#		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>" >> "$TMP_FOLDER/appstream_build.html"
+#	fi
+#	# Move temporary HTML file to final location
+#	mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
+
 	if ((count)); then
 		echo "$count" >"$TMP_FOLDER/appstream_number.html"
-		echo '<script>runAvatarAppstream(); $(document).ready(function () $("#box_appstream").show();});</script>'
-		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>"
-
-		# Move temporary HTML file to final location
-		mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
+		echo "<script>\$(document).ready(function() {\$(\"#box_appstream\").show();});</script>" >> "$TMP_FOLDER/appstream_build.html"
+		echo '<script>document.getElementById("appstream_icon_loading").innerHTML = ""; runAvatarAppstream();</script>' >>"$TMP_FOLDER/appstream_build.html"
+	else
+		echo "0" >"$TMP_FOLDER/appstream_number.html"
+		echo '<script>document.getElementById("appstream_icon_loading").innerHTML = ""; runAvatarAppstream();</script>' >>"$TMP_FOLDER/appstream_build.html"
 	fi
+	# Move temporary HTML file to final location
+	mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
 }
 export -f sh_search_category_appstream_pamac
 
