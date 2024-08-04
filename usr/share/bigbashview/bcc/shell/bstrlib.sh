@@ -698,7 +698,6 @@ export -f sh_search_flatpak
 #######################################################################################################################
 
 function sh_search_snap() {
-	# Le o parametro passado via terminal e cria a variavel $search
 	local search="$*"
 	local traducao_online
 
@@ -707,16 +706,18 @@ function sh_search_snap() {
 	[[ -e "$TMP_FOLDER/snap_build.html" ]] && rm -f "$TMP_FOLDER/snap_build.html"
 
 	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+	searchFilter_checkbox="$(TIni.Get "$INI_FILE_BIG_STORE" 'bigstore' 'searchFilter')"
+	searchInDescription=0
+	[[ -n $searchFilter_checkbox ]] && searchInDescription=1
 
 	# Lê os pacotes instalados em snap
 	SNAP_INSTALLED_LIST="|$(awk 'NR>1 {printf "%s|", $1} END {printf "\b\n"}' <(snap list))"
 
-	# Remova o comentário para fazer testes no terminal
-	#search=office
-
 	# Inicia uma função para possibilitar o uso em modo assíncrono
 	function snap_parallel_filter() {
-		mapfile -t -d"|" myarray <<<"$1"
+		local line="$1"
+
+		mapfile -t -d"|" myarray <<<"$line"
 		PKG_NAME="${myarray[0]}"
 		PKG_ID="${myarray[1]}"
 		PKG_ICON="${myarray[2]}"
@@ -729,8 +730,6 @@ function sh_search_snap() {
 		summary="$description"
 		summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
 		PKG_DESC="$summary"
-
-		#xdebug "$PKG_NAME\n$PKG_ID\n$PKG_ICON\n$PKG_DESC\n$PKG_VERSION\n$PKG_CMD"
 
 		#Melhora a ordem de exibição dos pacotes, funciona em conjunto com o css que irá reordenar
 		#de acordo com o id da div, que aqui é representado pela variavel $PKG_ORDER
@@ -812,6 +811,7 @@ function sh_search_snap() {
 				</div>
 			EOF
 		fi
+		return 0
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
@@ -822,12 +822,18 @@ function sh_search_snap() {
 
 	local COUNT=0
 	local LIMITE=60
+	local pkg
 
-	#xdebug "$search"
 	for i in ${search[@]}; do
-		#xdebug "$i"
-		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
-			#xdebug "$result"
+		if ! ((snap_search_category)); then
+		 	# Se NÃO é para buscar na descrição
+			if ! ((searchInDescription)); then
+				# Construir a expressão regular no primeiro campo do arquivo de cache
+				i="^[^|]*${i}[^|]*\|"
+			fi
+		fi
+
+		if result="$(grep -i -E "$i" "$cacheFile")" && [[ -n "$result" ]]; then
 			while IFS= read -r line; do
 				((++COUNT))
 				snap_parallel_filter "$line" &
@@ -848,8 +854,14 @@ function sh_search_snap() {
 			<script>\$(document).ready(function() {\$("#box_snap").show();});</script>
 			<script>document.getElementById("snap_icon_loading").innerHTML = ""; runAvatarSnap();</script>
 		EOF
-		cp -f "${TMP_FOLDER}/snap_build.html" "${TMP_FOLDER}/snap.html"
+	else
+		echo "0" >"$TMP_FOLDER/snap_number.html"
+		cat >>"$TMP_FOLDER/snap_build.html" <<-EOF
+			<script>document.getElementById("snap_icon_loading").innerHTML = ""; runAvatarSnap();</script>
+		EOF
 	fi
+	# Move temporary HTML file to final location
+	mv "$TMP_FOLDER/snap_build.html" "$TMP_FOLDER/snap.html"
 }
 export -f sh_search_snap
 
