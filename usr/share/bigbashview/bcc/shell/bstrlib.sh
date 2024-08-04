@@ -1062,6 +1062,13 @@ export -f sh_search_aur
 
 #######################################################################################################################
 
+function sh_sort_words_alphabetically() {
+	local input="$1"
+	echo "$input" | tr ' ' '\n' | sort | xargs
+}
+
+#######################################################################################################################
+
 function sh_search_category_appstream_pamac() {
 	local search="$*"
 	local n=1
@@ -1089,9 +1096,11 @@ function sh_search_category_appstream_pamac() {
 			regex+="|"
 		fi
 		if ((appstream_search_category)); then
-			regex+="($pacote$)"
+#			regex+="($pacote$)"
+			regex+="$pacote$"
 		else
-			regex+="($pacote)"
+#			regex+="($pacote)"
+			regex+="$pacote"
 		fi
 	done
 
@@ -1113,21 +1122,23 @@ function sh_search_category_appstream_pamac() {
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
 		name=$(jq -r '.name' <<<"$item")
+		pkg=${name##*/}
+		description=$(jq -r '.description' <<<"$item")
 
-		if [[ -n "$name" ]]; then
+		if [[ -n "$pkg" ]]; then
 			if ! ((appstream_search_category)); then
 				if ! ((searchInDescription)); then
-					if [[ ! "$name" =~ "$search" ]]; then
+					if [[ ! "$search" =~ "$pkg" ]]; then
 						continue
 					fi
 				fi
 			fi
+
 			version=$(jq -r '.version' <<<"$item")
 			size=$(jq -r '.size' <<<"$item")
 			status=$(jq -r '.status' <<<"$item")
-			description=$(jq -r '.description' <<<"$item")
 
-			pkg=${name##*/}
+#			pkg=${name##*/}
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
 			pkgicon=${pkgicon//-beta/}
