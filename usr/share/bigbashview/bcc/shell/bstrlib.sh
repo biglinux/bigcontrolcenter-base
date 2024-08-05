@@ -715,9 +715,7 @@ function sh_search_snap() {
 
 	# Inicia uma função para possibilitar o uso em modo assíncrono
 	function snap_parallel_filter() {
-		local line="$1"
-
-		mapfile -t -d"|" myarray <<<"$line"
+		mapfile -t -d"|" myarray <<<"$1"
 		PKG_NAME="${myarray[0]}"
 		PKG_ID="${myarray[1]}"
 		PKG_ICON="${myarray[2]}"
@@ -811,7 +809,6 @@ function sh_search_snap() {
 				</div>
 			EOF
 		fi
-		return 0
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
@@ -822,7 +819,6 @@ function sh_search_snap() {
 
 	local COUNT=0
 	local LIMITE=60
-	local pkg
 
 	for i in ${search[@]}; do
 		if ! ((snap_search_category)); then
@@ -832,8 +828,9 @@ function sh_search_snap() {
 				i="^[^|]*${i}[^|]*\|"
 			fi
 		fi
+		result="$(grep -i -E "$i" "$cacheFile")"
 
-		if result="$(grep -i -E "$i" "$cacheFile")" && [[ -n "$result" ]]; then
+		if [[ -n "$result" ]]; then
 			while IFS= read -r line; do
 				((++COUNT))
 				snap_parallel_filter "$line" &
