@@ -1799,7 +1799,11 @@ function sh_run_pamac_installer {
 
 	#	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
 	AutoAddLangPkg="$(pacman -Ssq $package-.18.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
-	sh_toggle_comment_pamac_conf 'uncomment' "SimpleInstall" "/etc/pamac.conf"
+	if TIni.Exist "$INI_FILE_BIG_STORE" "PAMAC" "SimpleInstall" '1'; then
+		sh_toggle_comment_pamac_conf 'comment' "SimpleInstall" "/etc/pamac.conf"
+	else
+		sh_toggle_comment_pamac_conf 'uncomment' "SimpleInstall" "/etc/pamac.conf"
+	fi
 	pamac-installer $@ $AutoAddLangPkg &
 	PID="$!"
 
