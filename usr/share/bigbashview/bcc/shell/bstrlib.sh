@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/04
+#  Altered: 2024/08/05
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,7 +35,7 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="04-08-2024 - 14:06"
+_DATE_ALTERED_="05-08-2024 - 12:09"
 _VERSION_="1.0.0-20240801"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
@@ -401,18 +401,21 @@ function read_static_var() {
 	fi
 	echo $static_var
 }
+export -f read_static_var
 
 # Função para salvar o valor da variável 'static' no arquivo
 function write_static_var() {
 	echo "$static_var" >"$static_file"
 }
+export -f write_static_var
 
 # Função que acessa e modifica a variável 'static'
 function increment_static_var() {
-	read_static_var
+	static_var=$(read_static_var)
 	((++static_var))
 	write_static_var
 }
+export -f increment_static_var
 
 #######################################################################################################################
 
@@ -440,6 +443,7 @@ function sh_seek_flatpak_parallel_filter() {
 	local version
 	local branch
 	local remote
+	local -A ALL_PKG_FLATPAK=()
 
 	id_name="$(sh_change_pkg_id "$package")"
 
@@ -512,7 +516,6 @@ function sh_seek_flatpak_parallel_filter() {
 		if [[ -z "${PKG_FLATPAK[PKG_VERSION]}" ]]; then
 			PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
 		fi
-
 		summary="$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")"
 		icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
 		PKG_FLATPAK[PKG_DESC]="$summary"
@@ -526,8 +529,11 @@ function sh_seek_flatpak_parallel_filter() {
 				fi
 			fi
 		fi
-		return 0
+		#		ALL_PKG_FLATPAK+=(["$name"]="$item")
+		ALL_PKG_FLATPAK+=(["$name"]="${PKG_FLATPAK[PKG_NAME]}|${PKG_FLATPAK[PKG_DESC]}|${PKG_FLATPAK[PKG_ID]}|${PKG_FLATPAK[PKG_VERSION]}|${PKG_FLATPAK[PKG_BRANCH]}|${PKG_FLATPAK[PKG_REMOTE]}|${PKG_FLATPAK[PKG_ICON]}|${PKG_FLATPAK[PKG_UPDATE]}|${PKG_FLATPAK[PKG_XML_APPSTREAM]}")
 	done
+	echo "$(declare -p ALL_PKG_FLATPAK)"
+	return 0
 }
 
 #######################################################################################################################
@@ -559,107 +565,120 @@ function sh_search_flatpak() {
 		local icon
 		local id_name
 		local COUNT
+		local -A ALL_PKG_FLATPAK
 
 		id_name="$(sh_change_pkg_id "$package")"
-
-		if ! sh_seek_flatpak_parallel_filter "$id_name"; then
-			return 1
-		fi
+		ALL_PKG_FLATPAK=$(sh_seek_flatpak_parallel_filter "$id_name")
+		# Avalia a definição para recriar o array associativo
+		eval "$ALL_PKG_FLATPAK"
+		[[ "${#ALL_PKG_FLATPAK[@]}" -eq 0 ]] && return 1
 
 		# Improve order of packages
 		PKG_NAME_CLEAN="${search% *}"
 
-		# Verify if package are installed
-		if [[ "$FLATPAK_INSTALLED_LIST" == *"|${PKG_FLATPAK[PKG_ID]}|"* ]]; then
-			if [ -n "$(tr -d '\n' <<<"${PKG_FLATPAK[PKG_UPDATE]}")" ]; then
-				PKG_FLATPAK[PKG_INSTALLED]="$Atualizar_text"
-				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_upgradable"
-				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
+		for key in "${!ALL_PKG_FLATPAK[@]}"; do
+			pkg_name="$key"
+			pkg_desc="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 2)"
+			pkg_id="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 3)"
+			pkg_version="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 4)"
+			pkg_branch="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 5)"
+			pkg_remote="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 6)"
+			pkg_icon="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 7)"
+			pkg_update="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 8)"
+			pkg_xml_appstream="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 9)"
+
+			# Verify if package are installed
+			if [[ "$FLATPAK_INSTALLED_LIST" == *"|${pkg_id}|"* ]]; then
+				if [ -n "$(tr -d '\n' <<<"${pkg_update}")" ]; then
+					pkg_installed="$Atualizar_text"
+					div_flatpak_installed="flatpak_upgradable"
+					pkg_order="FlatpakP1"
+				else
+					pkg_installed="$Remover_text"
+					div_flatpak_installed="flatpak_installed"
+					pkg_order="FlatpakP1"
+				fi
 			else
-				PKG_FLATPAK[PKG_INSTALLED]="$Remover_text"
-				PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_installed"
-				PKG_FLATPAK[PKG_ORDER]="FlatpakP1"
+				pkg_installed="$Instalar_text"
+				div_flatpak_installed="flatpak_not_installed"
+
+				if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${pkg_id}"; then
+					pkg_order="FlatpakP2"
+				elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${pkg_id}"; then
+					pkg_order="FlatpakP3"
+				else
+					pkg_order="FlatpakP4"
+				fi
 			fi
-		else
-			PKG_FLATPAK[PKG_INSTALLED]="$Instalar_text"
-			PKG_FLATPAK[DIV_FLATPAK_INSTALLED]="flatpak_not_installed"
 
-			if grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
-				PKG_FLATPAK[PKG_ORDER]="FlatpakP2"
-			elif grep -q -i -m1 "$PKG_NAME_CLEAN" <<<"${PKG_FLATPAK[PKG_ID]}"; then
-				PKG_FLATPAK[PKG_ORDER]="FlatpakP3"
-			else
-				PKG_FLATPAK[PKG_ORDER]="FlatpakP4"
-			fi
-		fi
+			summary="${pkg_desc}"
+			pkg_summary_encoded=$(printf '%s' "$summary" | jq -sRr @uri)
 
-		summary="${PKG_FLATPAK[PKG_DESC]}"
-		pkg_summary_encoded=$(printf '%s' "$summary" | jq -sRr @uri)
-
-		# If all fail, use generic icon
-		if [[ -z "${PKG_FLATPAK[PKG_ICON]}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${PKG_FLATPAK[PKG_ICON]}")" ]]; then
-			pkg_name_encoded=$(printf '%s' "${PKG_FLATPAK[PKG_NAME]}" | jq -sRr @uri)
-			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${PKG_FLATPAK[PKG_NAME]}'>
-				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
-				<div class="showapp">
-				<div id="flatpak_icon">
-				<div class="icon_middle">
-				<div class="icon_middle">
-				<div class="avatar_flatpak">
-				${PKG_FLATPAK[PKG_NAME]:0:3}
-				</div>
-				</div>
-				</div>
-				<div id="flatpak_name">
-				${PKG_FLATPAK[PKG_NAME]}
-				<div id="version">
-					${PKG_FLATPAK[PKG_VERSION]}
+			# If all fail, use generic icon
+			if [[ -z "${pkg_icon}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${pkg_icon}")" ]]; then
+				pkg_name_encoded=$(printf '%s' "${pkg_name}" | jq -sRr @uri)
+				cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+					<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${pkg_name}'>
+					<div class="col s12 m6 l3" id="${pkg_order}">
+					<div class="showapp">
+					<div id="flatpak_icon">
+					<div class="icon_middle">
+					<div class="icon_middle">
+					<div class="avatar_flatpak">
+					${pkg_name:0:3}
+					</div>
+					</div>
+					</div>
+					<div id="flatpak_name">
+					${pkg_name}
+					<div id="version">
+					${pkg_version}
 					</div>
 					</div>
 					</div>
 					<div id="box_flatpak_desc">
 					<div id="flatpak_desc">
-					${PKG_FLATPAK[PKG_DESC]}
+					${pkg_desc}
 					</div>
 					</div>
-					<div id="${PKG_FLATPAK[DIV_FLATPAK_INSTALLED]}">
-					${PKG_FLATPAK[PKG_INSTALLED]}
+					<div id="${div_flatpak_installed}">
+					${pkg_installed}
 					</div>
 					</a>
 					</div>
 					</div>
-			EOF
-		else
-			pkg_name_encoded=$(printf '%s' "${PKG_FLATPAK[PKG_ID]}" | jq -sRr @uri)
-			cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-				<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${PKG_FLATPAK[PKG_ID]}'>
-				<div class="col s12 m6 l3" id="${PKG_FLATPAK[PKG_ORDER]}">
-				<div class="showapp">
-				<div id="flatpak_icon">
-				<div class="icon_middle">
-				<img class="icon" loading="lazy" src="${PKG_FLATPAK[PKG_ICON]}">
-				</div>
-				<div id="flatpak_name">
-				${PKG_FLATPAK[PKG_NAME]}
-				<div id="version">
-				${PKG_FLATPAK[PKG_VERSION]}
-				</div>
-				</div>
-				</div>
-				<div id="box_flatpak_desc">
-				<div id="flatpak_desc">
-				${PKG_FLATPAK[PKG_DESC]}
-				</div>
-				</div>
-				<div id="${PKG_FLATPAK[DIV_FLATPAK_INSTALLED]}">
-				${PKG_FLATPAK[PKG_INSTALLED]}
-				</div>
-				</a>
-				</div>
-				</div>
-		EOF
-		fi
+				EOF
+			else
+				pkg_name_encoded=$(printf '%s' "${pkg_id}" | jq -sRr @uri)
+				cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+					<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${pkg_id}'>
+					<div class="col s12 m6 l3" id="${pkg_order}">
+					<div class="showapp">
+					<div id="flatpak_icon">
+					<div class="icon_middle">
+					<img class="icon" loading="lazy" src="${pkg_icon}">
+					</div>
+					<div id="flatpak_name">
+					${pkg_name}
+					<div id="version">
+					${pkg_version}
+					</div>
+					</div>
+					</div>
+					<div id="box_flatpak_desc">
+					<div id="flatpak_desc">
+					${pkg_desc}
+					</div>
+					</div>
+					<div id="${div_flatpak_installed}">
+					${pkg_installed}
+					</div>
+					</a>
+					</div>
+					</div>
+				EOF
+			fi
+		done
 	}
 
 	if [[ -z "$resultFilter_checkbox" ]]; then
@@ -673,8 +692,8 @@ function sh_search_flatpak() {
 
 	for i in ${search[*]}; do
 		if result="$(grep -i -e "$i" "$cacheFile")" && [[ -n "$result" ]]; then
-			flatpak_parallel_filter "$i" &
 			((++COUNT))
+			flatpak_parallel_filter "$i" &
 		fi
 		if ((COUNT >= LIMITE)); then
 			break
@@ -684,14 +703,23 @@ function sh_search_flatpak() {
 	# Aguarda todos os resultados antes de exibir para o usuário
 	wait
 
-	COUNT=$(read_static_var)
-	echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
-	cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-		<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
-		<script>\$(document).ready(function() {\$("#box_flatpak").show();});</script>
-		<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
-	EOF
-	cp -f "${TMP_FOLDER}/flatpak_build.html" "${TMP_FOLDER}/flatpak.html"
+	COUNT="$(read_static_var)"
+
+	if ((COUNT)); then
+		echo "$COUNT" >"$TMP_FOLDER/flatpak_number.html"
+		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+			<script>runAvatarFlatpak();\$(document).ready(function () {\$("#box_flatpak").show();});</script>
+			<script>\$(document).ready(function() {\$("#box_flatpak").show();});</script>
+			<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
+		EOF
+	else
+		echo "0" >"$TMP_FOLDER/flatpak_number.html"
+		cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
+			<script>document.getElementById("flatpak_icon_loading").innerHTML = ""; runAvatarFlatpak();</script>
+		EOF
+	fi
+	# Move temporary HTML file to final location
+	mv "$TMP_FOLDER/flatpak_build.html" "$TMP_FOLDER/flatpak.html"
 }
 export -f sh_search_flatpak
 
@@ -822,7 +850,7 @@ function sh_search_snap() {
 
 	for i in ${search[@]}; do
 		if ! ((snap_search_category)); then
-		 	# Se NÃO é para buscar na descrição
+			# Se NÃO é para buscar na descrição
 			if ! ((searchInDescription)); then
 				# Construir a expressão regular no primeiro campo do arquivo de cache
 				i="^[^|]*${i}[^|]*\|"
@@ -1005,9 +1033,9 @@ function sh_search_aur {
 		description=$(jq -r '.description' <<<"$item")
 
 		if [[ $name == aur/* ]]; then
-		 	# Se NÃO é por categorias
+			# Se NÃO é por categorias
 			if ! ((aur_search_category)); then
-			 	# Se NÃO é para buscar na descrição
+				# Se NÃO é para buscar na descrição
 				if ! ((searchInDescription)); then
 					# Se a variável $search NÃO contiver a palavra $pkg
 					if [[ ! "$search" =~ "$pkg" ]]; then
@@ -1122,10 +1150,10 @@ function sh_search_category_appstream_pamac() {
 			regex+="|"
 		fi
 		if ((appstream_search_category)); then
-#			regex+="($pacote$)"
+			#			regex+="($pacote$)"
 			regex+="$pacote$"
 		else
-#			regex+="($pacote)"
+			#			regex+="($pacote)"
 			regex+="$pacote"
 		fi
 	done
@@ -1152,9 +1180,9 @@ function sh_search_category_appstream_pamac() {
 		description=$(jq -r '.description' <<<"$item")
 
 		if [[ -n "$pkg" ]]; then
-		 	# Se NÃO é por categorias
+			# Se NÃO é por categorias
 			if ! ((appstream_search_category)); then
-			 	# Se NÃO é para buscar na descrição
+				# Se NÃO é para buscar na descrição
 				if ! ((searchInDescription)); then
 					# Se a variável $search NÃO contiver a palavra $pkg
 					if [[ ! "$search" =~ "$pkg" ]]; then
@@ -1167,7 +1195,7 @@ function sh_search_category_appstream_pamac() {
 			size=$(jq -r '.size' <<<"$item")
 			status=$(jq -r '.status' <<<"$item")
 
-#			pkg=${name##*/}
+			#			pkg=${name##*/}
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
 			pkgicon=${pkgicon//-beta/}
@@ -1243,20 +1271,20 @@ function sh_search_category_appstream_pamac() {
 		fi
 	done < <(echo "$item_json")
 
-#	if ((count)); then
-#		echo "$count" >"$TMP_FOLDER/appstream_number.html"
-#		echo '<script>runAvatarAppstream(); $(document).ready(function () $("#box_appstream").show();});</script>' >> "$TMP_FOLDER/appstream_build.html"
-#		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>" >>"$TMP_FOLDER/appstream_build.html"
-#	else
-#		echo "0" >"$TMP_FOLDER/appstream_number.html"
-#		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>" >> "$TMP_FOLDER/appstream_build.html"
-#	fi
-#	# Move temporary HTML file to final location
-#	mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
+	#	if ((count)); then
+	#		echo "$count" >"$TMP_FOLDER/appstream_number.html"
+	#		echo '<script>runAvatarAppstream(); $(document).ready(function () $("#box_appstream").show();});</script>' >> "$TMP_FOLDER/appstream_build.html"
+	#		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>" >>"$TMP_FOLDER/appstream_build.html"
+	#	else
+	#		echo "0" >"$TMP_FOLDER/appstream_number.html"
+	#		echo "<script>document.getElementById("appstream_number").innerHTML = \"$count\";</script>" >> "$TMP_FOLDER/appstream_build.html"
+	#	fi
+	#	# Move temporary HTML file to final location
+	#	mv "$TMP_FOLDER/appstream_build.html" "$TMP_FOLDER/appstream.html"
 
 	if ((count)); then
 		echo "$count" >"$TMP_FOLDER/appstream_number.html"
-		echo "<script>\$(document).ready(function() {\$(\"#box_appstream\").show();});</script>" >> "$TMP_FOLDER/appstream_build.html"
+		echo "<script>\$(document).ready(function() {\$(\"#box_appstream\").show();});</script>" >>"$TMP_FOLDER/appstream_build.html"
 		echo '<script>document.getElementById("appstream_icon_loading").innerHTML = ""; runAvatarAppstream();</script>' >>"$TMP_FOLDER/appstream_build.html"
 	else
 		echo "0" >"$TMP_FOLDER/appstream_number.html"
