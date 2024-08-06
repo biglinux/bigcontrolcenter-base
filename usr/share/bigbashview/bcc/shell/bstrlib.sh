@@ -1758,6 +1758,28 @@ export -f sh_toggle_comment_pamac_conf
 
 #######################################################################################################################
 
+function sh_check_simple_install() {
+	# Caminho para o arquivo de configuração
+	local config_file="/etc/pamac.conf"
+
+	# Verifica se a linha está comentada
+	if grep -q "^#SimpleInstall" "$config_file"; then
+		#SimpleInstall está comentado
+		echo 0
+		return 0
+	elif grep -q "^SimpleInstall" "$config_file"; then
+		#SimpleInstall não está comentado.
+		echo 1
+		return 1
+	else
+		#SimpleInstall não está presente no arquivo.
+		echo 2
+		return 2
+	fi
+}
+
+#######################################################################################################################
+
 function sh_run_pamac_remove {
 	packages_to_remove=$(LC_ALL=C timeout 10s pamac remove -odc "$*" | awk '/^  / { print $1 }')
 	pamac-installer --remove "$@" $packages_to_remove &
@@ -1799,11 +1821,9 @@ function sh_run_pamac_installer {
 
 	#	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
 	AutoAddLangPkg="$(pacman -Ssq $package-.18.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
-	if TIni.Exist "$INI_FILE_BIG_STORE" "PAMAC" "SimpleInstall" '1'; then
-		sh_toggle_comment_pamac_conf 'comment' "SimpleInstall" "/etc/pamac.conf"
-	else
-		sh_toggle_comment_pamac_conf 'uncomment' "SimpleInstall" "/etc/pamac.conf"
-	fi
+
+
+
 	pamac-installer $@ $AutoAddLangPkg &
 	PID="$!"
 
