@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/05
+#  Altered: 2024/08/07
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,8 +35,8 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="05-08-2024 - 12:09"
-_VERSION_="1.0.0-20240801"
+_DATE_ALTERED_="07-08-2024 - 04:06"
+_VERSION_="1.0.0-20240807"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -53,10 +53,11 @@ unset GREP_OPTIONS
 export TEXTDOMAINDIR="/usr/share/locale"
 export TEXTDOMAIN=big-store
 
-declare -g snap_cache_file="$HOME_FOLDER/snap.cache"
-declare -g snap_cache_filtered_file="$HOME_FOLDER/snap_filtered.cache"
-declare -g flatpak_cache_file="$HOME_FOLDER/flatpak.json"
-declare -g flatpak_cache_filtered_file="$HOME_FOLDER/flatpak_filtered.json"
+export snap_cache_file="$HOME_FOLDER/snap.cache"
+export snap_cache_filtered_file="$HOME_FOLDER/snap_filtered.cache"
+export flatpak_cache_file="$HOME_FOLDER/flatpak.json"
+export flatpak_cache_filtered_file="$HOME_FOLDER/flatpak_filtered.json"
+export cacheFile="$flatpak_cache_file"
 
 declare -g Programas_AUR=$"Programas AUR"
 declare -g Programas_Flatpak=$"Programas Flatpak"
@@ -82,7 +83,6 @@ declare -g Repositorio=$"Repositório:"
 declare -g Ramo=$"Ramo:"
 declare -g Nao_informada=$"Não informada"
 declare -g Programas_Flatpak=$"Programas Flatpak"
-declare -g cacheFile="$flatpak_cache_file"
 
 declare -gA PKG_FLATPAK
 declare -gA PKG_TRANSLATE_DESC
@@ -143,7 +143,7 @@ function sh_write_json_summary_sh {
 	fi
 
 	# Mova o arquivo temporário de volta para o arquivo original
-	mv $tmp $FILE_SUMMARY_JSON
+	mv "$tmp" "$FILE_SUMMARY_JSON"
 }
 export -f sh_write_json_summary_sh
 
@@ -1383,6 +1383,7 @@ export -f sh_pkg_pacman_build_date
 
 function sh_update_cache_snap {
 	local processamento_em_paralelo="$1"
+	local verbose="$2"
 	local folder_to_save_files="$HOME_FOLDER/snap_list_files/snap_list"
 	local file_to_save_cache="$HOME_FOLDER/snap.cache"
 	local file_to_save_cache_filtered="$HOME_FOLDER/snap_filtered.cache"
@@ -1396,24 +1397,27 @@ function sh_update_cache_snap {
 		processamento_em_paralelo=1
 	fi
 
-	echo "Criando necessários arquivos e 'paths'"
+	if [[ -z "$verbose" ]] || [[ "$verbose" = '1' ]]; then
+		verbose=1
+	else
+		verbose=0
+	fi
+
+	((verbose)) && echo "${cyan}$(gettext "snap - Criando e removendo necessários arquivos e 'paths'...")${reset}"
 	[[ -e "$file_to_save_cache" ]] && rm -f "$file_to_save_cache"
 	[[ -e "$file_to_save_cache_filtered" ]] && rm -f "$file_to_save_cache_filtered"
-	[[ -d "$path_snap_list_files" ]] && rm -R "$path_snap_list_files"
-	mkdir -p "$path_snap_list_files"
+	[[ -d "$path_snap_list_files" ]] && rm -R "$path_snap_list_files"; mkdir -p "$path_snap_list_files"
 
 	# Anotação com as opções possíveis para utilizar na API
 	#https://api.snapcraft.io/api/v1/snaps/search?confinement=strict,classic&fields=anon_download_url,architecture,channel,download_sha3_384,summary,description,binary_filesize,download_url,last_updated,package_name,prices,publisher,ratings_average,revision,snap_id,license,base,media,support_url,contact,title,content,version,origin,developer_id,develope>
-
 	# Anotação com a busca por wps-2019-snap em cache
 	# jq -r '._embedded."clickindex:package"[]| select( .package_name == "wps-2019-snap" )' $folder_to_save_files*
 
+	((verbose)) && echo "${cyan}snap - Baixando header: ${red}$SITE${reset}"
 	# Lê na pagina inicial quantas paginas devem ser baixadas e salva o valor na variavel $number_of_pages
-	echo "Baixando header: $SITE"
-	#	notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando header: $SITE" --expire-time=2000
 	number_of_pages="$(curl --silent --compressed --insecure --url "$SITE" | jq -r '._links.last' | sed 's|.*page=||g;s|"||g' | grep '[0-9]')"
-	echo "Numero de páginas a serem processadas: $number_of_pages"
-	echo "Iniciando downloads..."
+	((verbose)) && echo "${cyan}snap - Numero de páginas a serem processadas: ${red}$number_of_pages${reset}"
+	((verbose)) && echo "${cyan}snap - Iniciando downloads...${reset}"
 
 	if ((processamento_em_paralelo)); then
 		if ((number_of_pages)); then
@@ -1428,144 +1432,37 @@ function sh_update_cache_snap {
 			wait
 			grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 		fi
-	else
+	else #processamento_em_paralelo
 		if ((number_of_pages)); then
 			for ((page = 1; page <= number_of_pages; page++)); do
-				echo "Baixando arquivo em: ${folder_to_save_files}${page}"
-				#				notify-send --icon=big-store --app-name "$0" "$TITLE" "Baixando arquivo ${folder_to_save_files}${page}" --expire-time=2000
-				curl -# --compressed --insecure --url "$URL$page" --continue-at - --output "${folder_to_save_files}${page}"
+				((verbose)) && echo "${cyan}snap - Baixando arquivo em: ${red}${folder_to_save_files}${page}${reset}"
+				curl -# --compressed --insecure --url "$URL$page" --continue-at - --output "${folder_to_save_files}${page}" &
 			done
-			echo "Aguardando o download de todos os arquivos..."
-			#			wait
-			echo "Downloads efetuados, prosseguindo!"
+			((verbose)) && echo "${cyan}snap - Aguardando o download de todos os arquivos...${reset}"
+			wait
+			((verbose)) && echo "${cyan}snap - Downloads efetuados, prosseguindo!${reset}"
 
-			echo "Filtrando o resultado dos arquivos e criando um arquivo de cache que será utilizado nas buscas"
+			((verbose)) && echo "${cyan}Filtrando o resultado dos arquivos e criando um arquivo de cache que será utilizado nas buscas${reset}"
 			jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "$folder_to_save_files*" | sort -u >"$file_to_save_cache"
 
 			for ((page = 1; page <= number_of_pages; page++)); do
-				echo "Processando com jq a página : $page/$number_of_pages"
+				((verbose)) && echo "${reset}Processando com jq a página : ${red}$page/$number_of_pages${reset}"
 				#				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >> "$file_to_save_cache" &
-				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >>"$file_to_save_cache"
+				jq -r '._embedded."clickindex:package"[]| .title + "|" + .snap_id + "|" + .media[0].url + "|" + .summary + "|" + .version + "|" + .package_name + "|"' "${folder_to_save_files}${page}" | sort -u >>"$file_to_save_cache" &
 			done
-			echo "Processando jq"
-			#			wait
-			echo "Filtrando o resultado com grep"
+			((verbose)) && echo "${cyan}snap - Processando jq${reset}"
+			wait
+			((verbose)) && echo "${cyan}snap - Filtrando o resultado com grep${reset}"
 			grep -Fwf /usr/share/bigbashview/bcc/apps/big-store/list/snap_list.txt "$file_to_save_cache" >"$file_to_save_cache_filtered"
 		fi
-	fi
+	fi #processamento_em_paralelo
+
+	((verbose)) && echo "${cyan}snap - Registrando informações em: ${red}$INI_FILE_BIG_STORE${reset}"
 	TIni.Set "$INI_FILE_BIG_STORE" "snap" "snap_atualizado" '1'
 	TIni.Set "$INI_FILE_BIG_STORE" "snap" "snap_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
+	((verbose)) && echo "${green}snap - Feito!${reset}"
 }
 export -f sh_update_cache_snap
-
-#######################################################################################################################
-
-function sh_update_cache_flatpak_OLD() {
-	local processamento_em_paralelo="$1"
-	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
-	local CACHE_FILE="$flatpak_cache_file"
-	local FILTERED_CACHE_FILE="$flatpak_cache_filtered_file"
-
-	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
-		processamento_em_paralelo=0
-	else
-		processamento_em_paralelo=1
-	fi
-
-	echo "Criando e removendo necessários arquivos e 'paths'"
-	[[ -e "$CACHE_FILE" ]] && rm -f "$CACHE_FILE"
-
-	# Realiza a busca de pacotes Flatpak, filtra e armazena no arquivo de cache
-	#	flatpak search --arch x86_64 "" | sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' | grep '|stable|' | rev | uniq --skip-fields=2 | rev >"$CACHE_FILE"
-	#	flatpak search --arch x86_64 "" | awk -F'\t' '{ print $1"|"$2"|"$3"|"$4"|"$5"|"$6"|"}' | grep '|stable|' | sort -u >"$CACHE_FILE"
-	#   flatpak search --arch x86_64 "" |
-	#        sed '/\t/s//|/g' |
-	#        grep '|stable|' |
-	#        rev |
-	#        uniq --skip-fields=2 |
-	#        rev >"$CACHE_FILE"
-
-	if ((processamento_em_paralelo)); then
-		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
-		LC_ALL=C flatpak search --arch x86_64 "" |
-			sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' |
-			grep '|stable|' |
-			rev |
-			uniq --skip-fields=2 |
-			rev |
-			parallel --gnu --jobs 50% "echo {} >> '$CACHE_FILE'"
-		wait
-
-		LC_ALL=C flatpak update |
-			grep "^ [1-9]" |
-			awk '{print $2}' |
-			parallel --gnu --jobs 50% "sed -i 's/|{}.*$/&update|/' '$CACHE_FILE'"
-		wait
-	else
-		echo "Reparando banco de dados Flatpak"
-		flatpak repair
-		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
-		LC_ALL=C flatpak search --arch x86_64 "" |
-			sed '/\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /\t/s//|/; /$/s//|/' |
-			grep '|stable|' |
-			rev |
-			uniq --skip-fields=2 |
-			rev |
-			tee -a "$CACHE_FILE"
-
-		for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
-			sed -i "s/|${i}.*/&update|/" "$CACHE_FILE"
-		done
-	fi
-
-	echo "Realizando filtragem de pacotes Flatpak"
-	grep -Fwf "$LIST_FILE" "$CACHE_FILE" >"$FILTERED_CACHE_FILE"
-	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
-	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
-	echo "filtragem finalizada."
-}
-export -f sh_update_cache_flatpak_OLD
-
-#######################################################################################################################
-
-# qua 11 out 2023 14:19:05 -04
-function sh_update_cache_flatpakOLD() {
-	local processamento_em_paralelo="$1"
-	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
-
-	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
-		processamento_em_paralelo=0
-	else
-		processamento_em_paralelo=1
-	fi
-
-	echo "Criando e removendo necessários arquivos e 'paths'"
-	[[ -e "$flatpak_cache_file" ]] && rm -f "$flatpak_cache_file"
-	[[ -e "$flatpak_cache_filtered_file" ]] && rm -f "$flatpak_cache_filtered_file"
-
-	if ((processamento_em_paralelo)); then
-		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
-		LC_ALL=C big-pacman-to-json flatpak search --arch x86_64 "" >$flatpak_cache_file
-		wait
-		LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}' | parallel --gnu --jobs 50% "sed -i 's/|{}.*$/&update|/' '$flatpak_cache_filtered_file'"
-		wait
-	else
-		echo "Reparando banco de dados Flatpak"
-		flatpak repair
-		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
-		LC_ALL=C big-pacman-to-json flatpak search --arch x86_64 "" | tee -a $flatpak_cache_file
-		for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
-			sed -i "s/|${i}.*/&update|/" "$flatpak_cache_file"
-		done
-	fi
-
-	echo "Realizando filtragem de pacotes Flatpak..."
-	grep -Fwf "$LIST_FILE" "$flatpak_cache_file" >"$flatpak_cache_filtered_file"
-	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
-	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
-	echo "filtragem finalizada."
-}
-export -f sh_update_cache_flatpakOLD
 
 #######################################################################################################################
 
@@ -1575,24 +1472,25 @@ function sh_update_cache_flatpak() {
 	local verbose="$2"
 	local LIST_FILE="/usr/share/bigbashview/bcc/apps/big-store/list/flatpak_list.txt"
 
-	[[ -z "$verbose" ]] && verbose=1
-	[[ -n "$verbose" ]] && verbose=0
-
 	if [[ -z "$processamento_em_paralelo" ]] || [[ "$processamento_em_paralelo" = '0' ]]; then
 		processamento_em_paralelo=0
 	else
 		processamento_em_paralelo=1
 	fi
 
-	if ((verbose)); then
-		echo "Criando e removendo necessários arquivos e 'paths'"
+	if [[ -z "$verbose" ]] || [[ "$verbose" = '1' ]]; then
+		verbose=1
+	else
+		verbose=0
 	fi
+
+	sleep 0.2
+
+	((verbose)) && echo "${cyan}$(gettext "flatpak - Criando e removendo necessários arquivos e 'paths'...")${reset}"
 	[[ -e "$flatpak_cache_file" ]] && rm -f "$flatpak_cache_file"
 	[[ -e "$flatpak_cache_filtered_file" ]] && rm -f "$flatpak_cache_filtered_file"
 
-	if ((verbose)); then
-		echo "Realizando busca usando 'flatpak search' e filtrando informações necessárias"
-	fi
+	((verbose)) && echo "${cyan}$(gettext "flatpak - Realizando busca usando ${red}'flatpak search'${reset} e filtrando informações necessárias...")${reset}"
 	LC_ALL=C flatpak search --arch=x86_64 "" | awk -F'\t' '
   BEGIN {
       print "["
@@ -1635,21 +1533,24 @@ function sh_update_cache_flatpak() {
   END {
       print "]"
 	}' >"$TMP_FOLDER/input.json"
+
+	((verbose)) && echo "${cyan}$(gettext "flatpak - Realizando Ordenação do arquivo JSON ${red}${flatpak_cache_file}${reset}...")${reset}"
 	jq 'sort_by(.name) | unique_by(.name)' "$TMP_FOLDER/input.json" >"$flatpak_cache_file"
 
 	#	for i in $(LC_ALL=C flatpak update | grep "^ [1-9]" | awk '{print $2}'); do
 	#		sed -i "s/|${i}.*/&update|/" "$flatpak_cache_file"
 	#	done
 
-	if ((verbose)); then
-		echo "Realizando filtragem de pacotes Flatpak..."
-	fi
+	((verbose)) && echo "${cyan}$(gettext "flatpak - Realizando filtragem de pacotes Flatpak...")${reset}"
 	grep -Fwf "$LIST_FILE" "$flatpak_cache_file" >"$flatpak_cache_filtered_file"
+
+	((verbose)) && echo "${cyan}flatpak - Registrando informações em: ${red}$INI_FILE_BIG_STORE${reset}"
 	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_atualizado" '1'
 	TIni.Set "$INI_FILE_BIG_STORE" "flatpak" "flatpak_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 	if ((verbose)); then
-		echo "filtragem finalizada."
+		echo "${green}$(gettext "flatpak - Feito!")${reset}"
 	fi
+	sleep 2
 }
 export -f sh_update_cache_flatpak
 
@@ -1712,6 +1613,15 @@ function sh_enable_snapd_and_apparmor() {
 		sudo systemctl enable --now apparmor
 	fi
 
+	echo "$(gettext "Verificando o status do serviço snapd.socket...")"
+	result=$(systemctl is-active snapd.socket)
+	if [[ "$result" = 'failed' || "$result" = 'inactive' ]]; then
+		echo "$(gettext "O serviço snapd.socket está no status 'failed' ou 'inactive'")"
+		pacman -Q snapd
+		echo "$(gettext "Ativando e iniciando o serviço snapd.socket...")"
+		sudo systemctl enable --now snapd.socket
+	fi
+
 	echo "$(gettext "Verificando o status do serviço snapd...")"
 	result=$(systemctl is-active snapd)
 	if [[ "$result" = 'failed' || "$result" = 'inactive' ]]; then
@@ -1731,11 +1641,13 @@ function sh_enable_snapd_and_apparmor() {
 	echo
 	echo -n "systemctl is-active apparmor      : "
 	systemctl is-active apparmor
+	echo -n "systemctl is-active snap.socket   : "
+	systemctl is-active snapd.socket
 	echo -n "systemctl is-active snap          : "
 	systemctl is-active snapd
 	echo -n "systemctl is-active snapd.apparmor: "
 	systemctl is-active snapd.apparmor
-	sleep 10
+	sleep 5
 }
 export -f sh_enable_snapd_and_apparmor
 
@@ -1755,6 +1667,28 @@ function sh_toggle_comment_pamac_conf() {
 	fi
 }
 export -f sh_toggle_comment_pamac_conf
+
+#######################################################################################################################
+
+function sh_check_simple_install() {
+	# Caminho para o arquivo de configuração
+	local config_file="/etc/pamac.conf"
+
+	# Verifica se a linha está comentada
+	if grep -q "^#SimpleInstall" "$config_file"; then
+		#SimpleInstall está comentado
+		echo 0
+		return 0
+	elif grep -q "^SimpleInstall" "$config_file"; then
+		#SimpleInstall não está comentado.
+		echo 1
+		return 1
+	else
+		#SimpleInstall não está presente no arquivo.
+		echo 2
+		return 2
+	fi
+}
 
 #######################################################################################################################
 
@@ -1799,7 +1733,7 @@ function sh_run_pamac_installer {
 
 	#	AutoAddLangPkg="$(pacman -Ssq $1.*$LangClean.* | grep -m1 [_-]$LangCountry)"
 	AutoAddLangPkg="$(pacman -Ssq $package-.18.*$LangClean.* | grep -m1 "[_-]$LangCountry")"
-	sh_toggle_comment_pamac_conf 'uncomment' "SimpleInstall" "/etc/pamac.conf"
+
 	pamac-installer $@ $AutoAddLangPkg &
 	PID="$!"
 

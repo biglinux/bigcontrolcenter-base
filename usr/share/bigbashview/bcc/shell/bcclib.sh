@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2024/07/31
+#  Altered: 2024/08/07
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,14 +37,40 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240731"
+_VERSION_="1.0.0-20240807"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
-red=$(tput setaf 124)
-green=$(tput setaf 2)
-pink=$(tput setaf 129)
-reset=$(tput sgr0)
+# Definir a variável de controle para restaurar a formatação original
+export reset=$(tput sgr0)
+
+# Definir os estilos de texto como variáveis
+export bold=$(tput bold)
+export underline=$(tput smul)   # Início do sublinhado
+export nounderline=$(tput rmul) # Fim do sublinhado
+export reverse=$(tput rev)      # Inverte as cores de fundo e texto
+
+# Definir as cores ANSI como variáveis
+export black=$(tput bold)$(tput setaf 0)
+export red=$(tput bold)$(tput setaf 196)
+export green=$(tput bold)$(tput setaf 2)
+export yellow=$(tput bold)$(tput setaf 3)
+export blue=$(tput setaf 4)
+export pink=$(tput setaf 5)
+export magenta=$(tput setaf 5)
+export cyan=$(tput setaf 6)
+export white=$(tput setaf 7)
+export gray=$(tput setaf 8)
+export orange=$(tput setaf 202)
+export purple=$(tput setaf 125)
+export violet=$(tput setaf 61)
+export light_red=$(tput setaf 9)
+export light_green=$(tput setaf 10)
+export light_yellow=$(tput setaf 11)
+export light_blue=$(tput setaf 12)
+export light_magenta=$(tput setaf 13)
+export light_cyan=$(tput setaf 14)
+export bright_white=$(tput setaf 15)
 
 function sh_diahora {
 	DIAHORA=$(date +"%d%m%Y-%T" | sed 's/://g')
@@ -591,16 +617,21 @@ function sh_run_action_standalone {
 	export MARGIN_TOP_MOVE=-90
 	export WINDOW_HEIGHT=12
 
+	#    -fg rgb:ff/ff/ff \
+	#    -bg rgb:ff/00/00 \
+
 	urxvt +sb \
-		-internalBorder 1 \
+		-internalBorder 2 \
 		-borderColor rgb:00/22/40 \
 		-depth 32 \
-		-fg rgb:00/ff/ff \
-		-bg rgb:00/22/40 \
-		-fn "xft:Ubuntu Mono:pixelsize=14" \
+		-fg rgb:ff/ff/ff \
+		-bg rgb:00/00/00 \
+		-fn "xft:Ubuntu Mono:pixelsize=12" \
 		-embed "$WINDOW_ID" \
 		-sr \
-		-bc -e bash -c "sh_install_terminal_resize & $cmd $*"
+		-bc \
+		-title "$cmd" \
+		-e bash -c "sh_install_terminal_fixed & $cmd $*"
 	#       -bc -e bash -c "MARGIN_TOP_MOVE=-90 WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER=$$ WINDOW_ID=$WINDOW_ID sh_install_terminal_resize & $cmd $@"
 }
 export -f sh_run_action_standalone
@@ -626,7 +657,7 @@ function sh_run_action {
 		-depth 32 \
 		-fg rgb:00/ff/ff \
 		-bg rgb:00/22/40 \
-		-fn "xft:Ubuntu Mono:pixelsize=14" \
+		-fn "xft:Ubuntu Mono:pixelsize=12" \
 		-embed "$WINDOW_ID" \
 		-sr \
 		-bc -e bash -c "sh_install_terminal $ACTION $WINDOW_ID $PACKAGE_NAME $PACKAGE_ID $REPOSITORY $DRIVER"
@@ -635,6 +666,64 @@ function sh_run_action {
 }
 export -f sh_run_action
 
+function sh_install_terminal_resize {
+	while :; do
+		# Obtém a altura da janela referenciada por $WINDOW_ID
+		WINDOW_HEIGHT_DETECT=$(xwininfo -id $WINDOW_ID | awk '/Height:/ {print $2}')
+		# Obtém a largura da janela referenciada por $WINDOW_ID
+		WINDOW_WIDTH=$(xwininfo -id $WINDOW_ID | awk '/Width:/ {print $2}')
+		# Calcula 7% da largura da janela para definir a largura do terminal
+		WIDTH_TERMINAL=$((WINDOW_WIDTH * 12 / 100))
+		# Calcula 15% da largura da janela para definir a margem esquerda
+		MARGIN_LEFT=$((WINDOW_WIDTH * 12 / 100))
+		# Calcula a margem superior como 50% da altura da janela mais um valor adicional
+		MARGIN_TOP=$((WINDOW_HEIGHT_DETECT * 5 / 10 + MARGIN_TOP_MOVE))
+		# Define as dimensões e a posição da janela do terminal
+		# WIDTH_TERMINAL: Largura do terminal (7% da largura da janela original)
+		# WINDOW_HEIGHT: Altura do terminal (igual à altura da janela original)
+		# MARGIN_LEFT: Margem esquerda (15% da largura da janela original)
+		# MARGIN_TOP: Margem superior calculada (50% da altura da janela original + MARGIN_TOP_MOVE)
+		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
+		sleep 0.2
+
+		# if close bigbashview window, kill terminal too
+		if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
+			kill -9 $PID_TERM_BIG_STORE
+			exit 0
+		fi
+	done
+}
+export -f sh_install_terminal_resize
+
+function sh_install_terminal_fixed {
+	# Obtém a altura da janela referenciada por $WINDOW_ID
+	WINDOW_HEIGHT_DETECT=$(xwininfo -id $WINDOW_ID | awk '/Height:/ {print $2}')
+	# Obtém a largura da janela referenciada por $WINDOW_ID
+	WINDOW_WIDTH=$(xwininfo -id $WINDOW_ID | awk '/Width:/ {print $2}')
+	# Calcula 7% da largura da janela para definir a largura do terminal
+	WIDTH_TERMINAL=$((WINDOW_WIDTH * 12 / 100))
+	# Calcula 15% da largura da janela para definir a margem esquerda
+	MARGIN_LEFT=$((WINDOW_WIDTH * 12 / 100))
+	# Calcula a margem superior como 50% da altura da janela mais um valor adicional
+	MARGIN_TOP=$((WINDOW_HEIGHT_DETECT * 5 / 10 + MARGIN_TOP_MOVE - 40))
+	# Define as dimensões e a posição da janela do terminal
+	# WIDTH_TERMINAL: Largura do terminal (7% da largura da janela original)
+	# WINDOW_HEIGHT: Altura do terminal (igual à altura da janela original)
+	# MARGIN_LEFT: Margem esquerda (15% da largura da janela original)
+	# MARGIN_TOP: Margem superior calculada (50% da altura da janela original + MARGIN_TOP_MOVE)
+
+	((WINDOW_HEIGHT += 20))
+	xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
+	sleep 0.2
+
+	# if close bigbashview window, kill terminal too
+	if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
+		kill -9 $PID_TERM_BIG_STORE
+		exit 0
+	fi
+}
+export -f sh_install_terminal_fixed
+
 function sh_install_terminal {
 	[[ -z "$ACTION" ]] && ACTION="$1"
 	[[ -z "$WINDOW_ID" ]] && WINDOW_ID="$2"
@@ -642,8 +731,6 @@ function sh_install_terminal {
 	[[ -z "$PACKAGE_ID" ]] && PACKAGE_ID="$4"
 	[[ -z "$REPOSITORY" ]] && REPOSITORY="$5"
 	[[ -z "$DRIVER" ]] && DRIVER="$6"
-
-	#	xdebug "ACTION       : $ACTION\n WINDOW_ID    : $WINDOW_ID\nPACKAGE_ID   : $PACKAGE_ID\nPACKAGE_NAME : $PACKAGE_NAME\n"
 
 	if [[ -n "$ACTION" ]]; then
 		MARGIN_TOP_MOVE="-90" WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER="$$" WINDOW_ID="$WINDOW_ID" sh_install_terminal_resize &
@@ -686,14 +773,19 @@ function sh_install_terminal {
 			TIni.Set "$INI_FILE_BIG_STORE" "nativo" "nativo_atualizado" '1'
 			TIni.Set "$INI_FILE_BIG_STORE" "nativo" "nativo_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 			;;
-		"update_pamac") env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --force-refresh --download-only --no-confirm;;
+		"update_pamac")
+#			pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --force-refresh --download-only --no-confirm
+			sh_pkexec pamac update --force-refresh --download-only --no-devel
+			TIni.Set "$INI_FILE_BIG_STORE" "PAMAC" "pamac_atualizado" '1'
+			TIni.Set "$INI_FILE_BIG_STORE" "PAMAC" "pamac_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
+			;;
 		"update_mirror") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pacman-mirrors --geoip ;;
 		"update_keys") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --fix-keys ;;
 		"force_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY force-upgrade --upgrade-now ;;
 		"reinstall_allpkg") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_reinstall_allpkg ;;
 		"system_upgrade") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --no-confirm ;;
 		"system_upgradetotal") pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY bigsudo pacman -Syyu --noconfirm ;;
-		"update_flatpak") sh_update_cache_flatpak ;;
+		"update_flatpak") env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY sh_update_cache_flatpak ;;
 		"update_snap") sh_update_cache_snap ;;
 		"enable_snapd") sh_enable_snapd_and_apparmor ;;
 		esac
@@ -705,34 +797,6 @@ function sh_install_terminal {
 	fi
 }
 export -f sh_install_terminal
-
-function sh_install_terminal_resize {
-	while :; do
-		#		WINDOW_HEIGHT_DETECT="$(xwininfo -id $WINDOW_ID | grep Height: | sed 's|.* ||g')"
-		#		WINDOW_WIDTH="$(xwininfo -id $WINDOW_ID | grep Width: | sed 's|.* ||g')"
-		#		WIDTH_TERMINAL="$(echo "$WINDOW_WIDTH * 0.7 / 10" | bc | cut -f1 -d".")"
-		#		MARGIN_LEFT="$(echo "$WINDOW_WIDTH * 0.15" | bc | cut -f1 -d".")"
-		#		MARGIN_TOP="$(echo "$WINDOW_HEIGHT_DETECT * 0.5" $MARGIN_TOP_MOVE | bc | cut -f1 -d".")"
-		#		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
-
-		WINDOW_HEIGHT_DETECT=$(xwininfo -id $WINDOW_ID | awk '/Height:/ {print $2}')
-		WINDOW_WIDTH=$(xwininfo -id $WINDOW_ID | awk '/Width:/ {print $2}')
-		WIDTH_TERMINAL=$((WINDOW_WIDTH * 7 / 100))
-		MARGIN_LEFT=$((WINDOW_WIDTH * 15 / 100))
-		MARGIN_TOP=$((WINDOW_HEIGHT_DETECT * 5 / 10 + MARGIN_TOP_MOVE))
-		xtermset -geom ${WIDTH_TERMINAL}x${WINDOW_HEIGHT}+${MARGIN_LEFT}+${MARGIN_TOP}
-
-		sleep 1
-
-		# if close bigbashview window, kill terminal too
-		if [ "$(xwininfo -id $WINDOW_ID 2>&1 | grep -i "No such window")" != "" ]; then
-			kill -9 $PID_TERM_BIG_STORE
-			#	      kill -9 $PID_BIG_DEB_INSTALLER
-			exit 0
-		fi
-	done
-}
-export -f sh_install_terminal_resize
 
 function sh_pkexec {
 	pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY KDE_SESSION_VERSION=5 KDE_FULL_SESSION=true ${1+"$@"}
