@@ -607,7 +607,7 @@ EOF
 export -f sh_catp
 
 function sh_run_action_standalone {
-	local cmd="$1"
+	local cmd="$*"
 	shift
 	local retval
 	export WINDOW_ID
@@ -632,7 +632,8 @@ function sh_run_action_standalone {
 		-bc \
 		-title "$cmd" \
 		-e bash -c "sh_install_terminal_fixed & $cmd $*"
-	#       -bc -e bash -c "MARGIN_TOP_MOVE=-90 WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER=$$ WINDOW_ID=$WINDOW_ID sh_install_terminal_resize & $cmd $@"
+#		-e bash -c "MARGIN_TOP_MOVE=-90 WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER=$$ WINDOW_ID=$WINDOW_ID sh_install_terminal_resize & $cmd $@"
+	return $?
 }
 export -f sh_run_action_standalone
 
