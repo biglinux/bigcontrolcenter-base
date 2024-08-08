@@ -1013,9 +1013,11 @@ function sh_search_aur {
 	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
 	regex="^($regex)"
 	if ! ((searchInDescription)); then
-		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex $regex --sortby popularity --topdown)
 	else
-		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex $regex --sortby popularity --searchby name-desc)
 	fi
 
 	#cmd="$(LC_ALL=C paru -Ssa $@ --limit 60 --sortby popularity --searchby name-desc)"
