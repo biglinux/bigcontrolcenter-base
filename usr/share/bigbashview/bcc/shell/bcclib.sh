@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2024/08/07
+#  Altered: 2024/08/09
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240807"
+_VERSION_="1.0.0-20240809"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -888,6 +888,24 @@ function sh_pkexec_which_result() {
 	return $result
 }
 export -f sh_pkexec_which_result
+
+########################################################################################################################
+
+# Função que exibe um diálogo de senha
+function sh_gui_as_root() {
+	local cmd="$1"
+	local senha
+#	senha=$(zenity --password --title="Digite sua senha")
+	senha=$(yad --center --on-top --title="Digite sua senha" --entry --hide-text --text="Senha:" --width=300 --height=100)
+
+	if [ $? -eq 0 ] && [ -n "$senha" ]; then
+		#zenity --info --text="Senha correta! Acesso concedido."
+		echo "$senha" | sudo -S bash -c "$(declare -f "$cmd"); $*"
+	else
+		zenity --error --text="Senha incorreta ou não digitada!\nAcesso negado."
+	fi
+}
+export -f sh_gui_as_root
 
 ########################################################################################################################
 function sh_main {
