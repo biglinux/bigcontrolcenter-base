@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/07
+#  Altered: 2024/08/09
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,8 +35,8 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="07-08-2024 - 04:06"
-_VERSION_="1.0.0-20240807"
+_DATE_ALTERED_="09-08-2024 - 01:00"
+_VERSION_="1.0.0-20240809"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -443,6 +443,7 @@ function sh_seek_flatpak_parallel_filter() {
 	local version
 	local branch
 	local remote
+	local count
 	local -A ALL_PKG_FLATPAK=()
 
 	id_name="$(sh_change_pkg_id "$package")"
@@ -484,9 +485,7 @@ function sh_seek_flatpak_parallel_filter() {
 	fi
 
 	# Nao achou? Retorna false
-	if [[ -z "$result" ]]; then
-		return 1
-	fi
+	[[ -z "$result" ]] || [[ "${#result}" -eq 0 ]] && return
 
 	# Usando mapfile para ler o resultado em um array
 	#		mapfile -t -d'|' myarray <<< "$result"
@@ -496,6 +495,8 @@ function sh_seek_flatpak_parallel_filter() {
 		increment_static_var
 		# Separar os valores usando o delimitador '|'
 		IFS='|' read -r name desc id version branch remote icon <<<"$item"
+		[[ -z "$name" ]] || [[ "$name" = '' ]] || [[ "$name" = '0' ]] && continue
+		((++count))
 
 		# Preencher o array associativo com os valores
 		PKG_FLATPAK[PKG_NAME]="$name"
@@ -529,11 +530,10 @@ function sh_seek_flatpak_parallel_filter() {
 				fi
 			fi
 		fi
-		#		ALL_PKG_FLATPAK+=(["$name"]="$item")
 		ALL_PKG_FLATPAK+=(["$name"]="${PKG_FLATPAK[PKG_NAME]}|${PKG_FLATPAK[PKG_DESC]}|${PKG_FLATPAK[PKG_ID]}|${PKG_FLATPAK[PKG_VERSION]}|${PKG_FLATPAK[PKG_BRANCH]}|${PKG_FLATPAK[PKG_REMOTE]}|${PKG_FLATPAK[PKG_ICON]}|${PKG_FLATPAK[PKG_UPDATE]}|${PKG_FLATPAK[PKG_XML_APPSTREAM]}")
 	done
-	echo "$(declare -p ALL_PKG_FLATPAK)"
-	return 0
+	[[ -z "${ALL_PKG_FLATPAK[@]}" ]] && return
+	((count)) && echo "$(declare -p ALL_PKG_FLATPAK)"
 }
 
 #######################################################################################################################
@@ -565,10 +565,12 @@ function sh_search_flatpak() {
 		local icon
 		local id_name
 		local COUNT
-		local -A ALL_PKG_FLATPAK
+		local -A ALL_PKG_FLATPAK=()
 
 		id_name="$(sh_change_pkg_id "$package")"
-		ALL_PKG_FLATPAK=$(sh_seek_flatpak_parallel_filter "$id_name")
+		if ALL_PKG_FLATPAK="$(sh_seek_flatpak_parallel_filter "$id_name")" && [[ -z "${ALL_PKG_FLATPAK[@]}" ]]; then
+			return 1
+		fi
 		# Avalia a definição para recriar o array associativo
 		eval "$ALL_PKG_FLATPAK"
 		[[ "${#ALL_PKG_FLATPAK[@]}" -eq 0 ]] && return 1
@@ -578,6 +580,7 @@ function sh_search_flatpak() {
 
 		for key in "${!ALL_PKG_FLATPAK[@]}"; do
 			pkg_name="$key"
+#			[[ "$pkg_name" = '0' ]] && continue
 			pkg_desc="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 2)"
 			pkg_id="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 3)"
 			pkg_version="$(sh_splitarray "${ALL_PKG_FLATPAK[$key]}" 4)"
@@ -1010,8 +1013,10 @@ function sh_search_aur {
 	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
 	regex="^($regex)"
 	if ! ((searchInDescription)); then
+#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
 		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
 	else
+#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
 		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
 	fi
 
@@ -1658,37 +1663,47 @@ function sh_toggle_comment_pamac_conf() {
 	local keyword="$2"
 	local file="$3"
 
+	#xdebug "${1+$@}"
+	case "$action" in
+	1|comment) action='comment';;
+	0|uncomment) action='uncomment';;
+	*) action='uncomment';;
+	esac
+
 	if [ "$action" == "comment" ]; then
 		sudo sed -i "s/^\($keyword\)/#\1/" "$file"
+		return $?
 	elif [ "$action" == "uncomment" ]; then
 		sudo sed -i "s/^#\($keyword\)/\1/" "$file"
+		return $?
 	else
-		echo "Ação inválida. Use 'comment' ou 'uncomment'."
+		return 2
 	fi
 }
 export -f sh_toggle_comment_pamac_conf
 
 #######################################################################################################################
 
-function sh_check_simple_install() {
+function sh_check_status_simple_install() {
 	# Caminho para o arquivo de configuração
 	local config_file="/etc/pamac.conf"
 
 	# Verifica se a linha está comentada
 	if grep -q "^#SimpleInstall" "$config_file"; then
 		#SimpleInstall está comentado
-		echo 0
-		return 0
-	elif grep -q "^SimpleInstall" "$config_file"; then
-		#SimpleInstall não está comentado.
 		echo 1
 		return 1
+	elif grep -q "^SimpleInstall" "$config_file"; then
+		#SimpleInstall não está comentado.
+		echo 0
+		return 0
 	else
 		#SimpleInstall não está presente no arquivo.
 		echo 2
 		return 2
 	fi
 }
+export -f sh_check_status_simple_install
 
 #######################################################################################################################
 
