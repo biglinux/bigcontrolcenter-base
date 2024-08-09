@@ -895,8 +895,21 @@ export -f sh_pkexec_which_result
 function sh_gui_as_root() {
 	local cmd="$1"
 	local senha
+	local title="Digite sua senha"
+	local text="Authentication is needed to run '$cmd' as the super user\n\n
+Um aplicativo está tentanto executar uma ação que requer privilégios. É necessária\nautenticação para executar essa ação."
+
 #	senha=$(zenity --password --title="Digite sua senha")
-	senha=$(yad --center --on-top --title="Digite sua senha" --entry --hide-text --text="Senha:" --width=300 --height=100)
+	senha=$(yad \
+						--center \
+						--on-top \
+						--title="$title" \
+						--entry \
+						--hide-text \
+						--text="$text" \
+						--width=450 \
+						--height=100
+					)
 
 	if [ $? -eq 0 ] && [ -n "$senha" ]; then
 		#zenity --info --text="Senha correta! Acesso concedido."
