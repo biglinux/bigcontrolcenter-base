@@ -632,7 +632,7 @@ function sh_run_action_standalone {
 		-bc \
 		-title "$cmd" \
 		-e bash -c "sh_install_terminal_fixed & $cmd $*"
-#		-e bash -c "MARGIN_TOP_MOVE=-90 WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER=$$ WINDOW_ID=$WINDOW_ID sh_install_terminal_resize & $cmd $@"
+	#		-e bash -c "MARGIN_TOP_MOVE=-90 WINDOW_HEIGHT=12 PID_BIG_DEB_INSTALLER=$$ WINDOW_ID=$WINDOW_ID sh_install_terminal_resize & $cmd $@"
 	return $?
 }
 export -f sh_run_action_standalone
@@ -775,7 +775,7 @@ function sh_install_terminal {
 			TIni.Set "$INI_FILE_BIG_STORE" "nativo" "nativo_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
 			;;
 		"update_pamac")
-#			pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --force-refresh --download-only --no-confirm
+			#			pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY pamac update --force-refresh --download-only --no-confirm
 			sh_pkexec pamac update --force-refresh --download-only --no-devel
 			TIni.Set "$INI_FILE_BIG_STORE" "PAMAC" "pamac_atualizado" '1'
 			TIni.Set "$INI_FILE_BIG_STORE" "PAMAC" "pamac_data_atualizacao" "$(date "+%d/%m/%y %H:%M")"
@@ -799,16 +799,97 @@ function sh_install_terminal {
 }
 export -f sh_install_terminal
 
-function sh_pkexec {
+########################################################################################################################
+function sh_pkexec() {
 	pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY KDE_SESSION_VERSION=5 KDE_FULL_SESSION=true ${1+"$@"}
 }
 export -f sh_pkexec
 
+########################################################################################################################
+function sh_sudo_pkexec() {
+	local cmd="$1"
+
+	pkexec \
+		env DISPLAY=$DISPLAY \
+		XAUTHORITY=$XAUTHORITY \
+		KDE_SESSION_VERSION=5 \
+		KDE_FULL_SESSION=true \
+		bash -c "$(declare -f "$cmd"); $cmd $*"
+}
+export -f sh_sudo_pkexec
+
+########################################################################################################################
+function sh_export_pkexec() {
+	local cmd="$1"
+	shift
+
+	# Captura as variáveis exportadas e as funções definidas
+	local exports=$(export -p)
+	local functions=$(declare -f)
+	# Passa tudo para o shell chamado pelo pkexec
+	pkexec bash -c "$exports; $functions; $cmd $*"
+}
+export -f sh_export_pkexec
+
+########################################################################################################################
+function sh_SaveAndExport_pkexec() {
+	local cmd="$1"
+	shift
+
+	# Cria um arquivo temporário para armazenar as variáveis e funções exportadas
+	local tmpfile=$(mktemp)
+
+	# Salva o ambiente e as funções no arquivo temporário
+	{
+		export -p
+		declare -f
+	} >"$tmpfile"
+
+	# Executa o comando com pkexec, carregando o ambiente do arquivo temporário
+	pkexec bash -c "source '$tmpfile'; $cmd $*"
+
+	# Remove o arquivo temporário após a execução
+	rm -f "$tmpfile"
+}
+export -f sh_SaveAndExport_pkexec
+
+########################################################################################################################
 function sh_get_desktop_session() {
 	echo "$XDG_SESSION_TYPE"
 }
 export -f sh_get_desktop_session
 
+########################################################################################################################
+function sh_pkexec_which_result() {
+	local cmd="$1"
+	shift
+
+	# Cria um arquivo temporário para armazenar as variáveis e funções exportadas
+	local tmpfile=$(mktemp)
+	local tmpresult=$(mktemp)
+	local result
+
+	# Salva o ambiente e as funções no arquivo temporário
+	{
+		export -p
+		declare -f
+	} >"$tmpfile"
+
+	# Executa o comando com pkexec, capturando o código de saída
+	pkexec bash -c "source '$tmpfile'; $cmd $*; exit_code=\$?; echo \$exit_code" >"$tmpresult"
+
+	# Lê o código de saída do arquivo temporário
+	local result=$(<"$tmpresult")
+
+	# Remove o arquivo temporário após a execução
+	rm -f "$tmpfile" "$tmpresult"
+
+	# Retorna o código de saída
+	return $result
+}
+export -f sh_pkexec_which_result
+
+########################################################################################################################
 function sh_main {
 	local execute_app="$1"
 
@@ -818,6 +899,8 @@ function sh_main {
 	fi
 	#  return
 }
+
+########################################################################################################################
 
 #sh_debug
 #sh_main "$@"

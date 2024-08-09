@@ -1663,12 +1663,17 @@ function sh_toggle_comment_pamac_conf() {
 	local keyword="$2"
 	local file="$3"
 
+	#xdebug "${1+$@}"
+
 	if [ "$action" == "comment" ]; then
 		sudo sed -i "s/^\($keyword\)/#\1/" "$file"
+		return $?
 	elif [ "$action" == "uncomment" ]; then
 		sudo sed -i "s/^#\($keyword\)/\1/" "$file"
+		return $?
 	else
 		echo "Ação inválida. Use 'comment' ou 'uncomment'."
+		return 2
 	fi
 }
 export -f sh_toggle_comment_pamac_conf
