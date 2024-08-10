@@ -1012,20 +1012,20 @@ function sh_search_aurOLD {
 	done
 
 	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
-#	regex="^($regex)"
+	#	regex="^($regex)"
 	regex="($regex)"
 
 	if ! ((searchInDescription)); then
-#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
-#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
-#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+		#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
+		#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+		#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+		#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
 		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
 	else
-#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
-#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
-#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+		#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
+		#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+		#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+		#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
 		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
 	fi
 
@@ -1034,9 +1034,9 @@ function sh_search_aurOLD {
 
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
-#		name=$(jq -r '.name' <<<"$item")
-#		pkg=${name#aur/}
-#		description=$(jq -r '.description' <<<"$item")
+		#		name=$(jq -r '.name' <<<"$item")
+		#		pkg=${name#aur/}
+		#		description=$(jq -r '.description' <<<"$item")
 
 		# Usando jq para extrair todos os valores em uma única linha, separados por vírgulas
 		values=$(jq -r '[.name, .version, .size, .status, .Repo, .description] | @csv' <<<"$item")
@@ -1045,10 +1045,10 @@ function sh_search_aurOLD {
 		values=${values//\"/}
 
 		# Lê os valores em variáveis
-		IFS=',' read -r name version size status Repo description <<< "$values"
+		IFS=',' read -r name version size status Repo description <<<"$values"
 
-#		pkg=${name#aur/}
-#		if [[ $name == aur/* ]]; then
+		#		pkg=${name#aur/}
+		#		if [[ $name == aur/* ]]; then
 		pkg=${name#local/}
 
 		if [[ $name == local/* ]]; then
@@ -1063,9 +1063,9 @@ function sh_search_aurOLD {
 				fi
 			fi
 
-#			version=$(jq -r '.version' <<<"$item")
-#			size=$(jq -r '.size' <<<"$item")
-#			status=$(jq -r '.status' <<<"$item")
+			#			version=$(jq -r '.version' <<<"$item")
+			#			size=$(jq -r '.size' <<<"$item")
+			#			status=$(jq -r '.status' <<<"$item")
 
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
@@ -1149,6 +1149,8 @@ function sh_search_aur {
 	local site='https://aur.archlinux.org/packages-meta-v1.json.gz'
 	local metapackage="$HOME_FOLDER/packages-meta-v1.json.gz"
 	local output_file="$TMP_FOLDER/filtered-results-aur.json"
+	local item_json
+
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
 	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
@@ -1170,36 +1172,67 @@ function sh_search_aur {
 	done
 
 	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
-#	regex="^($regex)"
-	regex="($regex)"
+	regex="^($regex)"
+	#	regex="($regex)"
 
-#	if ! ((searchInDescription)); then
-#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
-#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
-#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
-#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
-#	else
-#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
-#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
-#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
-#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
-#	fi
-
-	# Filtrar os resultados com a regex e armazenar a saída em uma variável
+#	#	if ! ((searchInDescription)); then
+#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
+#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+#	#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
+#	#	else
+#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
+#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+#	#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
+#	#	fi
+#	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
+#	#	item_json=$(jq -c '.[]' <<<"$json")
+#	#	item_json=$(grep -iE "$regex" "$metapackage" | jq -c 'map(select(.Name != null))')
+#	#item_json=$(jq -c --arg regex "$regex" '.[] | select(.Name | test($regex; "i"))' "$metapackage")
 	item_json=$(jq -c --arg regex "$regex" '
-	    .[] | select(.Name != null and (.Name | test($regex; "i")))
-	' "$metapackage")
+    .[] |
+    select(.Name | test($regex; "i")) |
+    {Name, Version, Description}
+' "$metapackage")
 
-	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
-#	item_json=$(jq -c '.[]' <<<"$json")
+	#	# Divida o arquivo JSON em partes menores
+	#	jq -c '.[]' "$metapackage" | split -l 1000 - "$TMP_FOLDER/part_"
+	#	# Filtre os arquivos divididos e armazene os resultados na variável
+	#	for file in "$TMP_FOLDER"/part_*; do
+	#	  item_json+=$(jq -c --arg regex "$regex" '
+	#	      select(.Name | test($regex; "i"))
+	#	  ' "$file")
+	#	  item_json+=$'\n'  # Adiciona uma nova linha para separar os itens JSON
+	#	done
+
+	## Divida o arquivo JSON em partes menores para processamento
+	#jq -c '.[]' "$metapackage" | split -l 1000 - "$TMP_FOLDER/part_"
+	#
+	## Função para filtrar e extrair campos necessários
+	#filter_and_extract() {
+	#    local regex="$1"
+	#    local file="$2"
+	#
+	#    jq -c --arg regex "$regex" '
+	#        select(.Name | test($regex; "i")) | {Name, Version, Description}
+	#    ' "$file"
+	#}
+	#
+	## Filtre os arquivos divididos e armazene os resultados na variável
+	#for file in "$TMP_FOLDER"/part_*; do
+	#    item_json+=$(filter_and_extract "$regex" "$file")
+	#    item_json+=$'\n'  # Adiciona uma nova linha para separar os itens JSON
+	#done
+
 
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
-#		name=$(jq -r '.name' <<<"$item")
-#		pkg=${name#aur/}
-#		description=$(jq -r '.description' <<<"$item")
+		#		name=$(jq -r '.name' <<<"$item")
+		#		pkg=${name#aur/}
+		#		description=$(jq -r '.description' <<<"$item")
 
 		# Usando jq para extrair todos os valores em uma única linha, separados por vírgulas
 		values=$(jq -r '[.Name, .Version, .Description] | @csv' <<<"$item")
@@ -1208,28 +1241,28 @@ function sh_search_aur {
 		values=${values//\"/}
 
 		# Lê os valores em variáveis
-		IFS=',' read -r name version description <<< "$values"
+		IFS=',' read -r name version description <<<"$values"
 
-#		pkg=${name#aur/}
-#		if [[ $name == aur/* ]]; then
+		#		pkg=${name#aur/}
+		#		if [[ $name == aur/* ]]; then
 		pkg=${name#local/}
 
 		if [[ -n "$name" ]]; then
-#		if [[ $name == local/* ]]; then
-#			# Se NÃO é por categorias
-#			if ! ((aur_search_category)); then
-#				# Se NÃO é para buscar na descrição
-#				if ! ((searchInDescription)); then
-#					# Se a variável $search NÃO contiver a palavra $pkg
-#					if [[ ! "$pkg" =~ "$search" ]]; then
-#						continue
-#					fi
-#				fi
-#			fi
+			#		if [[ $name == local/* ]]; then
+			#			# Se NÃO é por categorias
+			#			if ! ((aur_search_category)); then
+			#				# Se NÃO é para buscar na descrição
+			#				if ! ((searchInDescription)); then
+			#					# Se a variável $search NÃO contiver a palavra $pkg
+			#					if [[ ! "$pkg" =~ "$search" ]]; then
+			#						continue
+			#					fi
+			#				fi
+			#			fi
 
-#			version=$(jq -r '.version' <<<"$item")
-#			size=$(jq -r '.size' <<<"$item")
-#			status=$(jq -r '.status' <<<"$item")
+			#			version=$(jq -r '.version' <<<"$item")
+			#			size=$(jq -r '.size' <<<"$item")
+			#			status=$(jq -r '.status' <<<"$item")
 
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
@@ -1420,7 +1453,7 @@ function sh_search_appstream() {
 		values=${values//\"/}
 
 		# Lê os valores em variáveis
-		IFS=',' read -r name version size status Repo description <<< "$values"
+		IFS=',' read -r name version size status Repo description <<<"$values"
 
 		pkg=${name##*/}
 		if [[ -n "$pkg" ]]; then
@@ -1434,10 +1467,10 @@ function sh_search_appstream() {
 					fi
 				fi
 			fi
-#			version=$(get_value version "$item")
-#			size=$(get_value size "$item")
-#			status=$(get_value status "$item")
-#			Repo=$(get_value Repo "$item")
+			#			version=$(get_value version "$item")
+			#			size=$(get_value size "$item")
+			#			status=$(get_value status "$item")
+			#			Repo=$(get_value Repo "$item")
 
 			pkgicon=${pkg//-bin/}
 			pkgicon=${pkgicon//-git/}
