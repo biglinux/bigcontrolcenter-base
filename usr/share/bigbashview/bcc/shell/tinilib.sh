@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#shellcheck disable=SC2155,SC2034,SC2094
+#shellcheck disable=SC2155,SC2034,SC2094,SC2128
 #shellcheck source=/dev/null
 
 #  tinilib.sh
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2023/09/27
-#  Altered: 2023/09/28
+#  Altered: 2024/06/30
 #
 #  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -34,8 +34,12 @@
 [[ -n "$LIB_TINILIB_SH" ]] && return
 LIB_TINILIB_SH=1
 
+
 APP="${0##*/}"
-_VERSION_="1.0.0-20230925"
+_DATE_ALTERED_="30-06-2024 - 06:00"
+_VERSION_="1.0.0-20240630"
+_INILIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
+_UPDATED_="${_DATE_ALTERED_}"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -51,7 +55,7 @@ function TIni.Set {
 
 	declare -A ini_data # Array associativo para armazenar as seções e chaves
 
-	if [[ -f "$config_file" ]]; then
+	if [[ -r "$config_file" ]]; then
 		# Ler o arquivo INI e armazenar as informações em um array associativo
 		local current_section=""
 		while IFS= read -r line; do
@@ -84,10 +88,69 @@ function TIni.Set {
 		fi
 		echo "$key_name=$value" >>"$config_file"
 	done
-#	TIni.AlignAllSections "$config_file"
-	big-tini-pretty -q "$config_file"
+	#	TIni.AlignAllSections "$config_file"
+	#	big-tini-pretty -q "$config_file"
+	TIni.Sanitize "$config_file"
 }
 export -f TIni.Set
+
+function TIni.Sanitize() {
+	local ini_file="$1"
+	local tempfile1
+	local tempfile2
+
+	# Criar arquivos temporários
+	tempfile1=$(mktemp)
+	tempfile2=$(mktemp)
+
+	# Remover linhas em branco do arquivo original
+	sed '/^$/d' "$ini_file" >"$tempfile1"
+
+	# Consolidar seções usando awk e salvar no segundo arquivo temporário
+	awk '
+	BEGIN {
+	    section = ""
+	}
+	{
+	    if ($0 ~ /^\[.*\]$/) {
+	        section = $0
+	    } else if (section != "") {
+	        sections[section] = sections[section] "\n" $0
+	    }
+	}
+	END {
+    for (section in sections) {
+        print section sections[section] "\n"
+    }
+	}
+	' "$tempfile1" >"$tempfile2"
+
+	sed '/^\s*$/d' "$tempfile2" >"$ini_file"
+
+	# colocar uma linha em branco entre as sessoes e remover a primeira linha em branco
+	sed -i -e '/^\[/s/\[/\n&/' -e '1{/^[[:space:]]*$/d}' "$ini_file"
+	sed -i -e '1{/^[[:space:]]*$/d}' "$ini_file"
+
+	# marcar como executável
+	chmod +x "$ini_file"
+
+	# Remover arquivos temporários
+	rm "$tempfile1" "$tempfile2"
+}
+export -f TIni.Sanitize
+
+function TIni.Clean() {
+	local ini_file="$1"
+
+	sed -i -e '/./,$!d' -e 's/[ \t]*=[ \t]*/=/' "$ini_file"
+	#	awk -F'=' '{
+	#		gsub(/^[ \t]+|[ \t]+$/, "", $1);
+	#		gsub(/^[ \t]+|[ \t]+$/, "", $2);
+	#		print $1 "=" $2
+	#	}' "$ini_file" | tee "$ini_file"
+
+}
+export -f TIni.Clean
 
 # Função para atualizar o valor de uma chave em uma seção no arquivo INI
 function TIni.UpdateValue {
@@ -186,13 +249,50 @@ function TIni.AlignIniFileOLD() {
 }
 export -f TIni.AlignIniFileOLD
 
+function desktop.get() {
+	local file="$1"
+	local section="$2"
+	local chave="$3"
+	local in_section=0
+
+	awk -v section="$section" -v chave="$chave" -F'=' '
+    /^\[.*\]$/ {
+        in_section = ($0 == "[" section "]") ? 1 : 0
+    }
+    in_section && $1 ~ chave {
+        gsub(/^ +| +$/, "", $2); # Remove leading/trailing spaces
+        print $2
+        exit
+    }
+    ' "$file"
+}
+export -f desktop.get
+
 function TIni.Get() {
 	local config_file="$1"
 	local section="$2"
 	local key="$3"
+
+	[[ ! -e "$config_file" ]] && echo "" >"$config_file"
 	sed -nr "/^\[$section\]/ { :l /^[[:space:]]*${key}[[:space:]]*=/ { s/[^=]*=[[:space:]]*//; p; q;}; /^;/b; n; b l;}" "$config_file"
 }
 export -f TIni.Get
+
+# Função para remover uma chave de um arquivo de configuração INI
+function TIni.Delete() {
+	local config_file="$1"
+	local section="$2"
+	local key="$3"
+
+	# Verifica se o arquivo de configuração existe
+	if [ ! -f "$config_file" ]; then
+		return 2
+	fi
+
+	# Usa sed para remover a chave do arquivo de configuração
+	sed -i "/^\[$section\]/,/^$/ { /^\s*$key\s*=/d }" "$config_file"
+}
+export -f TIni.Delete
 
 function TIni.GetAwk() {
 	local config_file="$1"
@@ -305,62 +405,62 @@ function TIni.ParseToVar() {
 export -f TIni.ParseToVar
 
 function TIni.ParseToDeclareAssoc() {
-    local config_file="$1"
+	local config_file="$1"
 
 	[[ ! -e "$config_file" ]] && return 2
-    while IFS='=' read key value; do
-        # Verifique se a chave não começa com ;
-        if [[ ! $key =~ ^\;.* ]]; then
-            if [[ $key == \[*] ]]; then
-	            # Remova os colchetes [ ]
+	while IFS='=' read -r key value; do
+		# Verifique se a chave não começa com ;
+		if [[ ! $key =~ ^\;.* ]]; then
+			if [[ $key == \[*] ]]; then
+				# Remova os colchetes [ ]
 				key="${key/\[/}"
 				key="${key/\]/}"
-                section=$key
-            elif [[ $value ]]; then
-                declare "${section}[${key}]=\"${value}\""
-            fi
-        fi
-    done <"$config_file"
+				section=$key
+			elif [[ $value ]]; then
+				declare "${section}[${key}]=\"${value}\""
+			fi
+		fi
+	done <"$config_file"
 }
 export -f TIni.ParseToDeclareAssoc
 
 function TIni.ParseToDeclareVar() {
-    local config_file="$1"
+	local config_file="$1"
 
 	[[ ! -e "$config_file" ]] && return 2
-    while IFS='=' read key value; do
-        # Verifique se a chave não começa com ;
-        if [[ ! $key =~ ^\;.* ]]; then
-            if [[ $key == \[*] ]]; then
-	            # Remova os colchetes [ ]
+	while IFS='=' read -r key value; do
+		# Verifique se a chave não começa com ;
+		if [[ ! $key =~ ^\;.* ]]; then
+			if [[ $key == \[*] ]]; then
+				# Remova os colchetes [ ]
 				key="${key/\[/}"
 				key="${key/\]/}"
-                section=$key
-            elif [[ $value ]]; then
-                declare "${key}=\"${value}\""
-            fi
-        fi
-    done <"$config_file"
+				section=$key
+			elif [[ $value ]]; then
+				declare "${key}=\"${value}\""
+			fi
+		fi
+	done <"$config_file"
 }
 export -f TIni.ParseToDeclareVar
 
 function TIni.ParseToDeclareArray() {
-    local config_file="$1"
+	local config_file="$1"
 
 	[[ ! -e "$config_file" ]] && return 2
-    while IFS='=' read key value; do
-        # Verifique se a chave não começa com ;
-        if [[ ! $key =~ ^\;.* ]]; then
-            if [[ $key == \[*] ]]; then
-	            # Remova os colchetes [ ]
+	while IFS='=' read -r key value; do
+		# Verifique se a chave não começa com ;
+		if [[ ! $key =~ ^\;.* ]]; then
+			if [[ $key == \[*] ]]; then
+				# Remova os colchetes [ ]
 				key="${key/\[/}"
 				key="${key/\]/}"
-                section=$key
-            elif [[ $value ]]; then
-                declare "${key}=(\"${value}\")"
-            fi
-        fi
-    done <"$config_file"
+				section=$key
+			elif [[ $value ]]; then
+				declare "${key}=(\"${value}\")"
+			fi
+		fi
+	done <"$config_file"
 }
 export -f TIni.ParseToDeclareArray
 
@@ -392,7 +492,7 @@ function TIni.AlignAllSections() {
 	if [[ -n "$chave_identada" || "$chave_identada" -eq 1 ]]; then
 		chave_identada=1
 		# Obtém o tamanho da string da maior chave (nome da chave) no arquivo INI
-		max_size=$(TIni.GetMaxKeySize $config_file)
+		max_size=$(TIni.GetMaxKeySize "$config_file")
 	else
 		chave_identada=0
 	fi
@@ -418,7 +518,7 @@ function TIni.AlignAllSections() {
 	done <"$config_file" >>"$temp_file"
 
 	cp "$temp_file" "$config_file"
-	[[ -n "$print" ]] && echo "$(<$config_file)"
+	[[ -n "$print" ]] && echo "$(<"$config_file")"
 }
 export -f TIni.AlignAllSections
 
@@ -480,7 +580,7 @@ function TIni.Exist() {
             print encontrado
         }
     ' "$config_file")
-	return $result
+	return "$result"
 }
 export -f TIni.Exist
 

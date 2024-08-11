@@ -6,9 +6,9 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2023/08/04
-#  Altered: 2023/09/02
+#  Altered: 2024/07/16
 #
-#  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
+#  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,60 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-LIBRARY=${LIBRARY:-'/usr/share/bigbashview/bcc/shell'}
-[[ -f "${LIBRARY}/bcclib.sh" ]] && source "${LIBRARY}/bcclib.sh"
+[[ -n "$LIB_BCFGLIB_SH" ]] && return
+LIB_BCFGLIB_SH=1
+shopt -s extglob
+
+APP="${0##*/}"
+_DATE_ALTERED_="16-07-2024 - 13:36"
+_VERSION_="1.0.0-20240716"
+_BCFGLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
+_UPDATED_="${_DATE_ALTERED_}"
+
+#######################################################################################################################
+
+# determina se o fundo do KDE está em modo claro ou escuro
+function sh_bcfg_getbgcolor() {
+    local result
+    local r g b
+    local average_rgb
+
+    if lightmode="$(TIni.Get "$INI_FILE_BIG_CONFIG" 'config' 'lightmode')" && [[ -z "$lightmode" ]]; then
+        # Read background color RGB values
+        lightmode=0
+        if result="$(kreadconfig5 --group "Colors:Window" --key BackgroundNormal)" && [[ -n "$result" ]]; then
+            r=${result%,*}
+            g=${result#*,}
+            g=${g%,*}
+            b=${result##*,}
+            average_rgb=$(((r + g + b) / 3))
+            if ((average_rgb > 127)); then
+                lightmode=1
+            fi
+        fi
+        TIni.Set "$INI_FILE_BIG_CONFIG" 'config' 'lightmode' "$lightmode"
+    fi
+
+    if ((lightmode)); then
+        echo '<body class=light-mode>'
+    else
+        echo '<body>'
+    fi
+}
+export -f sh_bcfg_getbgcolor
+
+#######################################################################################################################
+
+function sh_bcfg_setbgcolor() {
+    local param="$1"
+    local lightmode=1
+
+    [[ "$param" = "true" ]] && lightmode=0
+    TIni.Set "$INI_FILE_BIG_CONFIG" 'config' 'lightmode' "$lightmode"
+}
+export -f sh_bcfg_setbgcolor
+
+#######################################################################################################################
 
 function sh_reset_brave {
 	local result
@@ -532,11 +584,13 @@ function sh_reset_vlc {
 }
 export -f sh_reset_vlc
 
-function sh_reset_xfce {
-	local result
+########################################################################################################################
 
-	if result=$(pidof dolphin) && [[ -n $result ]]; then
-		kill -9 "$result"
+function sh_reset_xfce {
+	local nPID
+
+	if nPID=$(pidof dolphin) && [[ -n $nPID ]]; then
+		kill -9 "$nPID"
 		return
 	fi
 
@@ -572,6 +626,110 @@ function sh_reset_xfce {
 	return
 }
 export -f sh_reset_xfce
+
+########################################################################################################################
+
+function sh_reset_gnome {
+	local nPID
+
+	if nPID=$(pidof dolphin) && [[ -n $nPID ]]; then
+		kill -9 "$nPID"
+		return
+	fi
+
+#	#Remove(home) folders
+#	rm -r ~/.cache/*
+#	mv ~/.config/xfce4 /tmp/./config/xfce4_backup
+#
+#	#Remove(home) files
+#	rm ~/.bash_history
+#	rm ~/.bash_logout
+#	rm ~/.bashrc
+#	rm ~/.bash_profile
+#	rm ~/.big_desktop_theme
+#	rm ~/.big_performance
+#	rm ~/.big_preload
+#	rm ~/.local/share/RecentDocuments/*
+#	rm ~/.local/share/Trash/files/*
+#
+#	#Copy(skel) folders
+#	cp -rf /etc/skel/.config ~
+#	cp -rf /etc/skel/.local ~
+#	cp -rf /etc/skel/.pje ~
+#	cp -rf /etc/skel/.pki ~
+#
+#	#Copy(skel) files
+#	cp -f /etc/skel/.bash_logout ~
+#	cp -f /etc/skel/.bash_profile ~
+#	cp -f /etc/skel/.bashrc ~
+#	cp -f /etc/skel/.xinitrc ~
+
+	sleep 1
+	echo -n "#"
+	return
+}
+export -f sh_reset_gnome
+
+########################################################################################################################
+
+function sh_reset_dde {
+	local nPID
+
+	if nPID=$(pidof dolphin) && [[ -n $nPID ]]; then
+		kill -9 "$nPID"
+		return
+	fi
+
+#	#Remove(home) folders
+#	rm -r ~/.cache/*
+#	mv ~/.config/xfce4 /tmp/./config/xfce4_backup
+#
+#	#Remove(home) files
+#	rm ~/.bash_history
+#	rm ~/.bash_logout
+#	rm ~/.bashrc
+#	rm ~/.bash_profile
+#	rm ~/.big_desktop_theme
+#	rm ~/.big_performance
+#	rm ~/.big_preload
+#	rm ~/.local/share/RecentDocuments/*
+#	rm ~/.local/share/Trash/files/*
+#
+#	#Copy(skel) folders
+#	cp -rf /etc/skel/.config ~
+#	cp -rf /etc/skel/.local ~
+#	cp -rf /etc/skel/.pje ~
+#	cp -rf /etc/skel/.pki ~
+#
+#	#Copy(skel) files
+#	cp -f /etc/skel/.bash_logout ~
+#	cp -f /etc/skel/.bash_profile ~
+#	cp -f /etc/skel/.bashrc ~
+#	cp -f /etc/skel/.xinitrc ~
+
+	sleep 1
+	echo -n "#"
+	return
+}
+export -f sh_reset_dde
+
+########################################################################################################################
+
+function sh_reset_palemoon() {
+	local nPID
+
+	if nPID=$(pidof palemoon) && [[ -n $nPID ]]; then
+		echo -n "$nPID"
+		return
+	fi
+
+	rm -r $HOME/'.moonchild productions'
+	echo -n "#"
+	return
+}
+export -f sh_reset_palemoon
+
+########################################################################################################################
 
 function sh_main {
    local execute_app="$1"
