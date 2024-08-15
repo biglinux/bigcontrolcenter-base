@@ -1180,9 +1180,9 @@ function sh_search_aur() {
 
 	if ! ((aur_search_category)); then
 		if ((searchInDescription)); then
-			json=$(big-search-aur -Ss ${search} --limit 500 --by-name-desc --json)
+			json=$(big-search-aur -Ss ${search} --limit 60 --by-name-desc --json)
 		else
-			json=$(big-search-aur -Ss ${search} --limit 500 --by-name --json)
+			json=$(big-search-aur -Ss ${search} --limit 60 --by-name --json)
 		fi
 	else
 		json=$(big-search-aur -Si ${search} --limit 60 --by-name --json)

@@ -1,3 +1,37 @@
+/*
+  big-search-aur - Command-line AUR helper
+    go get github.com/go-ini/ini
+    Chili GNU/Linux - https://github.com/vcatafesta/chili/go
+    Chili GNU/Linux - https://chililinux.com
+    Chili GNU/Linux - https://chilios.com.br
+
+  Created: 2024/08/13
+  Altered: 2024/08/13
+
+  Copyright (c) 2024-2024, Vilmar Catafesta <vcatafesta@gmail.com>
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+  1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+  2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 package main
 
 import (
@@ -34,22 +68,30 @@ var (
 )
 
 func printUsage() {
-	const (
-		reset = "\033[0m"
-		blue  = "\033[34m"
-		green = "\033[32m"
-	)
+const (
+  reset = "\033[0m"
+  blue  = "\033[34m"
+  green = "\033[32m"
+  cyan  = "\033[36m"
+  red   = "\033[31m"
+)
 
 	fmt.Println("Uso:")
-	fmt.Println("  -Ss, --search " + green + "<palavras-chave> ... <opção>" + reset)
-	fmt.Println("    <opção> pode ser:")
-	fmt.Println("      " + blue + "--by-name" + reset + ", " + blue + "--by-name-desc" + reset + ", " + blue + "--by-maintainer" + reset + ", " + blue + "--by-depends" + reset + ", " + blue + "--by-makedepends" + reset + ", " + blue + "--by-optdepends" + reset + ", " + blue + "--by-checkdepends" + reset)
-	fmt.Println("    <palavras-chave> são os termos de busca")
-	fmt.Println("  " + blue + "--json" + reset + "     Saída em formato JSON")
-	fmt.Println("  " + blue + "--raw" + reset + "      Saída formatada como texto simples com todos os campos")
-	fmt.Println("  " + blue + "--sep" + reset + "      Separador dos campos na saída raw (padrão é '=')")
-	fmt.Println("  " + blue + "--limit" + reset + "    Limite de pacotes encontrados")
-	fmt.Println("  -Si " + green + "<pacote>" + reset + "     Consulta informações específicas do pacote")
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Println("    <palavras-chave> são os termos/pacotes de busca")
+	fmt.Println("    <opção> podem ser:")
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name", reset, "Pesquisa pelo nome do pacote apenas", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name-desc", reset, "Pesquisa pelo nome e descrição do pacote", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-maintainer", reset, "Pesquisa pelo mantenedor do pacote", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-dependsr", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedependsr", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdependsr", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdependsr", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Saída em formato JSON (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --raw", reset, "Saída formatada como texto simples com todos os campos (separador de campos é o --sep)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --sep", reset, "Separador dos campos na saída raw (padrão é '=')", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --limit", reset, "Limite de pacotes encontrados", reset)
 }
 
 func infoPackage(pkgName string, wg *sync.WaitGroup, ch chan<- Package) {
@@ -153,13 +195,19 @@ func main() {
 		"--by-checkdepends": "checkdepends",
 	}
 
-	// Verificar se o parâmetro -Ss ou -Si está presente
-	if args[0] == "-Ss" {
-		searchMode = "search"
-		args = args[1:] // Remover o -Ss da lista de argumentos
-	} else if args[0] == "-Si" {
-		searchMode = "info"
-		args = args[1:] // Remover o -Si da lista de argumentos
+	// Verificar se o parâmetro -Ss, -Si, --search ou --info está presente
+	if len(args) > 0 {
+		switch args[0] {
+		case "-Ss", "--search":
+			searchMode = "search"
+			args = args[1:] // Remove o -Ss ou --search da lista de argumentos
+		case "-Si", "--info":
+			searchMode = "info"
+			args = args[1:] // Remove o -Si ou --info da lista de argumentos
+		default:
+			printUsage()
+			return
+		}
 	} else {
 		printUsage()
 		return
