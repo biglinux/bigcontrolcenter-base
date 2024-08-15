@@ -6,7 +6,7 @@
     Chili GNU/Linux - https://chilios.com.br
 
   Created: 2024/08/13
-  Altered: 2024/08/13
+  Altered: 2024/08/15
 
   Copyright (c) 2024-2024, Vilmar Catafesta <vcatafesta@gmail.com>
   All rights reserved.
@@ -38,12 +38,41 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+)
+
+const (
+	_APP_       = "big-search-aur"
+	_PKGDESC_   = "Command-line AUR helper"
+	_VERSION_   = "0.15.0-20240815"
+	_COPYRIGHT_ = "Copyright (C) 2024 Vilmar Catafesta, <vcatafesta@gmail.com>"
+)
+
+// Constantes para cores ANSI
+const (
+	reset   = "\x1b[0m"
+	red     = "\x1b[31m"
+	green   = "\x1b[32m"
+	yellow  = "\x1b[33m"
+	blue    = "\x1b[34m"
+	magenta = "\x1b[35m"
+	cyan    = "\x1b[36m"
+	white   = "\x1b[37m"
+	Reset   = "\x1b[0m"
+	Red     = "\x1b[31m"
+	Green   = "\x1b[32m"
+	Yellow  = "\x1b[33m"
+	Blue    = "\x1b[34m"
+	Magenta = "\x1b[35m"
+	Cyan    = "\x1b[36m"
+	White   = "\x1b[37m"
 )
 
 type Package struct {
@@ -54,6 +83,8 @@ type Package struct {
 	NumVotes    int     `json:"NumVotes"`
 	Popularity  float64 `json:"Popularity"`
 	URL         string  `json:"URL"`
+	fullURL     string
+	count       int
 }
 
 type CacheEntry struct {
@@ -67,108 +98,12 @@ var (
 	cacheTTL   = time.Minute * 5
 )
 
-func printUsage() {
-const (
-  reset = "\033[0m"
-  blue  = "\033[34m"
-  green = "\033[32m"
-  cyan  = "\033[36m"
-  red   = "\033[31m"
-)
+const baseURL = "https://aur.archlinux.org/rpc"
 
-	fmt.Println("Uso:")
-	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
-	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
-	fmt.Println("    <palavras-chave> são os termos/pacotes de busca")
-	fmt.Println("    <opção> podem ser:")
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name", reset, "Pesquisa pelo nome do pacote apenas", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name-desc", reset, "Pesquisa pelo nome e descrição do pacote", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-maintainer", reset, "Pesquisa pelo mantenedor do pacote", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-dependsr", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedependsr", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdependsr", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdependsr", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Saída em formato JSON (padrão)", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --raw", reset, "Saída formatada como texto simples com todos os campos (separador de campos é o --sep)", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --sep", reset, "Separador dos campos na saída raw (padrão é '=')", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --limit", reset, "Limite de pacotes encontrados", reset)
-}
-
-func infoPackage(pkgName string, wg *sync.WaitGroup, ch chan<- Package) {
-	defer wg.Done()
-
-	cacheKey := "info|" + pkgName
-	cacheMutex.Lock()
-	if entry, found := cache[cacheKey]; found && time.Since(entry.Timestamp) < cacheTTL {
-		for _, pkg := range entry.Results {
-			ch <- pkg
-		}
-		cacheMutex.Unlock()
-		return
-	}
-	cacheMutex.Unlock()
-
-	baseURL := "https://aur.archlinux.org/rpc"
-	queryParams := url.Values{}
-	queryParams.Add("v", "5")
-	queryParams.Add("type", "info")
-	queryParams.Add("arg[]", pkgName)
-
-	// Construir a URL na ordem correta para o tipo info
-	fullURL := fmt.Sprintf("%s?v=%s&type=%s&arg[]=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("arg[]"))
-
-	resp, err := http.Get(fullURL)
-	if err != nil {
-		fmt.Printf("Erro ao fazer a requisição para o pacote '%s': %s\n", pkgName, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Erro na resposta para o pacote '%s': %s\n", pkgName, resp.Status)
-		return
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Printf("Erro ao ler a resposta para o pacote '%s': %s\n", pkgName, err)
-		return
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(data, &response); err != nil {
-		fmt.Printf("Erro ao decodificar o JSON para o pacote '%s': %s\n", pkgName, err)
-		return
-	}
-
-	results, ok := response["results"].([]interface{})
-	if !ok {
-		fmt.Printf("Campo 'results' não encontrado na resposta para o pacote '%s'\n", pkgName)
-		return
-	}
-
-	var packages []Package
-	for _, result := range results {
-		pkgData, err := json.Marshal(result)
-		if err != nil {
-			fmt.Printf("Erro ao converter o resultado para o pacote '%s': %s\n", pkgName, err)
-			return
-		}
-
-		var pkg Package
-		if err := json.Unmarshal(pkgData, &pkg); err != nil {
-			fmt.Printf("Erro ao decodificar o pacote '%s': %s\n", pkgName, err)
-			return
-		}
-
-		packages = append(packages, pkg)
-		ch <- pkg
-	}
-
-	cacheMutex.Lock()
-	cache[cacheKey] = CacheEntry{Results: packages, Timestamp: time.Now()}
-	cacheMutex.Unlock()
-}
+// Declaração da variável global
+var verbose bool
+var fullURL string
+var count int
 
 func main() {
 	args := os.Args[1:]
@@ -181,7 +116,7 @@ func main() {
 	var searchField string
 	var searchTerms []string
 	var outputFormat string
-	var separator string = "="
+	var separator string = "|"
 	var limit int = -1 // Usar -1 para indicar que não há limite
 	var searchMode string
 
@@ -225,6 +160,8 @@ func main() {
 				fmt.Println("Erro: --sep requer um argumento")
 				return
 			}
+		case "--verbose":
+			verbose = true
 		case "--limit":
 			if i+1 < len(args) {
 				parsedLimit, err := strconv.Atoi(args[i+1])
@@ -263,7 +200,7 @@ func main() {
 	} else if searchMode == "info" {
 		for _, pkgName := range searchTerms {
 			wg.Add(1)
-			go infoPackage(pkgName, &wg, ch)
+			go infoPackage(pkgName, limit, &wg, ch)
 		}
 	}
 
@@ -274,6 +211,9 @@ func main() {
 
 	var results []Package
 	for pkg := range ch {
+		if verbose {
+			log.Printf("%s %sGET:%s %02d '%s'%s em %s %s- 200 OK%s\n", _APP_, Green, Yellow, pkg.count, strings.TrimSpace(pkg.Name), Reset, pkg.fullURL, Green, Reset)
+		}
 		results = append(results, pkg)
 	}
 
@@ -282,21 +222,189 @@ func main() {
 	}
 
 	if outputFormat == "--json" {
-		//		jsonData, err := json.MarshalIndent(results, "", "  ")
-		jsonData, err := json.Marshal(results) // compacto, like jq -c
+		jsonData, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
 			fmt.Println("Erro ao formatar saída JSON:", err)
 			return
 		}
 		fmt.Println(string(jsonData))
 	} else {
+		//		// Itera sobre o array de structs `Package` e formata a saída
+		//		for _, pkg := range results {
+		//			fmt.Printf("Name%s%s\nVersion%s%s\nDescription%s%s\nMaintainer%s%s\nNumVotes%s%d\nPopularity%s%.2f\nURL%s%s\n\n",
+		//				separator, pkg.Name, separator, pkg.Version, separator, pkg.Description,
+		//				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
+		//				separator, pkg.URL)
+		//		}
+
+		// Itera sobre o array de structs `Package` e formata a saída
 		for _, pkg := range results {
-			fmt.Printf("Name%s%s\nVersion%s%s\nDescription%s%s\nMaintainer%s%s\nNumVotes%s%d\nPopularity%s%.2f\nURL%s%s\n\n",
-				separator, pkg.Name, separator, pkg.Version, separator, pkg.Description,
-				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
-				separator, pkg.URL)
+			//			fmt.Printf("%s %s %s %s %s %s %s %s %d %s %.2f %s %s %s %s\n",
+			//				pkg.Name, separator, pkg.Version, separator, pkg.Description,
+			//				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
+			//				separator, pkg.URL, pkg.count)
+
+			fmt.Println(pkg.Name + separator +
+				pkg.Version + separator +
+				pkg.Description + separator +
+				pkg.Maintainer + separator +
+				strconv.Itoa(pkg.NumVotes) + separator +
+				strconv.FormatFloat(pkg.Popularity, 'f', -1, 64) + separator +
+				pkg.URL + separator +
+				strconv.Itoa(pkg.count))
+		}
+
+		//		// Cria uma string para armazenar toda a saída
+		//		var output string
+		//		// Itera sobre o array de structs `Package` e formata a saída
+		//		for _, pkg := range results {
+		//			output += fmt.Sprintf("%s%s%s%s%s%s%d%s%.2f%s%s%s%d\n",
+		//				pkg.Name,
+		//				separator,
+		//				pkg.Version,
+		//				separator,
+		//				pkg.Description,
+		//				separator,
+		//				pkg.Maintainer,
+		//				separator,
+		//				pkg.NumVotes,
+		//				separator,
+		//				pkg.Popularity,
+		//				separator,
+		//				pkg.URL,
+		//				separator,
+		//				pkg.fullURL,
+		//				separator,
+		//				pkg.count)
+		//		}
+		//
+		//		// Imprime toda a saída como uma única string
+		//		fmt.Print(output)
+	}
+}
+
+func printUsage() {
+	fmt.Println("Uso:")
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Println("    <palavras-chave> são os termos/pacotes de busca")
+	fmt.Println("    <opção> podem ser:")
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name", reset, "Pesquisa pelo nome do pacote apenas (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name-desc", reset, "Pesquisa pelo nome e descrição do pacote", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-maintainer", reset, "Pesquisa pelo mantenedor do pacote", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-dependsr", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedependsr", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdependsr", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdependsr", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Saída em formato JSON (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --raw", reset, "Saída formatada como texto simples com todos os campos", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --sep", reset, "Separador dos campos na saída raw (padrão é '=')", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --limit", reset, "Limite de pacotes encontrados", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --verbose", reset, "Liga modo verboso", reset)
+}
+
+func infoPackage(pkgName string, limit int, wg *sync.WaitGroup, ch chan<- Package) {
+	defer wg.Done()
+
+	count = 0
+	cacheKey := "info|" + pkgName
+	cacheMutex.Lock()
+	if entry, found := cache[cacheKey]; found && time.Since(entry.Timestamp) < cacheTTL {
+		for _, pkg := range entry.Results {
+			ch <- pkg
+		}
+		cacheMutex.Unlock()
+		return
+	}
+	cacheMutex.Unlock()
+
+	queryParams := url.Values{}
+	queryParams.Add("v", "5")
+	queryParams.Add("type", "info")
+	queryParams.Add("arg[]", pkgName)
+
+	// Construir a URL na ordem correta para o tipo info
+	fullURL = fmt.Sprintf("%s?v=%s&type=%s&arg[]=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("arg[]"))
+
+	resp, err := http.Get(fullURL)
+	if err != nil {
+		fmt.Printf("Erro ao fazer a requisição para o pacote '%s': %s\n", pkgName, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Erro na resposta para o pacote '%s': %s\n", pkgName, resp.Status)
+		return
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Printf("Erro ao ler a resposta para o pacote '%s': %s\n", pkgName, err)
+		return
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(data, &response); err != nil {
+		fmt.Printf("Erro ao decodificar o JSON para o pacote '%s': %s\n", pkgName, err)
+		return
+	}
+
+	results, ok := response["results"].([]interface{})
+	if !ok {
+		fmt.Printf("Campo 'results' não encontrado na resposta para o pacote '%s'\n", pkgName)
+		return
+	}
+
+	var packages []Package
+	for _, result := range results {
+		pkgData, err := json.Marshal(result)
+		if err != nil {
+			fmt.Printf("Erro ao converter o resultado para o pacote '%s': %s\n", pkgName, err)
+			return
+		}
+		var pkg Package
+		if err := json.Unmarshal(pkgData, &pkg); err != nil {
+			fmt.Printf("Erro ao decodificar o pacote '%s': %s\n", pkgName, err)
+			return
+		}
+
+		count++
+		if verbose {
+			// Preenche o campo `url` com `fullURL`
+			fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), pkg.Name)
+			pkg.fullURL = fullURL
+			pkg.count = count
+		}
+
+		packages = append(packages, pkg)
+		// Envia todos os pacotes se limit for <= 0
+		if limit <= 0 || count < limit {
+			ch <- pkg
+		} else {
+			break
 		}
 	}
+
+	cacheMutex.Lock()
+	cache[cacheKey] = CacheEntry{Results: packages, Timestamp: time.Now()}
+	cacheMutex.Unlock()
+}
+
+func getStringField(data map[string]interface{}, key string) string {
+	if value, ok := data[key]; ok {
+		switch v := value.(type) {
+		case string:
+			return v
+		case float64:
+			return fmt.Sprintf("%f", v)
+		case bool:
+			return fmt.Sprintf("%t", v)
+		default:
+			return fmt.Sprintf("%v", v)
+		}
+	}
+	return ""
 }
 
 func searchPackage(term string, searchField string, limit int, wg *sync.WaitGroup, ch chan<- Package) {
@@ -305,7 +413,6 @@ func searchPackage(term string, searchField string, limit int, wg *sync.WaitGrou
 	cacheKey := term + "|" + searchField
 	cacheMutex.Lock()
 	if entry, found := cache[cacheKey]; found && time.Since(entry.Timestamp) < cacheTTL {
-		count := 0
 		for _, pkg := range entry.Results {
 			// Envia todos os pacotes se limit for <= 0
 			if limit <= 0 || count < limit {
@@ -320,14 +427,13 @@ func searchPackage(term string, searchField string, limit int, wg *sync.WaitGrou
 	}
 	cacheMutex.Unlock()
 
-	baseURL := "https://aur.archlinux.org/rpc"
 	queryParams := url.Values{}
 	queryParams.Add("v", "5")
 	queryParams.Add("type", "search")
 	queryParams.Add("by", searchField)
 	queryParams.Add("arg", term)
 
-	fullURL := fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), queryParams.Get("arg"))
+	fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), queryParams.Get("arg"))
 
 	resp, err := http.Get(fullURL)
 	if err != nil {
@@ -359,7 +465,6 @@ func searchPackage(term string, searchField string, limit int, wg *sync.WaitGrou
 		return
 	}
 
-	count := 0
 	for _, result := range results {
 		// Verifica se o limite é maior que zero e se o contador é menor que o limite
 		if limit > 0 && count >= limit {
@@ -378,8 +483,15 @@ func searchPackage(term string, searchField string, limit int, wg *sync.WaitGrou
 			return
 		}
 
-		ch <- pkg
 		count++
+		if verbose {
+			// Preenche o campo `url` com `fullURL`
+			fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), pkg.Name)
+			pkg.fullURL = fullURL
+			pkg.count = count
+		}
+
+		ch <- pkg
 	}
 
 	cacheMutex.Lock()

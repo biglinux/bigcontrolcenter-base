@@ -6,7 +6,7 @@
    	Chili GNU/Linux - https://chilios.com.br
 
    Created: 2024/08/10
-   Altered: 2024/08/10
+   Altered: 2024/08/13
 
    Copyright (c) 2024-2024, Vilmar Catafesta <vcatafesta@gmail.com>
    All rights reserved.
@@ -43,60 +43,63 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
-	_APP_     = "big-jq-regex"
-	_VERSION_ = "0.10.0-20240810"
-	_COPY_    = "Copyright (C) 2024 Vilmar Catafesta, <vcatafesta@gmail.com>"
+	_APP_       = "big-jq-regex"
+	_PKGDESC_   = "Utilitario like jq para uso com AUR json https://aur.archlinux.org/packages-meta-v1.json.gz"
+	_VERSION_   = "0.13.0-20240813"
+	_COPYRIGHT_ = "Copyright (C) 2024 Vilmar Catafesta, <vcatafesta@gmail.com>"
 
 	// Constantes para cores ANSI
-	Reset          = "\x1b[0m"
-	Black          = "\x1b[30m"  // `tput setaf 0`
-	Red            = "\x1b[31m"  // `tput setaf 196`
-	Green          = "\x1b[32m"  // `tput setaf 2`
-	Yellow         = "\x1b[33m"  // `tput setaf 3`
-	Blue           = "\x1b[34m"  // `tput setaf 4`
-	Pink           = "\x1b[35m"  // `tput setaf 5`
-	Magenta        = "\x1b[35m"  // `tput setaf 5` (Pink and Magenta are the same here)
-	Cyan           = "\x1b[36m"  // `tput setaf 6`
-	White          = "\x1b[37m"  // `tput setaf 7`
-	Gray           = "\x1b[90m"  // `tput setaf 8`
-	Orange         = "\x1b[38;5;202m" // `tput setaf 202`
-	Purple         = "\x1b[38;5;125m" // `tput setaf 125`
-	Violet         = "\x1b[38;5;61m"  // `tput setaf 61`
-	LightRed       = "\x1b[38;5;9m"   // `tput setaf 9`
-	LightGreen     = "\x1b[38;5;10m"  // `tput setaf 10`
-	LightYellow    = "\x1b[38;5;11m"  // `tput setaf 11`
-	LightBlue      = "\x1b[38;5;12m"  // `tput setaf 12`
-	LightMagenta   = "\x1b[38;5;13m"  // `tput setaf 13`
-	LightCyan      = "\x1b[38;5;14m"  // `tput setaf 14`
-	BrightWhite    = "\x1b[97m"  // `tput setaf 15` (White is often used for Bright White)
+	Reset        = "\x1b[0m"
+	Black        = "\x1b[30m"       // `tput setaf 0`
+	Red          = "\x1b[31m"       // `tput setaf 196`
+	Green        = "\x1b[32m"       // `tput setaf 2`
+	Yellow       = "\x1b[33m"       // `tput setaf 3`
+	Blue         = "\x1b[34m"       // `tput setaf 4`
+	Pink         = "\x1b[35m"       // `tput setaf 5`
+	Magenta      = "\x1b[35m"       // `tput setaf 5` (Pink and Magenta are the same here)
+	Cyan         = "\x1b[36m"       // `tput setaf 6`
+	White        = "\x1b[37m"       // `tput setaf 7`
+	Gray         = "\x1b[90m"       // `tput setaf 8`
+	Orange       = "\x1b[38;5;202m" // `tput setaf 202`
+	Purple       = "\x1b[38;5;125m" // `tput setaf 125`
+	Violet       = "\x1b[38;5;61m"  // `tput setaf 61`
+	LightRed     = "\x1b[38;5;9m"   // `tput setaf 9`
+	LightGreen   = "\x1b[38;5;10m"  // `tput setaf 10`
+	LightYellow  = "\x1b[38;5;11m"  // `tput setaf 11`
+	LightBlue    = "\x1b[38;5;12m"  // `tput setaf 12`
+	LightMagenta = "\x1b[38;5;13m"  // `tput setaf 13`
+	LightCyan    = "\x1b[38;5;14m"  // `tput setaf 14`
+	BrightWhite  = "\x1b[97m"       // `tput setaf 15` (White is often used for Bright White)
 )
 
 // Definição da estrutura Package
 type Package struct {
-	ID              int         `json:"ID"`
-	Name            string      `json:"Name"`
-	PackageBaseID   int         `json:"PackageBaseID"`
-	PackageBase     string      `json:"PackageBase"`
-	Version         string      `json:"Version"`
-	Description     string      `json:"Description"`
-	URL             string      `json:"URL"`
-	NumVotes        int         `json:"NumVotes"`
-	Popularity      float64     `json:"Popularity"`
-	OutOfDate       *int        `json:"OutOfDate"` // Ajustado para *int para suportar nulo
-	Maintainer      string      `json:"Maintainer"`
-	Submitter       string      `json:"Submitter"`
-	FirstSubmitted  int         `json:"FirstSubmitted"`
-	LastModified    int         `json:"LastModified"`
-	URLPath         string      `json:"URLPath"`
+	ID             int     `json:"ID"`
+	Name           string  `json:"Name"`
+	PackageBaseID  int     `json:"PackageBaseID"`
+	PackageBase    string  `json:"PackageBase"`
+	Version        string  `json:"Version"`
+	Description    string  `json:"Description"`
+	URL            string  `json:"URL"`
+	NumVotes       int     `json:"NumVotes"`
+	Popularity     float64 `json:"Popularity"`
+	OutOfDate      *int    `json:"OutOfDate"` // Ajustado para *int para suportar nulo
+	Maintainer     string  `json:"Maintainer"`
+	Submitter      string  `json:"Submitter"`
+	FirstSubmitted int     `json:"FirstSubmitted"`
+	LastModified   int     `json:"LastModified"`
+	URLPath        string  `json:"URLPath"`
 }
 
 var jsonFile string // Declaração da variável global
+var limit int
 
 func main() {
-	if len(os.Args) < 3 {
+	if len(os.Args) < 2 {
 		printUsageAndExit()
 	}
 
@@ -124,18 +127,9 @@ func main() {
 	}
 }
 
-func printUsageAndExit() {
-	fmt.Println(Red + "big-jq-regex - Utilitario like jq para uso com " + Cyan + "AUR json " + Red + "https://aur.archlinux.org/packages-meta-v1.json.gz" + Reset)
-	fmt.Println(Orange + "  Copyright (C) 2024 - Vilmar Catafesta <vvcatafesta@gmail.com>" + Reset)
-	fmt.Println(Cyan + "Uso:" + Reset)
-	fmt.Println("  big-jq-regex -C|--create <arquivo_json> <id> <name> <package_base_id> <package_base> <version> <description> <url> <num_votes> <popularity> <out_of_date> <maintainer> <submitter> <first_submitted> <last_modified> <url_path>")
-	fmt.Println("  big-jq-regex -S|--search <arquivo_json> <search> [<search>...] [--json]")
-	fmt.Println("  big-jq-regex -S|--search <arquivo_json> <regex_pattern> [--json] [--regex]")
-	fmt.Println("  big-jq-regex -L|--list <arquivo_json> [--json]")
-	os.Exit(1)
-}
-
+// Função para análise dos argumentos da linha de comando
 func parseArgs() (command string, showJSON, useRegex bool) {
+	limit = -1 // Sem limite por padrão
 	for i := 1; i < len(os.Args); i++ {
 		arg := os.Args[i]
 		switch arg {
@@ -145,9 +139,53 @@ func parseArgs() (command string, showJSON, useRegex bool) {
 			showJSON = true
 		case "-R", "--regex":
 			useRegex = true
+		case "-V", "--version":
+			fmt.Println("")
+			fmt.Println(Red + _APP_ + " - " + _PKGDESC_ + Reset)
+			fmt.Println(Cyan + "big-jq-regex - v" + _VERSION_ + Reset)
+			fmt.Println("   " + _COPYRIGHT_ + Reset)
+			fmt.Println("")
+			fmt.Println("   Este programa pode ser redistribuído livremente")
+			fmt.Println("   sob os termos da Licença Pública Geral GNU.")
+
+			os.Exit(0)
+		case "--limit":
+			if i+1 < len(os.Args) {
+				parsedLimit, err := strconv.Atoi(os.Args[i+1])
+				if err == nil && parsedLimit > 0 {
+					limit = parsedLimit
+				} else {
+					fmt.Println("Valor inválido para o parâmetro --limit")
+					os.Exit(1)
+				}
+				i++ // Pular o valor de --limit
+			} else {
+				fmt.Println("Falta valor para o parâmetro --limit")
+				os.Exit(1)
+			}
 		}
 	}
 	return command, showJSON, useRegex
+}
+
+func printUsageAndExit() {
+	fmt.Println("")
+	fmt.Println(Red + _APP_ + " - " + _PKGDESC_ + Reset)
+	fmt.Println(Cyan + "big-jq-regex - v" + _VERSION_ + Reset)
+	fmt.Println("   " + _COPYRIGHT_ + Reset)
+	fmt.Println(Cyan + "Uso:" + Reset)
+	fmt.Println("  big-jq-regex -S|--search <arquivo_json> <search> [<search>...] [--json] [--limit]")
+	fmt.Println("  big-jq-regex -S|--search <arquivo_json> <regex_pattern> [--json] [--regex] [--limit]")
+	fmt.Println("  big-jq-regex -L|--list   <arquivo_json> [--json]")
+	fmt.Println("  big-jq-regex -C|--create <arquivo_json> <id> <name> <package_base_id> <package_base> <version> <description> <url> <num_votes> <popularity> <out_of_date> <maintainer> <submitter> <first_submitted> <last_modified> <url_path>")
+	// Redirecionar a saída de erro padrão para /dev/null
+	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("Erro ao abrir /dev/null: %v", err)
+	}
+	defer f.Close()
+	os.Stderr = f
+	os.Exit(1)
 }
 
 func ensureJSONFileExists(filePath string) error {
@@ -290,62 +328,131 @@ func searchAndPrintPackage(jsonFile string, patterns []string, showJSON, useRege
 }
 
 func searchWithRegex(jsonFile string, data map[int]Package, pattern string, showJSON bool) {
-    regex, err := regexp.Compile(pattern)
-    if err != nil {
-        log.Fatalf("Erro ao compilar o regex: %v\n", err)
-    }
+	count := 0
+	regex, err := regexp.Compile(pattern)
+	if err != nil {
+		log.Fatalf("Erro ao compilar o regex: %v\n", err)
+	}
 
 	// Lista para armazenar os nomes dos pacotes encontrados
 	var foundNames []string
-//	var lastPackage Package
 	var foundAny bool
 
-    for _, pkg := range data {
-        if regex.MatchString(pkg.Name) || regex.MatchString(pkg.Description) {
-            // Adiciona o nome do pacote à lista de encontrados
-            foundNames = append(foundNames, pkg.Name)
-            // Atualiza a última entrada encontrada
-//				lastPackage = pkg
-            foundAny = true
-            // Registra a correspondência e exibe os detalhes do pacote
-            log.Printf("%s %sGET: %s'%s'%s em %s %s- 200 OK%s\n", _APP_, Green, Yellow, strings.TrimSpace(pkg.Name), Cyan, jsonFile, Green, Reset)
-            if showJSON {
-                printJSON(pkg)
-            } else {
-                printPackage(pkg)
-            }
-        }
-    }
+	// Canal para comunicação entre goroutines
+	results := make(chan Package)
+	done := make(chan struct{})
 
-    if !foundAny {
+	// Função para processar pacotes
+	go func() {
+		defer close(done) // Garante que o canal 'done' será fechado quando a função terminar
+		for _, pkg := range data {
+			if limit > 0 && count >= limit {
+				break
+			}
+			if regex.MatchString(pkg.Name) || regex.MatchString(pkg.Description) {
+				foundNames = append(foundNames, pkg.Name)
+				foundAny = true
+				count++
+				log.Printf("%s %sGET: %s'%s'%s em %s %s- 200 OK%s\n", _APP_, Green, Yellow, strings.TrimSpace(pkg.Name), Cyan, jsonFile, Green, Reset)
+				if showJSON {
+					printJSON(pkg)
+				} else {
+					printPackage(pkg)
+				}
+			}
+		}
+	}()
+
+	// Iniciar goroutines para processar cada pacote
+	for _, pkg := range data {
+		go func(pkg Package) {
+			results <- pkg
+		}(pkg)
+	}
+
+	// Fechar o canal de resultados após todas as goroutines terminarem
+	go func() {
+		for i := 0; i < len(data); i++ {
+			// Aguarda que todas as goroutines terminem
+			<-done
+		}
+		close(results)
+	}()
+
+	// Aguardar que todas as goroutines terminem
+	<-done
+
+	if !foundAny {
 		// Se nenhum pacote for encontrado, imprime a mensagem de erro
 		log.Printf("%s %sGET: %s'%s'%s em %s %s- 404 NOK%s\n", _APP_, Red, Yellow, pattern, Cyan, jsonFile, Red, Reset)
-    }
+	}
 }
 
 func searchWithPatterns(jsonFile string, data map[int]Package, patterns []string, showJSON bool) {
-	var match bool
-	var matchedPattern string
-	for _, pkg := range data {
-		match := false
-		for _, pattern := range patterns {
-			matchedPattern = pattern
-			if strings.Contains(pkg.Name, pattern) || strings.Contains(pkg.Description, pattern) {
-				match = true
-				break
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	count := 0
+	isMatchFound := false
+
+	results := make(chan Package)
+	done := make(chan struct{})
+
+	// Função para processar pacotes em paralelo
+	processPackages := func() {
+		defer close(done) // Fecha o canal 'done' quando terminar
+		for pkg := range results {
+			isMatchFound = false
+			for _, pattern := range patterns {
+				if limit > 0 && count >= limit {
+					return
+				}
+				if strings.Contains(pkg.Name, pattern) || strings.Contains(pkg.Description, pattern) {
+					mu.Lock()
+					count++
+					isMatchFound = true
+					mu.Unlock()
+					break
+				}
 			}
-		}
-		if match {
-   	 	log.Printf("%s %sGET: %s'%s'%s em %s %s- 200 OK%s\n", _APP_, Green, Yellow, strings.TrimSpace(pkg.Name), Cyan, jsonFile, Green, Reset)
-			if showJSON {
-				printJSON(pkg)
-			} else {
-				printPackage(pkg)
+			if isMatchFound {
+				log.Printf("%s %sGET: %s'%s'%s em %s %s- 200 OK%s\n", _APP_, Green, Yellow, strings.TrimSpace(pkg.Name), Cyan, jsonFile, Green, Reset)
+				if showJSON {
+					printJSON(pkg)
+				} else {
+					printPackage(pkg)
+				}
 			}
 		}
 	}
-	if !match {
-		log.Printf("%s %sGET: %s'%s'%s em %s %s- 404 NOK%s\n", _APP_, Red, Yellow, matchedPattern, Cyan, jsonFile, Red, Reset)
+
+	// Goroutine para processar pacotes
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		processPackages()
+	}()
+
+	// Função para enviar pacotes para o canal de resultados
+	sendPackages := func() {
+		for _, pkg := range data {
+			results <- pkg
+		}
+		close(results)
+	}
+
+	// Iniciar goroutine para enviar pacotes
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		sendPackages()
+	}()
+
+	// Aguardar o término de todas as goroutines
+	wg.Wait()
+	<-done
+
+	if !isMatchFound {
+		log.Printf("%s %sGET: %s'%s'%s em %s %s- 404 NOK%s\n", _APP_, Red, Yellow, strings.Join(patterns, ", "), Cyan, jsonFile, Red, Reset)
 	}
 }
 
@@ -385,21 +492,21 @@ func createOrUpdatePackage(packages *[]Package, id int, name string, packageBase
 	for i, pkg := range *packages {
 		if pkg.ID == id {
 			(*packages)[i] = Package{
-				ID:              id,
-				Name:            name,
-				PackageBaseID:   packageBaseID,
-				PackageBase:     packageBase,
-				Version:         version,
-				Description:     description,
-				URL:             url,
-				NumVotes:        numVotes,
-				Popularity:      popularity,
-				OutOfDate:       outOfDate,
-				Maintainer:      maintainer,
-				Submitter:       submitter,
+				ID:             id,
+				Name:           name,
+				PackageBaseID:  packageBaseID,
+				PackageBase:    packageBase,
+				Version:        version,
+				Description:    description,
+				URL:            url,
+				NumVotes:       numVotes,
+				Popularity:     popularity,
+				OutOfDate:      outOfDate,
+				Maintainer:     maintainer,
+				Submitter:      submitter,
 				FirstSubmitted: firstSubmitted,
-				LastModified:    lastModified,
-				URLPath:         urlPath,
+				LastModified:   lastModified,
+				URLPath:        urlPath,
 			}
 			updated = true
 			break
@@ -408,21 +515,21 @@ func createOrUpdatePackage(packages *[]Package, id int, name string, packageBase
 
 	if !updated {
 		*packages = append(*packages, Package{
-			ID:              id,
-			Name:            name,
-			PackageBaseID:   packageBaseID,
-			PackageBase:     packageBase,
-			Version:         version,
-			Description:     description,
-			URL:             url,
-			NumVotes:        numVotes,
-			Popularity:      popularity,
-			OutOfDate:       outOfDate,
-			Maintainer:      maintainer,
-			Submitter:       submitter,
+			ID:             id,
+			Name:           name,
+			PackageBaseID:  packageBaseID,
+			PackageBase:    packageBase,
+			Version:        version,
+			Description:    description,
+			URL:            url,
+			NumVotes:       numVotes,
+			Popularity:     popularity,
+			OutOfDate:      outOfDate,
+			Maintainer:     maintainer,
+			Submitter:      submitter,
 			FirstSubmitted: firstSubmitted,
-			LastModified:    lastModified,
-			URLPath:         urlPath,
+			LastModified:   lastModified,
+			URLPath:        urlPath,
 		})
 	}
 
