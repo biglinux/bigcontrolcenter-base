@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/13
+#  Altered: 2024/08/15
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,8 +35,8 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="13-08-2024 - 01:00"
-_VERSION_="1.0.0-20240813"
+_DATE_ALTERED_="15-08-2024 - 14:15"
+_VERSION_="1.0.0-20240815"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -520,7 +520,7 @@ function sh_seek_flatpak_parallel_filter() {
 			PKG_FLATPAK[PKG_VERSION]="$flatpak_nao_informada"
 		fi
 		summary="$(sh_translate_desc "$pkg" "$traducao_online" "$description" "${PKG_FLATPAK[PKG_ICON]}")"
-#		icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
+		#		icon=$(sh_seek_json_icon_go "$FILE_SUMMARY_JSON" "$(sh_change_pkg_id "$pkg")")
 		PKG_FLATPAK[PKG_DESC]="$summary"
 		PKG_FLATPAK[PKG_ICON]="$icon"
 		if ! test -e "${PKG_FLATPAK[PKG_ICON]}"; then
@@ -1152,6 +1152,7 @@ function sh_search_aur() {
 	local metapackage="$HOME_FOLDER/packages-meta-v1.json"
 	local output_file="$TMP_FOLDER/filtered-results-aur.json"
 	local item_json
+	local separator="|"
 
 	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
 	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
@@ -1180,53 +1181,19 @@ function sh_search_aur() {
 
 	if ! ((aur_search_category)); then
 		if ((searchInDescription)); then
-			json=$(big-search-aur -Ss ${search} --limit 60 --by-name-desc --json)
+			json=$(big-search-aur -Ss ${search} --limit 60 --by-name-desc --raw --verbose)
 		else
-			json=$(big-search-aur -Ss ${search} --limit 60 --by-name --json)
+			json=$(big-search-aur -Ss ${search} --limit 60 --by-name --raw --verbose)
 		fi
 	else
-		json=$(big-search-aur -Si ${search} --limit 60 --by-name --json)
+		json=$(big-search-aur -Si ${search} --limit 60 --by-name --raw --verbose)
 	fi
 
-	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
-#		if ! ((searchInDescription)); then
-#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
-#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#			json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
-#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
-#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
-#			json=$(big-search-aur -Si ${search} --limit 58 --by-name --json)
-#		else
-#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
-#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#			json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
-#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
-#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
-#			json=$(big-search-aur -Ss ${search} --limit 58 --by-name --json)
-#		fi
+	mapfile -t item_json <<<"$json"
 
-	#search="brave-browser chromium epiphany falkon firefox firefox-i18n-pt-br google-chrome librewolf-bin lynx microsoft-edge-stable-bin opera palemoon-bin vivaldi"
-	#json=$(big-search-aur $search --json --by-name | jq -c '{Name, Version, Description}')
-	#echo $json
-
-	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
-#	item_json=$(jq -c '{Name, Version, Description}' <<<"$json")
-	item_json=$(jq -c '.[] | {Name, Version, Description}' <<<"$json")
-
-	# Use um while loop para processar os itens JSON
-	while IFS= read -r item; do
-#		# Usando jq para extrair todos os valores em uma única linha, separados por vírgulas
-#		values=$(jq -r '[.Name, .Version, .Description] | @csv' <<<"$item")
-#		# Remove aspas duplas que o @csv adiciona
-#		values=${values//\"/}
-#		# Lê os valores em variáveis
-#		IFS=',' read -r name version description <<<"$values"
-
-		name=$(jq -r '.Name' <<< "$item")
-		version=$(jq -r '.Version' <<< "$item")
-		description=$(jq -r '.Description' <<< "$item")
-#		size=$(jq -r '.size' <<<"$item")
-#		status=$(jq -r '.status' <<<"$item")
+	# Itera sobre cada linha (pacote)
+	for item in "${item_json[@]}"; do
+		IFS="$separator" read -r name version description maintainer num_votes popularity url full_url pkgcount <<<"$item"
 		pkg=${name#aur/}
 		pkg=${name#local/}
 
@@ -1252,7 +1219,181 @@ function sh_search_aur() {
 				title_uppercase_first_letter+=" ${word^}"
 			done
 
-#			if [[ "$status" == *"Installed"* ]]; then
+			#			if [[ "$status" == *"Installed"* ]]; then
+			if [[ -n "$(pacman -Qs "^$name$")" ]]; then
+				button="<div id=aur_installed>$Remover_text</div>"
+				aur_priority="AurP1"
+			else
+				button="<div id=aur_not_installed>$Instalar_text</div>"
+				if [[ "$search" =~ .*"$title".* ]]; then
+					aur_priority="AurP2"
+				else
+					aur_priority="AurP3"
+				fi
+			fi
+
+			if [ -e "icons/$pkgicon.png" ]; then
+				icon="<img class=\"icon\" src=\"icons/$pkgicon.png\">"
+			elif [ -e "/usr/share/bigbashview/bcc/apps/big-store/description/$pkgicon/flatpak_icon.txt" ]; then
+				if [ -e "$(</usr/share/bigbashview/bcc/apps/big-store/description/$pkgicon/flatpak_icon.txt)" ]; then
+					icon="<img class=\"icon\" src=\"$(</usr/share/bigbashview/bcc/apps/big-store/description/$pkgicon/flatpak_icon.txt)\">"
+				else
+					icon="<div class=avatar_aur>${pkgicon:0:3}</div>"
+				fi
+			else
+				icon="<div class=avatar_aur>${pkgicon:0:3}</div>"
+			fi
+
+			summary="$description"
+			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
+			pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
+
+			{
+				echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=$pkg\">"
+				echo "<div class=\"col s12 m6 l3\" id=$aur_priority>"
+				echo "<div class=\"showapp\">"
+				echo "<div id=aur_icon><div class=icon_middle>$icon</div>"
+				echo "<div id=aur_name><div id=limit_title_name>$title_uppercase_first_letter</div>"
+				echo "<div id=version>$version</div></div></div>"
+				echo "<div id=box_aur_desc><div id=aur_desc>$summary</div></div>"
+				echo "$button</a></div></div>"
+			} >>"$TMP_FOLDER/aur_build.html"
+			((++count))
+		else
+			continue
+		fi
+	done
+
+	if ((count)); then
+		echo "$count" >"$TMP_FOLDER/aur_number.html"
+		echo "<script>\$(document).ready(function() {\$(\"#box_aur\").show();});</script>" >>"$TMP_FOLDER/aur_build.html"
+		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
+	else
+		echo "0" >"$TMP_FOLDER/aur_number.html"
+		echo '<script>document.getElementById("aur_icon_loading").innerHTML = ""; runAvatarAur();</script>' >>"$TMP_FOLDER/aur_build.html"
+	fi
+	# Move temporary HTML file to final location
+	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
+}
+export -f sh_search_aur
+
+#######################################################################################################################
+
+function sh_search_aurSearch() {
+	local search="$*"
+	local n=1
+	local count=0
+	local cmd
+	local pacote
+	local regex=""
+	local traducao_online
+	local searchFilter_checkbox
+	local searchInDescription=0
+	local site='https://aur.archlinux.org/packages-meta-v1.json.gz'
+	local metapackage="$HOME_FOLDER/packages-meta-v1.json"
+	local output_file="$TMP_FOLDER/filtered-results-aur.json"
+	local item_json
+
+	[[ -e "$TMP_FOLDER/aur.html" ]] && rm -f "$TMP_FOLDER/aur.html"
+	[[ -e "$TMP_FOLDER/aur_build.html" ]] && rm -f "$TMP_FOLDER/aur_build.html"
+	[[ -e "$TMP_FOLDER/aur_number.html" ]] && rm -f "$TMP_FOLDER/aur_number.html"
+
+	traducao_online=$(TIni.Get "$INI_FILE_BIG_STORE" "bigstore" "traducao_online")
+	searchFilter_checkbox="$(TIni.Get "$INI_FILE_BIG_STORE" 'bigstore' 'searchFilter')"
+	[[ -n $searchFilter_checkbox ]] && searchInDescription=1
+
+	# Loop para concatenar os nomes dos pacotes à regex
+	for pacote in ${search[*]}; do
+		if [[ -n "$regex" ]]; then
+			regex+="|"
+		fi
+		if ((aur_search_category)); then
+			regex+="$pacote$"
+		else
+			regex+="$pacote"
+		fi
+	done
+	if ! ((aur_search_category)) && ((searchInDescription)); then
+		regex="($regex)"
+	else
+		regex="^($regex)"
+	fi
+
+	if ! ((aur_search_category)); then
+		if ((searchInDescription)); then
+			json=$(big-search-aur -Ss ${search} --limit 60 --by-name-desc --json --verbose)
+		else
+			json=$(big-search-aur -Ss ${search} --limit 60 --by-name --json --verbose)
+		fi
+	else
+		json=$(big-search-aur -Si ${search} --limit 60 --by-name --json --verbose)
+	fi
+
+	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
+	#		if ! ((searchInDescription)); then
+	#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
+	#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+	#			json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+	#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+	#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
+	#			json=$(big-search-aur -Si ${search} --limit 58 --by-name --json)
+	#		else
+	#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
+	#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+	#			json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+	#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+	#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
+	#			json=$(big-search-aur -Ss ${search} --limit 58 --by-name --json)
+	#		fi
+
+	#search="brave-browser chromium epiphany falkon firefox firefox-i18n-pt-br google-chrome librewolf-bin lynx microsoft-edge-stable-bin opera palemoon-bin vivaldi"
+	#json=$(big-search-aur $search --json --by-name | jq -c '{Name, Version, Description}')
+	#echo $json
+
+	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
+	#	item_json=$(jq -c '{Name, Version, Description}' <<<"$json")
+	item_json=$(jq -c '.[] | {Name, Version, Description}' <<<"$json")
+
+	# Use um while loop para processar os itens JSON
+	while IFS= read -r item; do
+		#		# Usando jq para extrair todos os valores em uma única linha, separados por vírgulas
+		#		values=$(jq -r '[.Name, .Version, .Description] | @csv' <<<"$item")
+		#		# Remove aspas duplas que o @csv adiciona
+		#		values=${values//\"/}
+		#		# Lê os valores em variáveis
+		#		IFS=',' read -r name version description <<<"$values"
+
+		name=$(jq -r '.Name' <<<"$item")
+		version=$(jq -r '.Version' <<<"$item")
+		description=$(jq -r '.Description' <<<"$item")
+		#		size=$(jq -r '.size' <<<"$item")
+		#		status=$(jq -r '.status' <<<"$item")
+		pkg=${name#aur/}
+		pkg=${name#local/}
+
+		if [[ -n "$name" ]]; then
+			# Se NÃO é por categorias
+			if ! ((aur_search_category)); then
+				# Se NÃO é para buscar na descrição
+				if ! ((searchInDescription)); then
+					# Se a variável $search NÃO contiver a palavra $pkg
+					if [[ ! "$pkg" =~ "$search" ]]; then
+						continue
+					fi
+				fi
+			fi
+
+			pkgicon=${pkg//-bin/}
+			pkgicon=${pkgicon//-git/}
+			pkgicon=${pkgicon//-beta/}
+			title=${pkg//-/ }
+			unset title_uppercase_first_letter
+
+			for word in $title; do
+				title_uppercase_first_letter+=" ${word^}"
+			done
+
+			#			if [[ "$status" == *"Installed"* ]]; then
 			if [[ -n "$(pacman -Qs "^$name$")" ]]; then
 				button="<div id=aur_installed>$Remover_text</div>"
 				aur_priority="AurP1"
@@ -1308,7 +1449,7 @@ function sh_search_aur() {
 	# Move temporary HTML file to final location
 	mv "$TMP_FOLDER/aur_build.html" "$TMP_FOLDER/aur.html"
 }
-export -f sh_search_aur
+export -f sh_search_aurSearch
 
 #######################################################################################################################
 
@@ -1353,31 +1494,31 @@ function sh_search_aurRegex() {
 	fi
 
 	# Adiciona ^ no início para garantir que a correspondência seja feita no início da linha
-		if ! ((searchInDescription)); then
-#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
-#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#	#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
-#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
-#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
-			json=$(LC_ALL=C big-jq-regex -S "$metapackage" $regex --regex --json)
-		else
-#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
-#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
-#	#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
-#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
-#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
-			json=$(LC_ALL=C big-jq-regex -S "$metapackage" $regex --regex --json)
-		fi
+	if ! ((searchInDescription)); then
+		#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --topdown)
+		#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+		#	#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --topdown)
+		#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+		#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --topdown)
+		json=$(LC_ALL=C big-jq-regex -S "$metapackage" $regex --regex --json --limit 60)
+	else
+		#	#		json=$(LC_ALL=C big-pacman-to-json yay -Ssa --regex "$regex" --sortby popularity --searchby name-desc)
+		#	#		json=$(LC_ALL=C big-pacman-to-json pacaur -Ssa --regex $regex)
+		#	#		json=$(LC_ALL=C big-pacman-to-json paru -Ssa --regex $regex --limit 60 --sortby popularity --searchby name-desc)
+		#	#		json=$(LC_ALL=C big-pacman-to-json package-query -Ss --aur $regex)
+		#	#		json=$(LC_ALL=C big-pacman-to-json paru --aur -Qs $regex --limit 60 --sortby popularity --searchby name-desc --topdown)
+		json=$(LC_ALL=C big-jq-regex -S "$metapackage" $regex --regex --json --limit 60)
+	fi
 	# Armazene o JSON em uma variável para evitar chamadas jq repetidas
-#	item_json=$(jq -c '.[]' <<<"$json")
-#	#	item_json=$(grep -iE "$regex" "$metapackage" | jq -c 'map(select(.Name != null))')
-#	#item_json=$(jq -c --arg regex "$regex" '.[] | select(.Name | test($regex; "i"))' "$metapackage")
+	#	item_json=$(jq -c '.[]' <<<"$json")
+	#	#	item_json=$(grep -iE "$regex" "$metapackage" | jq -c 'map(select(.Name != null))')
+	#	#item_json=$(jq -c --arg regex "$regex" '.[] | select(.Name | test($regex; "i"))' "$metapackage")
 
-#	item_json=$(jq -c --arg regex "$regex" '
-#    .[] |
-#    select(.Name | test($regex; "i")) |
-#    {Name, Version, Description}
-#' "$metapackage")
+	#	item_json=$(jq -c --arg regex "$regex" '
+	#    .[] |
+	#    select(.Name | test($regex; "i")) |
+	#    {Name, Version, Description}
+	#' "$metapackage")
 
 	item_json=$(jq -c '{Name, Version, Description}' <<<"$json")
 
@@ -1412,42 +1553,42 @@ function sh_search_aurRegex() {
 
 	# Use um while loop para processar os itens JSON
 	while IFS= read -r item; do
-#		#Estrutura .json https://aur.archlinux.org/packages-meta-v1.json.gz
-#		{
-#		  "ID": 1389332,
-#		  "Name": "elisa-git",
-#		  "PackageBaseID": 115203,
-#		  "PackageBase": "elisa-git",
-#		  "Version": "24.01.90.r14.g82824891-1",
-#		  "Description": "Simple music player aiming to provide a nice experience for its users",
-#		  "URL": "https://community.kde.org/Elisa",
-#		  "NumVotes": 11,
-#		  "Popularity": 0,
-#		  "OutOfDate": null,
-#		  "Maintainer": "z3ntu",
-#		  "Submitter": "arojas",
-#		  "FirstSubmitted": 1472851887,
-#		  "LastModified": 1705776832,
-#		  "URLPath": "/cgit/aur.git/snapshot/elisa-git.tar.gz"
-#		}
+		#		#Estrutura .json https://aur.archlinux.org/packages-meta-v1.json.gz
+		#		{
+		#		  "ID": 1389332,
+		#		  "Name": "elisa-git",
+		#		  "PackageBaseID": 115203,
+		#		  "PackageBase": "elisa-git",
+		#		  "Version": "24.01.90.r14.g82824891-1",
+		#		  "Description": "Simple music player aiming to provide a nice experience for its users",
+		#		  "URL": "https://community.kde.org/Elisa",
+		#		  "NumVotes": 11,
+		#		  "Popularity": 0,
+		#		  "OutOfDate": null,
+		#		  "Maintainer": "z3ntu",
+		#		  "Submitter": "arojas",
+		#		  "FirstSubmitted": 1472851887,
+		#		  "LastModified": 1705776832,
+		#		  "URLPath": "/cgit/aur.git/snapshot/elisa-git.tar.gz"
+		#		}
 
-		name=$(jq -r '.Name' <<< "$item")
-		version=$(jq -r '.Version' <<< "$item")
-		description=$(jq -r '.Description' <<< "$item")
-#		size=$(jq -r '.size' <<<"$item")
-#		status=$(jq -r '.status' <<<"$item")
+		name=$(jq -r '.Name' <<<"$item")
+		version=$(jq -r '.Version' <<<"$item")
+		description=$(jq -r '.Description' <<<"$item")
+		#		size=$(jq -r '.size' <<<"$item")
+		#		status=$(jq -r '.status' <<<"$item")
 		pkg=${name#aur/}
 		pkg=${name#local/}
 
-#		# Usando jq para extrair todos os valores em uma única linha, separados por vírgulas
-#		values=$(jq -r '[.Name, .Version, .Description] | @csv' <<<"$item")
-#		# Remove aspas duplas que o @csv adiciona
-#		values=${values//\"/}
-#		# Lê os valores em variáveis
-#		IFS=',' read -r name version description <<<"$values"
+		#		# Usando jq para extrair todos os valores em uma única linha, separados por vírgulas
+		#		values=$(jq -r '[.Name, .Version, .Description] | @csv' <<<"$item")
+		#		# Remove aspas duplas que o @csv adiciona
+		#		values=${values//\"/}
+		#		# Lê os valores em variáveis
+		#		IFS=',' read -r name version description <<<"$values"
 
-#		if [[ $name == aur/* ]]; then
-#		if [[ $name == local/* ]]; then
+		#		if [[ $name == aur/* ]]; then
+		#		if [[ $name == local/* ]]; then
 		if [[ -n "$name" ]]; then
 			# Se NÃO é por categorias
 			if ! ((aur_search_category)); then
@@ -1470,7 +1611,7 @@ function sh_search_aurRegex() {
 				title_uppercase_first_letter+=" ${word^}"
 			done
 
-#			if [[ "$status" == *"Installed"* ]]; then
+			#			if [[ "$status" == *"Installed"* ]]; then
 			if [[ -n "$(pacman -Qs "^$name$")" ]]; then
 				button="<div id=aur_installed>$Remover_text</div>"
 				aur_priority="AurP1"
