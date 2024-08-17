@@ -6,7 +6,7 @@
     Chili GNU/Linux - https://chilios.com.br
 
   Created: 2024/08/13
-  Altered: 2024/08/15
+  Altered: 2024/08/17 - 02h22
 
   Copyright (c) 2024-2024, Vilmar Catafesta <vcatafesta@gmail.com>
   All rights reserved.
@@ -51,7 +51,7 @@ import (
 const (
 	_APP_       = "big-search-aur"
 	_PKGDESC_   = "Command-line AUR helper"
-	_VERSION_   = "0.15.0-20240815"
+	_VERSION_   = "0.17.0222-20240817"
 	_COPYRIGHT_ = "Copyright (C) 2024 Vilmar Catafesta, <vcatafesta@gmail.com>"
 )
 
@@ -104,23 +104,41 @@ const baseURL = "https://aur.archlinux.org/rpc"
 var verbose bool
 var fullURL string
 var count int
+var nlenArgs int
+
+var searchField string
+var searchTerms []string
+var outputFormat string
+var separator string = "|"
+var limit int = -1 // Usar -1 para indicar que não há limite
+var searchMode string
+var args []string
+var optionToField map[string]string
+
+// Inline
+var msgError = func(msg string) { fmt.Println(Red + msg + Reset) }
+var echo = func(args ...interface{}) { fmt.Println(args...) }
+var logError = func(args ...interface{}) { log.Println(Red + fmt.Sprint(args...) + Reset) }
 
 func main() {
-	args := os.Args[1:]
-
-	if len(args) < 2 {
+	args = os.Args[1:]
+	nlenArgs = len(args)
+	if nlenArgs < 1 {
 		printUsage()
 		return
 	}
 
-	var searchField string
-	var searchTerms []string
-	var outputFormat string
-	var separator string = "|"
-	var limit int = -1 // Usar -1 para indicar que não há limite
-	var searchMode string
+	if parseArgs() {
+		if searchMode == "search" && len(searchTerms) == 0 {
+			echo(Red + "Erro: Nenhuma palavra-chave de busca fornecida" + Reset)
+			return
+		}
+		runSearchPackages()
+	}
+}
 
-	optionToField := map[string]string{
+func parseArgs() bool {
+	optionToField = map[string]string{
 		"--by-name":         "name",
 		"--by-name-desc":    "name-desc",
 		"--by-maintainer":   "maintainer",
@@ -130,50 +148,49 @@ func main() {
 		"--by-checkdepends": "checkdepends",
 	}
 
-	// Verificar se o parâmetro -Ss, -Si, --search ou --info está presente
-	if len(args) > 0 {
-		switch args[0] {
+	for i := 0; i < nlenArgs; i++ {
+		//		logError("args[", i, "]", args[i])
+		switch args[i] {
 		case "-Ss", "--search":
 			searchMode = "search"
-			args = args[1:] // Remove o -Ss ou --search da lista de argumentos
 		case "-Si", "--info":
 			searchMode = "info"
-			args = args[1:] // Remove o -Si ou --info da lista de argumentos
-		default:
-			printUsage()
-			return
-		}
-	} else {
-		printUsage()
-		return
-	}
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--json", "--raw":
+		case "--json", "--raw", "--pairs":
 			outputFormat = args[i]
 		case "--sep":
-			if i+1 < len(args) {
+			if i+1 < nlenArgs && !strings.HasPrefix(args[i+1], "--") {
 				separator = args[i+1]
 				i++
 			} else {
-				fmt.Println("Erro: --sep requer um argumento")
-				return
+				logError("Erro: --sep requer um argumento válido.")
+				return false
 			}
 		case "--verbose":
 			verbose = true
+		case "--help":
+			printUsage()
+		case "--bash":
+			helpBash()
+    case "-V", "--version":
+      fmt.Println(Red + _APP_ + " - " + _PKGDESC_ + Reset)
+      fmt.Println(Cyan + _APP_ + " - v" + _VERSION_ + Reset)
+      fmt.Println("   " + _COPYRIGHT_ + Reset)
+      fmt.Println("")
+      fmt.Println("   Este programa pode ser redistribuído livremente")
+      fmt.Println("   sob os termos da Licença Pública Geral GNU.")
+      os.Exit(0)
 		case "--limit":
-			if i+1 < len(args) {
+			if i+1 < nlenArgs {
 				parsedLimit, err := strconv.Atoi(args[i+1])
 				if err != nil || parsedLimit < 1 {
-					fmt.Println("Erro: --limit requer um número positivo")
-					return
+					logError("Erro: --limit requer um número positivo")
+					return false
 				}
 				limit = parsedLimit
 				i++
 			} else {
-				fmt.Println("Erro: --limit requer um argumento")
-				return
+				logError("Erro: --limit requer um argumento")
+				return false
 			}
 		default:
 			if field, ok := optionToField[args[i]]; ok {
@@ -183,12 +200,91 @@ func main() {
 			}
 		}
 	}
+	return true
+}
 
-	if searchMode == "search" && len(searchTerms) == 0 {
-		fmt.Println("Erro: Nenhuma palavra-chave de busca fornecida")
-		return
-	}
+func helpBash() {
+	text := `
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
 
+by_pairs_with_read() {
+  # Processar cada linha e atribuir valores às variáveis
+  while read -r line; do
+    # Substitui "=" por "_=" e avalia a linha
+    eval "${line//=/_=}"
+
+    # Se a linha estiver vazia, pula para a próxima iteração
+    if [[ -n "$line" ]]; then
+      echo "Name: $Name_"
+      echo "Version: $Version_"
+      echo "Description: $Description_"
+      echo "Maintainer: $Maintainer_"
+      echo "NumVotes: $NumVotes_"
+      echo "Popularity: $Popularity_"
+      echo "URL: $URL_"
+      echo ""
+    fi
+    unset Name_ Version_ Description_ Maintainer_ NumVotes_ Popularity_ URL_
+  done < <(big-search-aur -Si elisa-git brave-bin --pairs --sep '=')
+}
+
+by_raw_with_mapfile_read() {
+  # Define o separador
+  separator="|"
+  output=$(big-search-aur -Ss elisa-git brave-bin falkon-git --raw)
+  mapfile -t packages <<<"$output"
+  # Itera sobre cada linha (pacote)
+  for package_line in "${packages[@]}"; do
+    IFS="$separator" read -r name version description maintainer num_votes popularity url full_url count <<<"$package_line"
+    echo "Linha do pacote: $package_line"
+
+    # Exibe as informações do pacote
+    echo "Name: $name"
+    echo "Version: $version"
+    echo "Description: $description"
+    echo "Maintainer: $maintainer"
+    echo "NumVotes: $num_votes"
+    echo "Popularity: $popularity"
+    echo "URL: $url"
+    echo "fullURL: $full_url"
+    echo "Count: $count"
+    echo "###############################################################################################################"
+  done
+}
+
+#by_raw_with_mapfile_read() {
+by_pairs_with_read() {
+
+`
+	fmt.Println(Cyan + text + Reset)
+}
+
+func printUsage() {
+	fmt.Println("Uso:")
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Println("    <palavras-chave> são os termos/pacotes de busca")
+	fmt.Println("    <opção> podem ser:")
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name", reset, "Pesquisa pelo nome do pacote apenas (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name-desc", reset, "Pesquisa pelo nome e descrição do pacote", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-maintainer", reset, "Pesquisa pelo mantenedor do pacote", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-dependsr", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedependsr", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdependsr", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdependsr", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Saída em formato JSON (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --raw", reset, "Saída formatada como texto simples com todos os campos (util para usar com mapfile/read do bash)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --pairs", reset, "Usa o formato de saída texto chave='valor' (util para usar com mapfile/read do bash)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --sep", reset, "Separador dos campos na saída raw (padrão é '=')", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --limit", reset, "Limite de pacotes encontrados", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --verbose", reset, "Liga modo verboso", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --bash", reset, "Mostra exemplo de uso com bash", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --version", reset, "Mostra a versão do aplicativo", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --help", reset, "Este help", reset)
+}
+
+func runSearchPackages() {
 	ch := make(chan Package)
 	var wg sync.WaitGroup
 
@@ -228,23 +324,17 @@ func main() {
 			return
 		}
 		fmt.Println(string(jsonData))
-	} else {
-		//		// Itera sobre o array de structs `Package` e formata a saída
-		//		for _, pkg := range results {
-		//			fmt.Printf("Name%s%s\nVersion%s%s\nDescription%s%s\nMaintainer%s%s\nNumVotes%s%d\nPopularity%s%.2f\nURL%s%s\n\n",
-		//				separator, pkg.Name, separator, pkg.Version, separator, pkg.Description,
-		//				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
-		//				separator, pkg.URL)
-		//		}
-
-		// Itera sobre o array de structs `Package` e formata a saída
+	} else if outputFormat == "--pairs" {
+		separator = "="
 		for _, pkg := range results {
-			//			fmt.Printf("%s %s %s %s %s %s %s %s %d %s %.2f %s %s %s %s\n",
-			//				pkg.Name, separator, pkg.Version, separator, pkg.Description,
-			//				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
-			//				separator, pkg.URL, pkg.count)
-
-			fmt.Println(pkg.Name + separator +
+			fmt.Printf("Name%s'%s' Version%s'%s' Description%s'%s' Maintainer%s'%s' NumVotes%s'%d' Popularity%s'%.2f' URL%s'%s'\n",
+				separator, pkg.Name, separator, pkg.Version, separator, pkg.Description,
+				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
+				separator, pkg.URL)
+		}
+	} else {
+		for _, pkg := range results {
+			echo(pkg.Name + separator +
 				pkg.Version + separator +
 				pkg.Description + separator +
 				pkg.Maintainer + separator +
@@ -253,54 +343,7 @@ func main() {
 				pkg.URL + separator +
 				strconv.Itoa(pkg.count))
 		}
-
-		//		// Cria uma string para armazenar toda a saída
-		//		var output string
-		//		// Itera sobre o array de structs `Package` e formata a saída
-		//		for _, pkg := range results {
-		//			output += fmt.Sprintf("%s%s%s%s%s%s%d%s%.2f%s%s%s%d\n",
-		//				pkg.Name,
-		//				separator,
-		//				pkg.Version,
-		//				separator,
-		//				pkg.Description,
-		//				separator,
-		//				pkg.Maintainer,
-		//				separator,
-		//				pkg.NumVotes,
-		//				separator,
-		//				pkg.Popularity,
-		//				separator,
-		//				pkg.URL,
-		//				separator,
-		//				pkg.fullURL,
-		//				separator,
-		//				pkg.count)
-		//		}
-		//
-		//		// Imprime toda a saída como uma única string
-		//		fmt.Print(output)
 	}
-}
-
-func printUsage() {
-	fmt.Println("Uso:")
-	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
-	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
-	fmt.Println("    <palavras-chave> são os termos/pacotes de busca")
-	fmt.Println("    <opção> podem ser:")
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name", reset, "Pesquisa pelo nome do pacote apenas (padrão)", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name-desc", reset, "Pesquisa pelo nome e descrição do pacote", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-maintainer", reset, "Pesquisa pelo mantenedor do pacote", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-dependsr", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedependsr", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdependsr", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdependsr", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Saída em formato JSON (padrão)", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --raw", reset, "Saída formatada como texto simples com todos os campos", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --sep", reset, "Separador dos campos na saída raw (padrão é '=')", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --limit", reset, "Limite de pacotes encontrados", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --verbose", reset, "Liga modo verboso", reset)
 }
 
 func infoPackage(pkgName string, limit int, wg *sync.WaitGroup, ch chan<- Package) {
@@ -372,7 +415,7 @@ func infoPackage(pkgName string, limit int, wg *sync.WaitGroup, ch chan<- Packag
 		count++
 		if verbose {
 			// Preenche o campo `url` com `fullURL`
-			fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), pkg.Name)
+			fullURL = fmt.Sprintf("%s?v=%s&type=%s&arg[]=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), pkg.Name)
 			pkg.fullURL = fullURL
 			pkg.count = count
 		}
@@ -433,7 +476,12 @@ func searchPackage(term string, searchField string, limit int, wg *sync.WaitGrou
 	queryParams.Add("by", searchField)
 	queryParams.Add("arg", term)
 
-	fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), queryParams.Get("arg"))
+	// Verificar se algum parâmetro 'by-' foi fornecido
+	if queryParams.Get("by") == "" {
+		fullURL = fmt.Sprintf("%s?v=%s&type=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("arg"))
+	} else {
+		fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), queryParams.Get("arg"))
+	}
 
 	resp, err := http.Get(fullURL)
 	if err != nil {
@@ -485,8 +533,12 @@ func searchPackage(term string, searchField string, limit int, wg *sync.WaitGrou
 
 		count++
 		if verbose {
-			// Preenche o campo `url` com `fullURL`
-			fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), pkg.Name)
+			// Verificar se algum parâmetro 'by-' foi fornecido
+			if queryParams.Get("by") == "" {
+				fullURL = fmt.Sprintf("%s?v=%s&type=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), pkg.Name)
+			} else {
+				fullURL = fmt.Sprintf("%s?v=%s&type=%s&by=%s&arg=%s", baseURL, queryParams.Get("v"), queryParams.Get("type"), queryParams.Get("by"), pkg.Name)
+			}
 			pkg.fullURL = fullURL
 			pkg.count = count
 		}
