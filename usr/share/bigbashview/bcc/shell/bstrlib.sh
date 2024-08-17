@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/15
+#  Altered: 2024/08/17
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,8 +35,8 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="15-08-2024 - 14:15"
-_VERSION_="1.0.0-20240815"
+_DATE_ALTERED_="17-08-2024 - 02:56"
+_VERSION_="1.0.0-20240817"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
