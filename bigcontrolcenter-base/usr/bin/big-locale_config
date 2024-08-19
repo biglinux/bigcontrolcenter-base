@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+#shellcheck disable=SC2155,SC2034
+#shellcheck source=/dev/null
+
+#  locale_config/locale-config
+#  Description: Ajusta a configuração regional e de idioma de um sistema Linux utilizando a ferramenta localectl
+#
+#  Created: 2022/02/28
+#  Altered: 2023/08/23
+#
+#  Copyright (c) 2023-2023, Vilmar Catafesta <vcatafesta@gmail.com>
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+#  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+#  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+#  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+#  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+#  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+APP="${0##*/}"
+_VERSION_="1.0.0-20230823"
+LIBRARY=${LIBRARY:-'/usr/share/bigbashview/bcc/shell'}
+
+# Cores - Substitua pelos códigos ANSI do seu terminal, se necessário
+GREEN="\033[1;32m"   # Verde
+RED="\033[1;31m"     # Vermelho
+YELLOW="\033[1;33m"  # Amarelo
+BLUE="\033[1;34m"    # Azul
+MAGENTA="\033[1;35m" # Magenta
+CYAN="\033[1;36m"    # Ciano
+RESET="\033[0m"      # Resetar as cores
+
+declare -a alang=(
+	'LANG'
+	'LANGUAGE'
+	'LC_TYPE'
+	'LC_NUMERIC'
+	'LC_TIME'
+	'LC_COLLATE'
+	'LC_MONETARY'
+	'LC_MESSAGES'
+	'LC_PAPER'
+	'LC_NAME'
+	'LC_ADDRESS'
+	'LC_TELEPHONE'
+	'LC_MEASUREMENT'
+	'LC_IDENTIFICATION'
+	'LC_ALL'
+)
+
+function sh_main() {
+	# Função para configurar uma variável no arquivo /etc/locale.conf
+	# Se a variável já existir, substitui o valor. Senão, acrescenta ao arquivo.
+	# Parâmetros: $1 = valor do idioma
+	function configure_locale_var() {
+		for lc in "${alang[@]}"; do
+			if grep -q "^$lc=" /etc/locale.conf; then
+				printf "${CYAN}=> Variável %s já existe. Substituindo o seu valor.${RESET}\n" "$lc"
+				sudo sed -i "s/^$lc=.*/$lc=$1/" /etc/locale.conf
+			else
+				printf "${CYAN}=> Variável %s não existe. Acrescentando ao arquivo.${RESET}\n" "$lc"
+				#				echo "$lc=$1" | sudo tee -a /etc/locale.conf
+				sudo sh -c "echo '$lc=$1' >> /etc/locale.conf"
+			fi
+		done
+	}
+
+	lang=$1
+	lang_utf8="$lang.UTF-8"
+
+	# Verifica se o arquivo /etc/locale.conf existe
+	if [[ -e /etc/locale.conf ]]; then
+		for lc in "${alang[@]}"; do
+			# Obtém os valores atuais de LANG e LANGUAGE do arquivo /etc/locale.conf
+#			current_lang=$(grep '^LANG=' /etc/locale.conf | cut -d'=' -f2)
+#			current_language=$(grep '^LANGUAGE=' /etc/locale.conf | cut -d'=' -f2)
+			current_lang=$(grep "^$lc=" /etc/locale.conf | cut -d'=' -f2)
+
+			# Verifica se os valores atuais são diferentes dos valores que seriam configurados
+			if [[ "$current_lang" != "$lang_utf8" ]]; then
+				printf "${CYAN}=> Configurando localectl com LANG=${YELLOW}%s.UTF-8${RESET}\n" "$lang"
+
+				if localectl set-locale LANG="$lang_utf8"; then
+					export LC_ALL=$lang_utf8
+					configure_locale_var "$lang_utf8"
+					break
+				else
+					printf "${RED}AVISO:${RESET} Falha ao configurar localectl. Verifique se o idioma fornecido é válido.\n"
+					return 1
+				fi
+			else
+				export LC_ALL=$lang_utf8
+				printf "${GREEN}=> Nenhuma alteração necessária. As variáveis de idioma já estão configuradas corretamente.${RESET}\n"
+				break
+			fi
+		done
+	else
+		# Cria o arquivo /etc/locale.conf
+		printf "${RED}AVISO:${RESET} O arquivo /etc/locale.conf não foi encontrado. Criando o arquivo...\n"
+		for i in "${alang[@]}"; do
+			{
+				echo "$i=$lang_utf8"
+			} | sudo tee -a /etc/locale.conf
+		done
+	fi
+
+	# Carrega as variáveis de ambiente redefinidas
+	localectl set-locale LANG="$lang_utf8"
+	printf "${CYAN}=> Carregando as variáveis de ambiente redefinidas.${RESET}\n"
+	. /etc/locale.conf
+	sh_status
+	return 0
+}
+export -f sh_main
+
+function sh_usage() {
+	sh_status
+	printf "uso: source locale_config pt_BR\n"
+	printf "     source locale_config en_US\n"
+	printf "     source locale_config es_ES\n"
+	echo
+	return 1
+}
+
+function sh_status() {
+	echo ==============================================================
+	printf "=> ${BLUE}localectl status${RESET}\n"
+	localectl status
+	echo ==============================================================
+	printf "=> ${BLUE}locale${RESET}\n"
+	locale
+	echo ==============================================================
+}
+
+function sh_list_locales() {
+	printf "=> ${MAGENTA}localectl list-locales${RESET}\n"
+	localectl list-locales
+}
+
+# Verifica se o script foi carregado com o comando "source"
+if [[ $0 != "$BASH_SOURCE" ]]; then
+	if [[ $# -eq 1 ]]; then
+		if sh_main "$1"; then
+			return 0
+		fi
+	fi
+else
+	sh_usage
+	printf "${GREEN}=> Nenhuma alteração efetuada. ${RESET}\n"
+	printf "${YELLOW}AVISO:${RESET} Sempre carregue o script usando o comando ${CYAN}source $0${RESET} para que as alterações reflitam no ambiente atual.\n"
+	exit 1
+fi
+sh_usage
+printf "${RED}ERROR:${RESET} Forneça o parâmetro da linguagem desejada.\n"
+

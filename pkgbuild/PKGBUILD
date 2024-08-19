@@ -1,0 +1,72 @@
+# Maintainer	: Vilmar Catafesta <vcatafesta@gmail.com>
+
+pkgname=bigcontrolcenter-base
+pkgdesc="Base files and libs to bigcontrolcenter interfaces"
+# makedepends=('')
+# conflicts=('')
+pkgver=$(date +%y.%m.%d)
+pkgrel=$(date +%H%M)
+arch=('any')
+license=('GPL3')
+url="https://github.com/biglinux/$pkgname"
+source=("git+${url}.git")
+provides=("$pkgname")
+depends=('bash'
+	'curl'
+	'coreutils'  	# cat, cut, mkdir,rmdir, rm, sort, uniq, ... etc
+	'util-linux' 	# rev
+	'gawk'
+	'grep'
+	'jq'
+	'pamac-gtk'
+	'paru'
+	'polkit'
+	'parallel'
+	'rxvt-unicode'
+	'sed'
+	'xorg-xwininfo'
+	'xorg-xrandr'
+	'xorg-xprop' 	# xprop
+	'wmctrl'     	# wmctrl
+	'yay'
+	'yad'
+	'libnotify' 	# notify-send
+	'kdialog'
+	'lsof'
+	'libnewt'   	# whiptail
+	'procps-ng' 	# pipof, pgrep
+	'pacman'
+	'pacman-mirrors'
+	'pigz'			# ter 18 jun 2024 16:37:50 -04
+	'rsync'			# ter 18 jun 2024 16:37:50 -04
+)
+depends_x86_64=('mhwd' 'xsetprop' 'xtermset')
+source=("git+${url}.git")
+md5sums=('SKIP')
+if [ -e "${pkgname}.install" ]; then
+	install=${pkgname}.install
+elif [ -e "pkgbuild.install" ]; then
+	install=pkgbuild.install
+fi
+
+package() {
+	# Verify default folder
+	if [ -d "${srcdir}/${pkgname}/${pkgname}" ]; then
+		InternalDir="${srcdir}/${pkgname}/${pkgname}"
+	else
+		InternalDir="${srcdir}/${pkgname}"
+	fi
+
+	# Copy files
+	if [ -d "${InternalDir}/usr" ]; then
+		cp -r "${InternalDir}/usr" "${pkgdir}/"
+	fi
+
+	if [ -d "${InternalDir}/etc" ]; then
+		cp -r "${InternalDir}/etc" "${pkgdir}/"
+	fi
+
+	if [ -d "${InternalDir}/opt" ]; then
+		cp -r "${InternalDir}/opt" "${pkgdir}/"
+	fi
+}
