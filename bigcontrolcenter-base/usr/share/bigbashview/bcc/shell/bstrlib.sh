@@ -6,7 +6,7 @@
 #  Description: Big Store installing programs for BigLinux
 #
 #  Created: 2023/08/11
-#  Altered: 2024/08/17
+#  Altered: dom 17 nov 2024 23:24:07 -04
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #  All rights reserved.
@@ -35,8 +35,8 @@
 LIB_BSTRLIB_SH=1
 
 APP="${0##*/}"
-_DATE_ALTERED_="17-08-2024 - 02:56"
-_VERSION_="1.0.0-20240817"
+_DATE_ALTERED_="17-11-2024 - 23:24"
+_VERSION_="1.0.0-20241117"
 _BSTRLIB_VERSION_="${_VERSION_} - ${_DATE_ALTERED_}"
 _UPDATED_="${_DATE_ALTERED_}"
 #
@@ -617,13 +617,15 @@ function sh_search_flatpak() {
 			fi
 
 			summary="${pkg_desc}"
+			#pkg_summary_encoded=$(printf '%q' "${summary}")
+			#pkg_summary_encoded=$(url_encode "$summary")
 			pkg_summary_encoded=$(printf '%s' "$summary" | jq -sRr @uri)
 
 			# If all fail, use generic icon
 			if [[ -z "${pkg_icon}" || -n "$(LC_ALL=C grep -i -m1 -e 'type=' -e '<description>' <<<"${pkg_icon}")" ]]; then
 				pkg_name_encoded=$(printf '%s' "${pkg_name}" | jq -sRr @uri)
 				cat >>"$TMP_FOLDER/flatpak_build.html" <<-EOF
-					<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=${pkg_name}'>
+					<a onclick="disableBody();" href='view_flatpak.sh.htm?pkg_summary=TESTE -> ${pkg_summary_encoded}&pkg_name=${pkg_name}'>
 					<div class="col s12 m6 l3" id="${pkg_order}">
 					<div class="showapp">
 					<div id="flatpak_icon">
@@ -1246,7 +1248,9 @@ function sh_search_aur() {
 
 			summary="$description"
 			summary=$(sh_translate_desc "$pkg" "$traducao_online" "$description")
-			pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
+			#pkg_summary_encoded=$(url_encode "$summary")
+			#pkg_summary_encoded=$(printf '%s' "$summary" | jq -s -R -r @uri)
+			pkg_summary_encoded="${summary//[()]/}"
 
 			{
 				echo "<a onclick=\"disableBody();\" href=\"view_aur.sh.htm?pkg_summary=$pkg_summary_encoded&pkg_name=$pkg\">"
@@ -2499,6 +2503,23 @@ function sh_bcfg_setbgcolor() {
 	TIni.Set "$INI_FILE_BIG_CONFIG" 'config' 'lightmode' "$lightmode"
 }
 export -f sh_bcfg_setbgcolor
+
+#######################################################################################################################
+
+url_encode() {
+	local str="$1"
+	local encoded=""
+	local pos c
+	for ((pos = 0; pos < ${#str}; pos++)); do
+		c=${str:$pos:1}
+		case "$c" in
+		[a-zA-Z0-9.~_-]) encoded+="$c" ;;
+		*) encoded+=$(printf '%%%02X' "'$c") ;;
+		esac
+	done
+	echo "$encoded"
+}
+export -f url_encode
 
 #######################################################################################################################
 

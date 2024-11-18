@@ -6,7 +6,7 @@
 #  Description: Control Center to help usage of BigLinux
 #
 #  Created: 2022/02/28
-#  Altered: 2024/08/09
+#  Altered: 2024/08/22
 #
 #  Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
 #                2022-2023, Bruno Gonçalves <www.biglinux.com.br>
@@ -37,7 +37,7 @@
 LIB_BCCLIB_SH=1
 
 APP="${0##*/}"
-_VERSION_="1.0.0-20240809"
+_VERSION_="1.0.0-20240822"
 #BOOTLOG="/tmp/bigcontrolcenter-$USER-$(date +"%d%m%Y").log"
 LOGGER='/dev/tty8'
 
@@ -71,6 +71,28 @@ export light_blue=$(tput setaf 12)
 export light_magenta=$(tput setaf 13)
 export light_cyan=$(tput setaf 14)
 export bright_white=$(tput setaf 15)
+#
+export COL_NC='\e[0m' # No Color
+export COL_LIGHT_GREEN='\e[1;32m'
+export COL_LIGHT_RED='\e[1;31m'
+export TICK="${white}[${COL_LIGHT_GREEN}✓${COL_NC}${white}]"
+export CROSS="${white}[${COL_LIGHT_RED}✗${COL_NC}${white}]"
+export INFO="[i]"
+
+log_info() {
+	printf " %b %s\\n" "${INFO}" "${*}"
+}
+export -f log_info
+
+log_msg() {
+	printf " %b %s\\n" "${TICK}" "${*}"
+}
+export -f log_msg
+
+log_err() {
+	printf " %b %s\\n" "${CROSS}" "${*}"
+}
+export -f log_err
 
 function sh_diahora {
 	DIAHORA=$(date +"%d%m%Y-%T" | sed 's/://g')

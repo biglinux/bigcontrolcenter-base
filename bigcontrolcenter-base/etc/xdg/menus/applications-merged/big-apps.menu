@@ -3,17 +3,17 @@
   "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">
 
 <Menu>
-    <Name>Biglinux</Name>
+    <Name>Big Apps</Name>
     <Menu>
-       <Name>Biglinux</Name>
-        <Directory>xfce-biglinux.directory</Directory>
+       <Name>Big Apps</Name>
+        <Directory>big-apps.directory</Directory>
         <Layout>
             <Merge type="menus" />
             <Merge type="files" />
-            <Menuname>Biglinux</Menuname>
+            <Menuname>Big Apps</Menuname>
         </Layout>
         <Include>
-            <Category>Biglinux</Category>
+            <Category>Big Apps</Category>
         </Include>
     </Menu>
 </Menu>

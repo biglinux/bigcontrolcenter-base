@@ -1,12 +1,13 @@
 /*
   big-search-aur - Command-line AUR helper
+		https://go.dev/play/p/EfimATJvYfP
     go get github.com/go-ini/ini
     Chili GNU/Linux - https://github.com/vcatafesta/chili/go
     Chili GNU/Linux - https://chililinux.com
     Chili GNU/Linux - https://chilios.com.br
 
   Created: 2024/08/13
-  Altered: 2024/08/17 - 02h22
+  Altered: 2024/09/02 - 11h03
 
   Copyright (c) 2024-2024, Vilmar Catafesta <vcatafesta@gmail.com>
   All rights reserved.
@@ -51,7 +52,7 @@ import (
 const (
 	_APP_       = "big-search-aur"
 	_PKGDESC_   = "Command-line AUR helper"
-	_VERSION_   = "0.17.0222-20240817"
+	_VERSION_   = "0.20240902.1103"
 	_COPYRIGHT_ = "Copyright (C) 2024 Vilmar Catafesta, <vcatafesta@gmail.com>"
 )
 
@@ -114,10 +115,11 @@ var limit int = -1 // Usar -1 para indicar que não há limite
 var searchMode string
 var args []string
 var optionToField map[string]string
+var p = fmt.Println
 
 // Inline
-var msgError = func(msg string) { fmt.Println(Red + msg + Reset) }
-var echo = func(args ...interface{}) { fmt.Println(args...) }
+var msgError = func(msg string) { p(Red + msg + Reset) }
+var echo = func(args ...interface{}) { p(args...) }
 var logError = func(args ...interface{}) { log.Println(Red + fmt.Sprint(args...) + Reset) }
 
 func main() {
@@ -155,7 +157,7 @@ func parseArgs() bool {
 			searchMode = "search"
 		case "-Si", "--info":
 			searchMode = "info"
-		case "--json", "--raw", "--pairs":
+		case "--json", "--raw", "--pairs", "--table":
 			outputFormat = args[i]
 		case "--sep":
 			if i+1 < nlenArgs && !strings.HasPrefix(args[i+1], "--") {
@@ -169,16 +171,18 @@ func parseArgs() bool {
 			verbose = true
 		case "--help":
 			printUsage()
+			return false
 		case "--bash":
 			helpBash()
-    case "-V", "--version":
-      fmt.Println(Red + _APP_ + " - " + _PKGDESC_ + Reset)
-      fmt.Println(Cyan + _APP_ + " - v" + _VERSION_ + Reset)
-      fmt.Println("   " + _COPYRIGHT_ + Reset)
-      fmt.Println("")
-      fmt.Println("   Este programa pode ser redistribuído livremente")
-      fmt.Println("   sob os termos da Licença Pública Geral GNU.")
-      os.Exit(0)
+			return false
+		case "-V", "--version":
+			p(Red + _APP_ + " - " + _PKGDESC_ + Reset)
+			p(Cyan + _APP_ + " - v" + _VERSION_ + Reset)
+			p("   " + _COPYRIGHT_ + Reset)
+			p("")
+			p("   Este programa pode ser redistribuído livremente")
+			p("   sob os termos da Licença Pública Geral GNU.")
+			os.Exit(0)
 		case "--limit":
 			if i+1 < nlenArgs {
 				parsedLimit, err := strconv.Atoi(args[i+1])
@@ -199,6 +203,10 @@ func parseArgs() bool {
 				searchTerms = append(searchTerms, args[i])
 			}
 		}
+	}
+	if searchMode == "" && len(searchTerms) == 0 {
+		logError("Erro: requer um argumento de busca válido, -Si ou -Ss")
+		return false
 	}
 	return true
 }
@@ -257,25 +265,26 @@ by_raw_with_mapfile_read() {
 by_pairs_with_read() {
 
 `
-	fmt.Println(Cyan + text + Reset)
+	p(Cyan + text + Reset)
 }
 
 func printUsage() {
-	fmt.Println("Uso:")
-	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
-	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  --Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
-	fmt.Println("    <palavras-chave> são os termos/pacotes de busca")
-	fmt.Println("    <opção> podem ser:")
+	p("Uso:")
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  -Ss, --search", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	fmt.Printf("%s%-20s %s%s%s%s%s\n", blue, "  -Si, --info", green, "<palavra-chave> ... <opção>", cyan, " # pesquisa no repositório AUR por palavras coincidentes", reset)
+	p("    <palavras-chave> são os termos/pacotes de busca")
+	p("    <opção> podem ser:")
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name", reset, "Pesquisa pelo nome do pacote apenas (padrão)", reset)
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-name-desc", reset, "Pesquisa pelo nome e descrição do pacote", reset)
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-maintainer", reset, "Pesquisa pelo mantenedor do pacote", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-dependsr", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedependsr", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdependsr", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdependsr", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Saída em formato JSON (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-depends", reset, "Pesquisa pacotes que são dependências por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-makedepends", reset, "Pesquisa pacotes que são dependências para compilação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-optdepends", reset, "Pesquisa pacotes que são dependências opcionais por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --by-checkdepends", reset, "Pesquisa pacotes que são dependências para verificação por palavras-chaves", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --table", reset, "Usa formato de saída clássico (padrão)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --json", reset, "Usa formato de saída em JSON", reset)
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --raw", reset, "Saída formatada como texto simples com todos os campos (util para usar com mapfile/read do bash)", reset)
-	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --pairs", reset, "Usa o formato de saída texto chave='valor' (util para usar com mapfile/read do bash)", reset)
+	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --pairs", reset, "Usa formato de saída texto chave='valor' (util para usar com mapfile/read do bash)", reset)
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --sep", reset, "Separador dos campos na saída raw (padrão é '=')", reset)
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --limit", reset, "Limite de pacotes encontrados", reset)
 	fmt.Printf("%s%-20s %s%s%s\n", blue, "  --verbose", reset, "Liga modo verboso", reset)
@@ -314,16 +323,17 @@ func runSearchPackages() {
 	}
 
 	if outputFormat == "" {
-		outputFormat = "--json" // Define o formato padrão como json
+		//		outputFormat = "--json" // Define o formato padrão como json
+		outputFormat = "--table" // Define o formato padrão como json
 	}
 
 	if outputFormat == "--json" {
 		jsonData, err := json.MarshalIndent(results, "", "  ")
 		if err != nil {
-			fmt.Println("Erro ao formatar saída JSON:", err)
+			p("Erro ao formatar saída JSON:", err)
 			return
 		}
-		fmt.Println(string(jsonData))
+		p(string(jsonData))
 	} else if outputFormat == "--pairs" {
 		separator = "="
 		for _, pkg := range results {
@@ -331,6 +341,17 @@ func runSearchPackages() {
 				separator, pkg.Name, separator, pkg.Version, separator, pkg.Description,
 				separator, pkg.Maintainer, separator, pkg.NumVotes, separator, pkg.Popularity,
 				separator, pkg.URL)
+		}
+	} else if outputFormat == "--table" {
+		separator = " "
+		for _, pkg := range results {
+			echo(Cyan + "aur/" + Reset +
+				pkg.Name + separator +
+				Green + pkg.Version + Reset + separator +
+				Yellow + "[+" + strconv.Itoa(pkg.NumVotes) + separator +
+				"~" + strconv.FormatFloat(pkg.Popularity, 'f', -1, 64) + "]" + Reset)
+
+			echo("    " + pkg.Description)
 		}
 	} else {
 		for _, pkg := range results {
